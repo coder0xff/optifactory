@@ -4,6 +4,7 @@
 
 import bisect
 import logging
+import math
 import os
 import sys
 import tempfile
@@ -18,7 +19,7 @@ import graphviz
 _LOGGER = logging.getLogger("satisgraphery")
 _LOGGER.setLevel(logging.DEBUG)
 
-FORCE_SINGLE_THREADED = False
+FORCE_SINGLE_THREADED_RENDERING = False
 
 
 def get_system_dpi_scale():
@@ -120,8 +121,6 @@ class GraphvizViewer:
 
         # Zoom and pan variables
         self.zoom_exponent = 0
-        self.pan_x = 0
-        self.pan_y = 0
         self.last_pan_x = 0
         self.last_pan_y = 0
         self.is_panning = False
@@ -144,6 +143,25 @@ class GraphvizViewer:
         self._setup_canvas()
         self._render_callback(self.zoom_exponent, self._render(self.zoom_exponent))
 
+    def grid(self, **kwargs):
+        """Grid the canvas widget"""
+        self.canvas.grid(**kwargs)
+
+    @property
+    def zoom(self):
+        """Get the current zoom factor (e.g., 1.0 for 100%, 2.0 for 200%)"""
+        return self._zoom_exponent_to_zoom_factor(self.zoom_exponent)
+
+    @zoom.setter
+    def zoom(self, value):
+        """Set the zoom factor (e.g., 1.0 for 100%, 2.0 for 200%)"""
+        if value <= 0:
+            raise ValueError("Zoom factor must be positive")
+        # Convert zoom factor to zoom_exponent using log with base 1.1
+        self.zoom_exponent = math.log(value, 1.1)
+        # Update the UI to reflect the new zoom level
+        self._schedule_render(self.zoom_exponent)
+
     def _setup_canvas(self):
         """Setup the canvas widget and its event bindings"""
         # Canvas for displaying the graph
@@ -157,13 +175,9 @@ class GraphvizViewer:
         self.canvas.bind("<Button-4>", self._handle_zoom_event)  # Linux scroll up
         self.canvas.bind("<Button-5>", self._handle_zoom_event)  # Linux scroll down
 
-    def grid(self, **kwargs):
-        """Grid the canvas widget"""
-        self.canvas.grid(**kwargs)
-
     def _schedule_render(self, zoom_exponent):
         """Schedule a render operation"""
-        if FORCE_SINGLE_THREADED:
+        if FORCE_SINGLE_THREADED_RENDERING:
             self._render_callback(
                 zoom_exponent, self.renderer.render_graph(zoom_exponent)
             )
@@ -247,41 +261,64 @@ class GraphvizViewer:
         self.is_panning = True
         self.last_pan_x = event.x
         self.last_pan_y = event.y
+        self.canvas.scan_mark(event.x, event.y)
 
     def _handle_pan(self, event):
         """Pan the canvas while mouse is dragged"""
         if self.is_panning:
-            dx = event.x - self.last_pan_x
-            dy = event.y - self.last_pan_y
-
-            self.pan_x += dx
-            self.pan_y += dy
-
-            self.last_pan_x = event.x
-            self.last_pan_y = event.y
-
-            self._update_ui_image()
+            self.canvas.scan_dragto(event.x, event.y, gain=1)
 
     def _handle_end_pan(self, _event):
         """End panning when mouse button is released"""
         self.is_panning = False
 
+    def inv_canvasx(self, x):
+        origin = self.canvas.canvasx(0)
+        scale = self.canvas.canvasx(1000000) / 1000000
+        # assert -1000 < self.canvas.canvasx(1000000) - 1000000 < 1000, "scale comes out weird so hard code 1, but this is a sanity check"
+        return int(x / scale - origin)
+
+    def inv_canvasy(self, y):
+        origin = self.canvas.canvasy(0)
+        scale = self.canvas.canvasx(1000000) / 1000000
+        # assert -1000 < self.canvas.canvasy(1000000) - 1000000 < 1000, "scale comes out weird so hard code 1, but this is a sanity check"
+        return int(y / scale - origin)
+
+    def _event_to_world_coordinates(self, event_x, event_y, zoom_exponent):
+        """Convert event coordinates to world coordinates"""
+        current_zoom_factor = self._zoom_exponent_to_zoom_factor(zoom_exponent)
+        canvas_x = self.canvas.canvasx(event_x)
+        canvas_y = self.canvas.canvasy(event_y)
+        world_x = canvas_x / current_zoom_factor
+        world_y = canvas_y / current_zoom_factor
+        return world_x, world_y
+
+    def _world_to_event_coordinates(self, world_x, world_y, zoom_exponent):
+        current_zoom_factor = self._zoom_exponent_to_zoom_factor(zoom_exponent)
+        canvas_x = world_x * current_zoom_factor
+        canvas_y = world_y * current_zoom_factor
+        event_x = self.inv_canvasx(canvas_x)
+        event_y = self.inv_canvasy(canvas_y)
+        return event_x, event_y
+
     def _handle_zoom_event(self, event):
         """Zoom in/out with mouse wheel - immediate feedback + background rendering"""
-        # Determine zoom direction
-        if event.delta > 0 or event.num == 4:  # Zoom in
-            zoom_delta = 1
-        else:  # Zoom out
-            zoom_delta = -1
-
         old_zoom_exponent = self.zoom_exponent
-        # Calculate new zoom factor
-        self.zoom_exponent += zoom_delta
+        canvas_x, canvas_y = self.canvas.canvasx(event.x), self.canvas.canvasy(event.y)
 
-        # Limit zoom range
-        self.zoom_exponent = int(max(-7, min(20.0, self.zoom_exponent)))
+        if event.delta > 0 or event.num == 4:  # Zoom in
+            self.zoom_exponent = max(old_zoom_exponent, int(min(20.0, self.zoom_exponent + 1)))
+        else:  # Zoom out
+            self.zoom_exponent = min(old_zoom_exponent, int(max(-7, self.zoom_exponent - 1)))
 
         if old_zoom_exponent != self.zoom_exponent:
+            _LOGGER.debug(f"Zooming from {old_zoom_exponent} to {self.zoom_exponent}")
+            ratio = self._zoom_exponent_to_zoom_factor(self.zoom_exponent) / self._zoom_exponent_to_zoom_factor(old_zoom_exponent)
+            delta_x = int(canvas_x * (ratio - 1) / 9)  # TODO: why is this 9?
+            delta_y = int(canvas_y * (ratio - 1) / 9)
+            _LOGGER.debug(f"Delta: {delta_x}, {delta_y}")
+            self.canvas.scan_mark(self.inv_canvasx(delta_x), self.inv_canvasy(delta_y))
+            self.canvas.scan_dragto(self.inv_canvasx(0), self.inv_canvasy(0))
             self._update_ui_image()
 
     def _schedule_update_ui_image(self):
@@ -317,7 +354,7 @@ class GraphvizViewer:
                 _LOGGER.debug("PhotoImage created and cached")
                 return self.photo_cache[zoom_exponent]
 
-        if FORCE_SINGLE_THREADED:
+        if FORCE_SINGLE_THREADED_RENDERING:
             _LOGGER.debug(
                 f"Cache miss for PhotoImage {zoom_factor:.2f}x, forcing single threaded render"
             )
@@ -384,15 +421,21 @@ class GraphvizViewer:
         _LOGGER.debug("Updating UI image")
         self.canvas.delete("all")
         self.canvas.create_image(
-            self.pan_x,
-            self.pan_y,
+            0,
+            0,
             anchor=tk.NW,
             image=self._get_photo_image(self.zoom_exponent),
         )
-        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        
+        # Update scroll region to fit the image
+        self._update_scroll_region()
         _LOGGER.info(
             f"Zoom: {self._zoom_exponent_to_zoom_factor(self.zoom_exponent):.1f}x"
         )
+
+    def _update_scroll_region(self):
+        """Update scroll region to fit the image"""
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
 
 
 class MainWindow(tk.Tk):
