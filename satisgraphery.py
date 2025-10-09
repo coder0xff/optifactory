@@ -10,7 +10,7 @@ import sys
 import graphviz
 
 from graphviz_viewer import GraphvizViewer
-
+from path import split_merge_path
 
 _LOGGER = logging.getLogger("satisgraphery")
 _LOGGER.setLevel(logging.DEBUG)
@@ -40,37 +40,7 @@ class StatusBarLogHandler(logging.Handler):
 
 
 def build_graph():
-    """Build the graph structure programmatically with optional DPI setting"""
-    # Create a new Digraph
-    dot = graphviz.Digraph(comment="Process Flow")
-
-    # Set graph attributes
-    dot.attr(rankdir="LR")
-    dot.attr("node", shape="box", style="filled", fillcolor="lightblue")
-    dot.attr("edge", color="gray")
-
-    # Add nodes
-    dot.node("A", "Start", fillcolor="lightgreen")
-    dot.node("B", "Process 1", fillcolor="lightyellow")
-    dot.node("C", "Decision", fillcolor="orange", shape="diamond")
-    dot.node("D", "Process 2", fillcolor="lightyellow")
-    dot.node("E", "End", fillcolor="lightcoral")
-
-    # Add edges
-    dot.edge("A", "B", label="begin")
-    dot.edge("B", "C", label="check")
-    dot.edge("C", "D", label="yes", color="green")
-    dot.edge("C", "E", label="no", color="red")
-    dot.edge("D", "E", label="complete")
-
-    # Add subgraph
-    with dot.subgraph(name="cluster_0") as c:
-        c.attr(label="Main Process")
-        c.node("B")
-        c.node("C")
-        c.node("D")
-
-    return dot
+    return split_merge_path([480, 480, 480], [45]*32)
 
 
 class MainWindow(tk.Tk):

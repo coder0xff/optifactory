@@ -1,0 +1,289 @@
+{
+  "Biomass Burner": [
+    {
+      "in": {
+        "Leaves": 120.0
+      },
+      "out": {
+        "Wm": 30000000.0
+      }
+    },
+    {
+      "in": {
+        "Wood": 18.0
+      },
+      "out": {
+        "Wm": 30000000.0
+      }
+    },
+    {
+      "in": {
+        "Solid Biofuel": 4.0
+      },
+      "out": {
+        "Wm": 30000000.0
+      }
+    }
+  ],
+  "Coal-Powered Generator": [
+    {
+      "in": {
+        "Coal": 15.0
+      },
+      "out": {
+        "Wm": 75000000.0
+      }
+    }
+  ],
+  "Smelter": [
+    {
+      "in": {
+        "Iron Ore": 30.0
+      },
+      "out": {
+        "Iron Ingot": 30.0
+      }
+    },
+    {
+      "in": {
+        "Copper Ore": 30.0
+      },
+      "out": {
+        "Copper Ingot": 30.0
+      }
+    },
+    {
+      "in": {
+        "Caterium Ore": 45.0
+      },
+      "out": {
+        "Caterium Ingot": 15.0
+      }
+    }
+  ],
+  "Constructor": [
+    {
+      "in": {
+        "Iron Ingot": 30.0
+      },
+      "out": {
+        "Iron Plate": 20.0
+      }
+    },
+    {
+      "in": {
+        "Iron Ingot": 15.0
+      },
+      "out": {
+        "Iron Rod": 15.0
+      }
+    },
+    {
+      "in": {
+        "Iron Rod": 10.0
+      },
+      "out": {
+        "Screws": 40.0
+      }
+    },
+    {
+      "in": {
+        "Copper Ingot": 15.0
+      },
+      "out": {
+        "Wire": 30.0
+      }
+    },
+    {
+      "in": {
+        "Copper Ingot": 20.0
+      },
+      "out": {
+        "Copper Sheet": 10.0
+      }
+    },
+    {
+      "in": {
+        "Wire": 60.0
+      },
+      "out": {
+        "Cable": 30.0
+      }
+    },
+    {
+      "in": {
+        "Limestone": 40.0
+      },
+      "out": {
+        "Concrete": 15.0
+      }
+    },
+    {
+      "in": {
+        "Steel Ingot": 60.0
+      },
+      "out": {
+        "Steel Beam": 15.0
+      }
+    },
+    {
+      "in": {
+        "Steel Ingot": 30.0
+      },
+      "out": {
+        "Steel Pipe": 20.0
+      }
+    },
+    {
+      "in": {
+        "Leaves": 120.0
+      },
+      "out": {
+        "Biomass": 60.0
+      }
+    },
+    {
+      "in": {
+        "Wood": 60.0
+      },
+      "out": {
+        "Biomass": 300.0
+      }
+    },
+    {
+      "in": {
+        "Mycelia": 15.0
+      },
+      "out": {
+        "Biomass": 150.0
+      }
+    },
+    {
+      "in": {
+        "Biomass": 120.0
+      },
+      "out": {
+        "Solid Biofuel": 60.0        
+      }
+    },
+    {
+      "in": {
+        "Raw Quartz": 37.5
+      },
+      "out": {
+        "Quartz Crystal": 22.5
+      }
+    },
+    {
+      "in": {
+        "SAM": 120.0
+      },
+      "out": {
+        "Reanimated SAM": 30.0
+      }
+    }
+  ],
+  "Assembler": [
+    {
+      "in": {
+        "Iron Plate": 30.0,
+        "Screws": 60.0
+      },
+      "out": {
+        "Reinforced Iron Plate": 5.0
+      }
+    },
+    {
+      "in": {
+        "Iron Rod": 20.0,
+        "Screws": 100.0
+      },
+      "out": {
+        "Rotor": 4.0
+      }
+    },
+    {
+      "in": {
+        "Reinforced Iron Plate": 3.0,
+        "Iron Rod": 12.0
+      },
+      "out": {
+        "Modular Frame": 2.0
+      }
+    },
+    {
+      "in": {
+        "Reinforced Iron Plate": 2.0,
+        "Rotor": 2.0
+      },
+      "out": {
+        "Smart Plating": 2.0
+      }
+    },
+    {
+      "in": {
+        "Steel Beam": 18.0,
+        "Concrete": 36.0
+      },
+      "out": {
+        "Encased Industrial Beam": 6.0
+      }
+    },
+    {
+      "in": {
+        "Modular Frame": 2.5,
+        "Steel Beam": 30.0
+      },
+      "out": {
+        "Versatile Framework": 5.0
+      }
+    },
+    {
+      "in": {
+        "Steel Pipe": 15.0,
+        "Wire": 8.0
+      },
+      "out": {
+        "Stator": 5.0
+      }
+    },
+    {
+      "in": {
+        "Stator": 2.5,
+        "Cable": 50.0
+      },
+      "out": {
+        "Automated Wiring": 2.5
+      }
+    },
+    {
+      "in": {
+        "Rotor": 10.0,
+        "Stator": 10.0
+      },
+      "out": {
+        "Motor": 5.0
+      }
+    },
+    {
+      "in": {
+        "Mycelia": 15.0,
+        "Biomass": 75.0
+      },
+      "out": {
+        "Fabric": 15.0
+      }
+    }
+  ],
+  "Founry": [
+    {
+      "in": {
+        "Iron Ore": 45.0,
+        "Coal": 45.0
+      },
+      "out": {
+        "Steel Ingot": 45.0
+      }
+    }
+  ]
+}
