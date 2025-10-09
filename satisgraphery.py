@@ -7,10 +7,8 @@ import tkinter as tk
 from tkinter import ttk
 import sys
 
-import graphviz
-
 from graphviz_viewer import GraphvizViewer
-from path import split_merge_path
+from factory import design_factory, Purity
 
 _LOGGER = logging.getLogger("satisgraphery")
 _LOGGER.setLevel(logging.DEBUG)
@@ -40,7 +38,15 @@ class StatusBarLogHandler(logging.Handler):
 
 
 def build_graph():
-    return split_merge_path([480, 480, 480], [45]*32)
+    """Build a demo factory graph"""
+    # Demo: Create a concrete factory with automatic raw material detection
+    # Just specify we want 480 concrete - the system figures out we need limestone
+    factory = design_factory(
+        outputs={"Concrete": 480},
+        inputs=[],  # No inputs specified - will auto-generate required materials
+        mines=[]
+    )
+    return factory.network
 
 
 class MainWindow(tk.Tk):

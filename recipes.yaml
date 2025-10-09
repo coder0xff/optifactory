@@ -112,7 +112,7 @@
     },
     {
       "in": {
-        "Limestone": 40.0
+        "Limestone": 45.0
       },
       "out": {
         "Concrete": 15.0

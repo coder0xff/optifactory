@@ -9,7 +9,7 @@ print("=" * 60)
 
 factory1 = design_factory(
     outputs={"Iron Plate": 100},
-    inputs={"Iron Ore": 500},
+    inputs=[("Iron Ore", 500)],
     mines=[]
 )
 
@@ -25,7 +25,7 @@ print("=" * 60)
 
 factory2 = design_factory(
     outputs={"Iron Plate": 100},
-    inputs={},
+    inputs=[],
     mines=[("Iron Ore", Purity.PURE)]
 )
 

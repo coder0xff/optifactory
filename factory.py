@@ -53,17 +53,17 @@ def get_recipe_for(output: str) -> tuple[float, Recipe]:
 @dataclass
 class Factory:
     network: graphviz.Digraph
-    inputs: dict[str, float]
+    inputs: list[tuple[str, float]]
     outputs: dict[str, float]
     mines: list[tuple[str, Purity]]
 
 
-def design_factory(outputs: dict[str, float], inputs: dict[str, float], mines: list[tuple[str, Purity]]) -> Factory:
+def design_factory(outputs: dict[str, float], inputs: list[tuple[str, float]], mines: list[tuple[str, Purity]]) -> Factory:
     """Design a complete factory network with machines and balancers.
     
     Args:
         outputs: desired output materials and rates (e.g., {"Iron Plate": 100})
-        inputs: available input materials and rates (e.g., {"Iron Ore": 200})
+        inputs: list of (material, flow_rate) tuples for input conveyors (e.g., [("Iron Ore", 200), ("Iron Ore", 200)])
         mines: list of (resource_name, purity) tuples for mining nodes
         
     Returns:
@@ -71,7 +71,9 @@ def design_factory(outputs: dict[str, float], inputs: dict[str, float], mines: l
     """
     # Phase 1: Determine required machines
     balance = defaultdict(float)
-    balance.update(inputs)
+    # Add all inputs to balance
+    for material, flow_rate in inputs:
+        balance[material] += flow_rate
     
     # Add mines to balance
     for resource, purity in mines:
@@ -87,6 +89,9 @@ def design_factory(outputs: dict[str, float], inputs: dict[str, float], mines: l
     # Track actual recipes used: {(machine_type, recipe_idx): Recipe}
     recipes_used = {}
 
+    # Track required raw materials that have no recipe
+    required_raw_materials = defaultdict(float)
+    
     while any(amount < 0 for amount in balance.values()):
         output_item, deficit = min(balance.items(), key=lambda x: x[1])
         
@@ -94,7 +99,11 @@ def design_factory(outputs: dict[str, float], inputs: dict[str, float], mines: l
         recipes_available = get_recipes_for(output_item)
         if not recipes_available:
             # No recipe - this is a raw material that needs to be supplied
-            raise ValueError(f"No recipe found for '{output_item}'. This material must be provided as input or from mines.")
+            # Add it to required raw materials and update balance
+            required_amount = -deficit
+            required_raw_materials[output_item] += required_amount
+            balance[output_item] += required_amount
+            continue
         
         recipe_amount, recipe = get_recipe_for(output_item)
         machine_count = int((-deficit + recipe_amount - 1) // recipe_amount)
@@ -124,12 +133,24 @@ def design_factory(outputs: dict[str, float], inputs: dict[str, float], mines: l
     # Each source/sink is (node_id, flow_rate)
     material_flows = defaultdict(lambda: {"sources": [], "sinks": []})
     
-    # Add input nodes
-    for input_item, flow_rate in inputs.items():
-        node_id = f"Input_{input_item.replace(' ', '_')}"
+    # Add user-provided input nodes (each conveyor gets its own node)
+    for idx, (input_item, flow_rate) in enumerate(inputs):
+        node_id = f"Input_{input_item.replace(' ', '_')}_{idx}"
         dot.node(node_id, f"{input_item}\n{flow_rate}/min",
                 shape='box', style='filled', fillcolor='lightgreen')
         material_flows[input_item]["sources"].append((node_id, flow_rate))
+    
+    # Add auto-generated input nodes for required raw materials
+    for material, required_amount in required_raw_materials.items():
+        # Check if this material was already provided in inputs
+        provided_amount = sum(flow for item, flow in inputs if item == material)
+        if provided_amount < required_amount:
+            # Need additional input
+            remaining = required_amount - provided_amount
+            node_id = f"Input_{material.replace(' ', '_')}_auto"
+            dot.node(node_id, f"{material}\n{remaining}/min\n(auto)",
+                    shape='box', style='filled', fillcolor='lightyellow')
+            material_flows[material]["sources"].append((node_id, remaining))
     
     # Add mine nodes
     for idx, (resource, purity) in enumerate(mines):

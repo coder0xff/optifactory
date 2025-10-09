@@ -16,7 +16,7 @@ def test_design_factory_with_input():
     """Test factory design with raw material input"""
     factory = design_factory(
         outputs={"Iron Plate": 100},
-        inputs={"Iron Ore": 500},
+        inputs=[("Iron Ore", 500)],
         mines=[]
     )
     
@@ -54,7 +54,7 @@ def test_balancers_included():
     # Create scenario that needs balancing
     factory = design_factory(
         outputs={"Iron Plate": 100},
-        inputs={"Iron Ore": 500},
+        inputs=[("Iron Ore", 500)],
         mines=[]
     )
     
@@ -75,7 +75,7 @@ def test_material_flow_labels():
     """Test that edges have material and flow labels"""
     factory = design_factory(
         outputs={"Iron Plate": 100},
-        inputs={"Iron Ore": 500},
+        inputs=[("Iron Ore", 500)],
         mines=[]
     )
     
@@ -89,23 +89,25 @@ def test_material_flow_labels():
 
 
 def test_no_recipe_error():
-    """Test that missing recipes raise appropriate error"""
-    try:
-        factory = design_factory(
-            outputs={"Iron Plate": 100},
-            inputs={},  # No iron ore provided
-            mines=[]    # No mines
-        )
-        assert False, "Should raise error for missing raw material"
-    except ValueError as e:
-        assert "No recipe found" in str(e) or "Iron Ore" in str(e)
-        print("PASS: no recipe error handling")
+    """Test that missing raw materials are auto-generated instead of erroring"""
+    # Old behavior: would raise an error
+    # New behavior: auto-generates required raw materials
+    factory = design_factory(
+        outputs={"Iron Plate": 100},
+        inputs=[],  # No iron ore provided
+        mines=[]    # No mines
+    )
+    # Should succeed and auto-generate Iron Ore input
+    assert factory.network is not None
+    source = factory.network.source
+    assert "Iron Ore" in source
+    print("PASS: auto-generates missing raw materials")
 
 
 def test_factory_dataclass():
     """Test that Factory dataclass is properly populated"""
     outputs = {"Iron Plate": 100}
-    inputs = {"Iron Ore": 500}
+    inputs = [("Iron Ore", 500)]
     mines = []
     
     factory = design_factory(outputs, inputs, mines)
@@ -116,6 +118,28 @@ def test_factory_dataclass():
     assert factory.network is not None
     
     print("PASS: Factory dataclass")
+
+
+def test_auto_raw_materials():
+    """Test automatic raw material detection"""
+    # Request concrete without specifying limestone input
+    factory = design_factory(
+        outputs={"Concrete": 480},
+        inputs=[],  # No inputs - should auto-detect limestone need
+        mines=[]
+    )
+    
+    assert factory.network is not None
+    source = factory.network.source
+    
+    # Should have auto-generated limestone input
+    assert "Limestone" in source
+    assert "auto" in source.lower()
+    
+    # Should have constructor machines
+    assert "Constructor" in source
+    
+    print("PASS: Auto raw materials detection")
 
 
 def run_all_tests():
@@ -129,6 +153,7 @@ def run_all_tests():
     test_material_flow_labels()
     test_no_recipe_error()
     test_factory_dataclass()
+    test_auto_raw_materials()
     
     print("\n" + "="*50)
     print("All factory tests passed!")
