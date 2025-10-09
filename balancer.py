@@ -1,18 +1,29 @@
 from graphviz import Digraph
 from collections import defaultdict
 
-def split_merge_path(i: list[int], o: list[int]) -> Digraph:
-    """Find the minimum number of 2 splits, 3 splits, 2 merges, and 3 merges to supply o outputs from i inputs."""
+def design_balancer(inputs: list[int], outputs: list[int]) -> Digraph:
+    """Design an optimal balancer network using splitters and mergers.
+    
+    Args:
+        inputs: list of input flow rates
+        outputs: list of output flow rates
+        
+    Returns:
+        Digraph representing the optimal balancer network
+        
+    Raises:
+        ValueError: if total input flow doesn't equal total output flow
+    """
     # Check feasibility
-    if sum(i) != sum(o):
-        raise ValueError(f"Total input flow {sum(i)} must equal total output flow {sum(o)}")
+    if sum(inputs) != sum(outputs):
+        raise ValueError(f"Total input flow {sum(inputs)} must equal total output flow {sum(outputs)}")
 
     # Phase 1: Flow assignment - greedily assign inputs to outputs
     flow_matrix = defaultdict(lambda: defaultdict(int))  # flow_matrix[input_idx][output_idx] = flow_amount
 
-    available_inputs = [(idx, flow) for idx, flow in enumerate(i)]
+    available_inputs = [(idx, flow) for idx, flow in enumerate(inputs)]
 
-    for out_idx, required_flow in enumerate(o):
+    for out_idx, required_flow in enumerate(outputs):
         remaining = required_flow
 
         while remaining > 0 and available_inputs:
@@ -31,12 +42,12 @@ def split_merge_path(i: list[int], o: list[int]) -> Digraph:
     dot.attr(rankdir='LR')
 
     # Add input nodes without flow labels
-    for idx in range(len(i)):
+    for idx in range(len(inputs)):
         dot.node(f"I{idx}", f"Input {idx}",
                 shape='box', style='filled', fillcolor='lightgreen')
 
     # Add output nodes without flow labels
-    for idx in range(len(o)):
+    for idx in range(len(outputs)):
         dot.node(f"O{idx}", f"Output {idx}",
                 shape='box', style='filled', fillcolor='lightblue')
 
@@ -194,7 +205,7 @@ def split_merge_path(i: list[int], o: list[int]) -> Digraph:
         input_outputs[in_idx] = build_split_tree(f"I{in_idx}", out_flows)
 
     # Build merge trees for each output and create final edges
-    for out_idx in range(len(o)):
+    for out_idx in range(len(outputs)):
         # Collect all sources for this output (from split trees)
         sources = {}
         for in_idx, out_flows in flow_matrix.items():
@@ -214,3 +225,4 @@ def split_merge_path(i: list[int], o: list[int]) -> Digraph:
             dot.edge(merged_node, f"O{out_idx}", label=str(final_flow))
 
     return dot
+

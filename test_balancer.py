@@ -1,6 +1,6 @@
-"""Tests for path.py split_merge_path function"""
+"""Tests for balancer.py design_balancer function"""
 
-from path import split_merge_path
+from balancer import design_balancer
 import re
 import math
 
@@ -14,7 +14,7 @@ def count_devices(graph_source):
 
 def test_basic_split():
     """Test basic 3-way split"""
-    g = split_merge_path([100], [40, 30, 30])
+    g = design_balancer([100], [40, 30, 30])
     s, m = count_devices(g.source)
     assert s == 1 and m == 0, f"Expected 1S + 0M, got {s}S + {m}M"
     print("PASS: Basic split test")
@@ -22,7 +22,7 @@ def test_basic_split():
 
 def test_basic_merge():
     """Test basic 3-way merge"""
-    g = split_merge_path([50, 30, 20], [100])
+    g = design_balancer([50, 30, 20], [100])
     s, m = count_devices(g.source)
     assert s == 0 and m == 1, f"Expected 0S + 1M, got {s}S + {m}M"
     print("PASS: Basic merge test")
@@ -30,7 +30,7 @@ def test_basic_merge():
 
 def test_split_and_merge():
     """Test combined split and merge"""
-    g = split_merge_path([120, 60], [90, 90])
+    g = design_balancer([120, 60], [90, 90])
     s, m = count_devices(g.source)
     assert s == 1 and m == 1, f"Expected 1S + 1M, got {s}S + {m}M"
     print("PASS: Split and merge test")
@@ -38,7 +38,7 @@ def test_split_and_merge():
 
 def test_perfect_3way_split():
     """Test perfect 3-way split with equal outputs"""
-    g = split_merge_path([90], [30, 30, 30])
+    g = design_balancer([90], [30, 30, 30])
     s, m = count_devices(g.source)
     assert s == 1 and m == 0, f"Expected 1S + 0M, got {s}S + {m}M"
     
@@ -51,7 +51,7 @@ def test_perfect_3way_split():
 
 def test_large_example():
     """Test the large example: [480]*3 -> [45]*32"""
-    g = split_merge_path([480]*3, [45]*32)
+    g = design_balancer([480]*3, [45]*32)
     s, m = count_devices(g.source)
     
     # With 3 inputs going to 32 outputs, each input feeds ~10-11 outputs
@@ -67,7 +67,7 @@ def test_optimal_split_counts():
     print("\nTesting optimal split counts:")
     
     for n in range(2, 12):
-        g = split_merge_path([n*30], [30]*n)
+        g = design_balancer([n*30], [30]*n)
         s, m = count_devices(g.source)
         optimal = math.ceil((n-1)/2)
         
@@ -83,7 +83,7 @@ def test_optimal_merge_counts():
     print("\nTesting optimal merge counts:")
     
     for n in range(2, 12):
-        g = split_merge_path([30]*n, [n*30])
+        g = design_balancer([30]*n, [n*30])
         s, m = count_devices(g.source)
         optimal = math.ceil((n-1)/2)
         
@@ -97,7 +97,7 @@ def test_optimal_merge_counts():
 def test_feasibility_check():
     """Test that mismatched flows are rejected"""
     try:
-        split_merge_path([100], [90])
+        design_balancer([100], [90])
         assert False, "Should have raised ValueError for mismatched flows"
     except ValueError as e:
         assert "must equal" in str(e)
@@ -106,7 +106,7 @@ def test_feasibility_check():
 
 def test_direct_connection():
     """Test direct connection when possible"""
-    g = split_merge_path([100], [100])
+    g = design_balancer([100], [100])
     s, m = count_devices(g.source)
     assert s == 0 and m == 0, f"Expected 0S + 0M for direct connection, got {s}S + {m}M"
     assert 'I0 -> O0' in g.source
@@ -115,7 +115,7 @@ def test_direct_connection():
 
 def test_graph_structure():
     """Test graph has proper structure with colored nodes"""
-    g = split_merge_path([120, 60], [90, 90])
+    g = design_balancer([120, 60], [90, 90])
     source = g.source
     
     # Check for input nodes (green)
@@ -139,7 +139,7 @@ def test_graph_structure():
 def test_complex_routing():
     """Test a complex routing scenario"""
     # 2 inputs to 5 outputs requires splits and merges
-    g = split_merge_path([150, 150], [60, 60, 60, 60, 60])
+    g = design_balancer([150, 150], [60, 60, 60, 60, 60])
     s, m = count_devices(g.source)
     
     # Each input feeds 2.5 outputs
@@ -153,7 +153,7 @@ def test_complex_routing():
 
 def run_all_tests():
     """Run all tests"""
-    print("Running split_merge_path tests...\n")
+    print("Running design_balancer tests...\n")
     
     test_basic_split()
     test_basic_merge()
