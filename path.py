@@ -30,64 +30,114 @@ def split_merge_path(i: list[int], o: list[int]) -> Digraph:
     dot = Digraph()
     dot.attr(rankdir='LR')
 
-    # Add input nodes
-    for idx, flow in enumerate(i):
-        dot.node(f"I{idx}", f"Input {idx}\n{flow}",
+    # Add input nodes without flow labels
+    for idx in range(len(i)):
+        dot.node(f"I{idx}", f"Input {idx}",
                 shape='box', style='filled', fillcolor='lightgreen')
 
-    # Add output nodes
-    for idx, flow in enumerate(o):
-        dot.node(f"O{idx}", f"Output {idx}\n{flow}",
+    # Add output nodes without flow labels
+    for idx in range(len(o)):
+        dot.node(f"O{idx}", f"Output {idx}",
                 shape='box', style='filled', fillcolor='lightblue')
 
     device_counter = [0]  # Use list for mutability in nested function
 
-    def build_split_tree(source_id: str, flows_dict: dict[str, int]) -> dict[str, list[str]]:
+    def build_split_tree(source_id: str, flows_dict: dict[int, int]) -> dict[int, tuple[str, int]]:
         """Build optimal split tree for one source feeding multiple destinations.
+        Build bottom-up: each output starts as a root, group 3 at a time until one root remains.
         flows_dict: {dest_id: flow_amount}
-        Returns: {dest_id: node_id} mapping destinations to their source nodes
+        Returns: {dest_id: (node_id, flow)} mapping destinations to their immediate source nodes
         """
         if len(flows_dict) == 1:
-            return {list(flows_dict.keys())[0]: source_id}
+            dest_id = list(flows_dict.keys())[0]
+            flow = flows_dict[dest_id]
+            return {dest_id: (source_id, flow)}
 
         # Sort destinations for consistent output
         destinations = sorted(flows_dict.items(), key=lambda x: (x[1], x[0]), reverse=True)
-        n_outputs = len(destinations)
-
-        # Build optimal tree using greedy leaf expansion
-        # Start with source as single leaf
-        leaves: list[str] = [source_id]  # nodes that haven't been assigned to destinations yet
-
-        # Expand leaves until we have enough for all destinations
-        while len(leaves) < n_outputs:
-            # Take the first leaf and split it
-            node_to_split = leaves.pop(0)
-            remaining_needed = n_outputs - len(leaves)
-
-            if remaining_needed >= 2:
-                # Use 3-way split (creates 3 outputs from 1 input, net +2)
+        
+        # Build tree bottom-up: start with leaves (conceptual outputs)
+        # Each root is (node_id, {dest_id: flow, ...})
+        # We use placeholder IDs for leaves, then replace with actual splitters
+        roots: list[tuple[str, dict[int, int]]] = []
+        for dest_id, flow in destinations:
+            roots.append((f"_leaf_{dest_id}", {dest_id: flow}))
+        
+        # Track which actual node feeds each destination
+        dest_sources: dict[int, tuple[str, int]] = {}
+        
+        # Group roots together until only one remains
+        while len(roots) > 1:
+            remaining = len(roots)
+            
+            if remaining >= 3:
+                # Group first 3 roots under a new splitter
+                group = roots[:3]
+                roots = roots[3:]
+                
                 splitter_id = f"S{device_counter[0]}"
                 device_counter[0] += 1
                 dot.node(splitter_id, "",
                         shape='diamond', style='filled', fillcolor='lightyellow')
-                dot.edge(node_to_split, splitter_id)
-                # Add 3 new leaves
-                leaves.extend([splitter_id, splitter_id, splitter_id])
+                
+                # Create edges from splitter to children and track destinations
+                merged_dests = {}
+                for child_id, child_dests in group:
+                    child_flow = sum(child_dests.values())
+                    
+                    # If child is a leaf, we're connecting splitter -> (eventual output)
+                    # If child is another splitter, create edge splitter -> splitter
+                    if child_id.startswith("_leaf_"):
+                        # This is a direct connection to a destination
+                        # Record that this splitter feeds this destination
+                        for dest_id in child_dests.keys():
+                            dest_sources[dest_id] = (splitter_id, child_dests[dest_id])
+                    else:
+                        # Edge to another splitter
+                        dot.edge(splitter_id, child_id, label=str(child_flow))
+                    
+                    merged_dests.update(child_dests)
+                
+                # Add new root
+                roots.append((splitter_id, merged_dests))
             else:
-                # remaining_needed == 1, use 2-way split
+                # remaining == 2, use 2-way split
+                group = roots[:2]
+                roots = roots[2:]
+                
                 splitter_id = f"S{device_counter[0]}"
                 device_counter[0] += 1
                 dot.node(splitter_id, "",
                         shape='diamond', style='filled', fillcolor='lightyellow')
-                dot.edge(node_to_split, splitter_id)
-                # Add 2 new leaves
-                leaves.extend([splitter_id, splitter_id])
-
-        # Now assign the n_outputs leaves to destinations
-        result: dict[str, list[str]] = {}
-        for i, (dest_id, _) in enumerate(destinations):
-            result[dest_id] = leaves[i]
-
+                
+                merged_dests = {}
+                for child_id, child_dests in group:
+                    child_flow = sum(child_dests.values())
+                    
+                    if child_id.startswith("_leaf_"):
+                        for dest_id in child_dests.keys():
+                            dest_sources[dest_id] = (splitter_id, child_dests[dest_id])
+                    else:
+                        dot.edge(splitter_id, child_id, label=str(child_flow))
+                    
+                    merged_dests.update(child_dests)
+                
+                roots.append((splitter_id, merged_dests))
+        
+        # Now we have one root - connect it to the source
+        root_id, root_dests = roots[0]
+        root_flow = sum(root_dests.values())
+        dot.edge(source_id, root_id, label=str(root_flow))
+        
+        # Return mapping - for each destination, record which node feeds it
+        result: dict[int, tuple[str, int]] = {}
+        for dest_id, flow in flows_dict.items():
+            if dest_id in dest_sources:
+                result[dest_id] = dest_sources[dest_id]
+            else:
+                # Single root case - the root itself feeds this destination
+                result[dest_id] = (root_id, flow)
+        
         return result
 
     def build_merge_tree(flows_dict, _dest_id):
@@ -119,8 +169,8 @@ def split_merge_path(i: list[int], o: list[int]) -> Digraph:
                 merge_flow = sum(flow for _, flow in to_merge)
                 dot.node(merger_id, "",
                         shape='diamond', style='filled', fillcolor='lightcoral')
-                for source_id, _ in to_merge:
-                    dot.edge(source_id, merger_id)
+                for source_id, flow in to_merge:
+                    dot.edge(source_id, merger_id, label=str(flow))
                 # Add merged stream back
                 streams.append((merger_id, merge_flow))
             else:
@@ -132,28 +182,35 @@ def split_merge_path(i: list[int], o: list[int]) -> Digraph:
                 merge_flow = sum(flow for _, flow in to_merge)
                 dot.node(merger_id, "",
                         shape='diamond', style='filled', fillcolor='lightcoral')
-                for source_id, _ in to_merge:
-                    dot.edge(source_id, merger_id)
+                for source_id, flow in to_merge:
+                    dot.edge(source_id, merger_id, label=str(flow))
                 streams.append((merger_id, merge_flow))
 
         return streams[0][0]
 
     # Build split trees for each input
-    input_outputs = {}  # {input_idx: {output_idx: source_node_id}}
+    input_outputs = {}  # {input_idx: {output_idx: (source_node_id, flow)}}
     for in_idx, out_flows in flow_matrix.items():
         input_outputs[in_idx] = build_split_tree(f"I{in_idx}", out_flows)
 
-    # Build merge trees for each output
+    # Build merge trees for each output and create final edges
     for out_idx in range(len(o)):
-        # Collect all sources for this output
+        # Collect all sources for this output (from split trees)
         sources = {}
         for in_idx, out_flows in flow_matrix.items():
             if out_idx in out_flows:
-                source_node = input_outputs[in_idx][out_idx]
-                sources[source_node] = out_flows[out_idx]
+                source_node, flow = input_outputs[in_idx][out_idx]
+                sources[source_node] = flow
 
-        if sources:
+        if len(sources) == 1:
+            # Direct connection - no merge needed
+            source_node = list(sources.keys())[0]
+            flow = sources[source_node]
+            dot.edge(source_node, f"O{out_idx}", label=str(flow))
+        elif len(sources) > 1:
+            # Need to merge
             merged_node = build_merge_tree(sources, f"O{out_idx}")
-            dot.edge(merged_node, f"O{out_idx}")
+            final_flow = sum(sources.values())
+            dot.edge(merged_node, f"O{out_idx}", label=str(final_flow))
 
     return dot
