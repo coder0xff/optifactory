@@ -157,33 +157,36 @@ def design_factory(outputs: dict[str, float], inputs: list[tuple[str, float]], m
     # Each source/sink is (node_id, flow_rate)
     material_flows = defaultdict(lambda: {"sources": [], "sinks": []})
     
-    # Add user-provided input nodes (each conveyor gets its own node)
-    for idx, (input_item, flow_rate) in enumerate(inputs):
-        node_id = f"Input_{input_item.replace(' ', '_')}_{idx}"
-        dot.node(node_id, f"{input_item}\n{flow_rate}/min",
-                shape='box', style='filled', fillcolor='orange')
-        material_flows[input_item]["sources"].append((node_id, flow_rate))
-    
-    # Add auto-generated input nodes for required raw materials
-    for material, required_amount in required_raw_materials.items():
-        # Check if this material was already provided in inputs
-        provided_amount = sum(flow for item, flow in inputs if item == material)
-        if provided_amount < required_amount:
-            # Need additional input
-            remaining = required_amount - provided_amount
-            node_id = f"Input_{material.replace(' ', '_')}_auto"
-            dot.node(node_id, f"{material}\n{remaining}/min\n(auto)",
+    # Add input nodes in a subgraph to group them together
+    with dot.subgraph(name='inputs') as inputs_group:
+        inputs_group.attr(rank='same')
+        # Add user-provided input nodes (each conveyor gets its own node)
+        for idx, (input_item, flow_rate) in enumerate(inputs):
+            node_id = f"Input_{input_item.replace(' ', '_')}_{idx}"
+            inputs_group.node(node_id, f"{input_item}\n{flow_rate}/min",
                     shape='box', style='filled', fillcolor='orange')
-            material_flows[material]["sources"].append((node_id, remaining))
-    
-    # Add mine nodes
-    for idx, (resource, purity) in enumerate(mines):
-        node_id = f"Mine_{idx}"
-        # Assume Mk.3 miner for now
-        flow_rate = _MINERS[2][purity]
-        dot.node(node_id, f"Miner\n{resource}\n{flow_rate}/min",
-                shape='box', style='filled', fillcolor='brown')
-        material_flows[resource]["sources"].append((node_id, flow_rate))
+            material_flows[input_item]["sources"].append((node_id, flow_rate))
+        
+        # Add auto-generated input nodes for required raw materials
+        for material, required_amount in required_raw_materials.items():
+            # Check if this material was already provided in inputs
+            provided_amount = sum(flow for item, flow in inputs if item == material)
+            if provided_amount < required_amount:
+                # Need additional input
+                remaining = required_amount - provided_amount
+                node_id = f"Input_{material.replace(' ', '_')}_auto"
+                inputs_group.node(node_id, f"{material}\n{remaining}/min\n(auto)",
+                        shape='box', style='filled', fillcolor='orange')
+                material_flows[material]["sources"].append((node_id, remaining))
+        
+        # Add mine nodes
+        for idx, (resource, purity) in enumerate(mines):
+            node_id = f"Mine_{idx}"
+            # Assume Mk.3 miner for now
+            flow_rate = _MINERS[2][purity]
+            inputs_group.node(node_id, f"Miner\n{resource}\n{flow_rate}/min",
+                    shape='box', style='filled', fillcolor='brown')
+            material_flows[resource]["sources"].append((node_id, flow_rate))
     
     # Add machine nodes grouped by recipe
     machine_node_id = 0
@@ -211,33 +214,44 @@ def design_factory(outputs: dict[str, float], inputs: list[tuple[str, float]], m
         
         cluster_id += 1
     
-    # Add output nodes for requested outputs
-    for material, requested_amount in outputs.items():
-        if material in total_production:
-            node_id = f"Output_{material.replace(' ', '_')}"
-            # Check if material has internal consumers
-            internal_sinks = sum(flow for _, flow in material_flows[material]["sinks"])
-            
-            if internal_sinks > 0:
-                # Has internal consumption - sink what's available after internal needs
-                available = total_production[material] - internal_sinks
-                sink_amount = max(0, available)
-            else:
-                # No internal consumption - sink all production
-                sink_amount = total_production[material]
-            
-            if sink_amount > 0:
-                dot.node(node_id, f"{material}\n{sink_amount}/min",
-                        shape='box', style='filled', fillcolor='lightgreen')
-                material_flows[material]["sinks"].append((node_id, sink_amount))
-    
-    # Add output nodes for byproducts (materials with positive balance not requested)
-    for material, excess in balance.items():
-        if excess > 0 and material not in outputs:
-            node_id = f"Output_{material.replace(' ', '_')}"
-            dot.node(node_id, f"{material}\n{excess}/min",
-                    shape='box', style='filled', fillcolor='salmon')
-            material_flows[material]["sinks"].append((node_id, excess))
+    # Add output nodes in a parent cluster containing two child clusters
+    with dot.subgraph(name='cluster_outputs') as outputs_group:
+        outputs_group.attr(label='', style='invis')
+        # Requested outputs cluster
+        with outputs_group.subgraph(name='cluster_requested_outputs') as requested_group:
+            requested_group.attr(label='', style='invis')
+            requested_group.attr(rank='same')
+            # Add output nodes for requested outputs
+            for material in outputs.keys():
+                if material in total_production:
+                    node_id = f"Output_{material.replace(' ', '_')}"
+                    # Check if material has internal consumers
+                    internal_sinks = sum(flow for _, flow in material_flows[material]["sinks"])
+                    
+                    if internal_sinks > 0:
+                        # Has internal consumption - sink what's available after internal needs
+                        available = total_production[material] - internal_sinks
+                        sink_amount = max(0, available)
+                    else:
+                        # No internal consumption - sink all production
+                        sink_amount = total_production[material]
+                    
+                    if sink_amount > 0:
+                        requested_group.node(node_id, f"{material}\n{sink_amount}/min",
+                                shape='box', style='filled', fillcolor='lightgreen')
+                        material_flows[material]["sinks"].append((node_id, sink_amount))
+        
+        # Byproducts cluster
+        with outputs_group.subgraph(name='cluster_byproducts') as byproducts_group:
+            byproducts_group.attr(label='', style='invis')
+            byproducts_group.attr(rank='same')
+            # Add output nodes for byproducts (materials with positive balance not requested)
+            for material, excess in balance.items():
+                if excess > 0 and material not in outputs:
+                    node_id = f"Output_{material.replace(' ', '_')}"
+                    byproducts_group.node(node_id, f"{material}\n{excess}/min",
+                            shape='box', style='filled', fillcolor='salmon')
+                    material_flows[material]["sinks"].append((node_id, excess))
     
     # Phase 3: Route materials with balancers
     balancer_counter = 0
