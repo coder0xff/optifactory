@@ -24,34 +24,44 @@ _MINERS = [
 _WATER_EXTRACTOR = 120  # cubic meters per minute
 
 # All qunaities are "per minute"
-_RECIPES = json.load(open("recipes.yaml"))
+_RECIPES = json.load(open("recipes.yaml", "r", encoding="utf-8"))
 
 _BY_OUTPUT = defaultdict(lambda: defaultdict(list))
 
-for machine, recipes in _RECIPES.items():
-    for recipe_number, recipe in enumerate(recipes):
-        for output, amount in recipe["out"].items():
-            _BY_OUTPUT[output][amount].append((machine, recipe_number))
+
+# This is just to keep the global scope cleaner
+def _populate_by_output():
+    for machine, recipes in _RECIPES.items():
+        for recipe_number, recipe in enumerate(recipes):
+            for output, amount in recipe["out"].items():
+                _BY_OUTPUT[output][amount].append((machine, recipe_number))
+
+
+_populate_by_output()
 
 
 @dataclass
 class Recipe:
+    """a Satisfactory recipe"""
     machine: str
     inputs: dict[str, float]
     outputs: dict[str, float]
 
 
 def get_recipes_for(output: str) -> dict[float, Recipe]:
+    """Get all recipes for a given output."""
     return {amount: [Recipe(machine, (r:=_RECIPES[machine][recipe_number])["in"], r["out"]) for machine, recipe_number in machine_recipe_index_pairs] for amount, machine_recipe_index_pairs in _BY_OUTPUT[output].items()}
 
 
 def get_recipe_for(output: str) -> tuple[float, Recipe]:
+    """Get the highest rate recipe for a given output."""
     amount, recipes = max(get_recipes_for(output).items(), key=lambda x: x[0])
     return amount, recipes[0]
 
 
 @dataclass
 class Factory:
+    """A complete factory network with machines and balancers."""
     network: graphviz.Digraph
     inputs: list[tuple[str, float]]
     outputs: dict[str, float]
@@ -92,6 +102,9 @@ def design_factory(outputs: dict[str, float], inputs: list[tuple[str, float]], m
     # Track required raw materials that have no recipe
     required_raw_materials = defaultdict(float)
     
+    # Track total production: {material: total_rate}
+    total_production = defaultdict(float)
+    
     while any(amount < 0 for amount in balance.values()):
         output_item, deficit = min(balance.items(), key=lambda x: x[1])
         
@@ -124,6 +137,17 @@ def design_factory(outputs: dict[str, float], inputs: list[tuple[str, float]], m
             balance[input_item] -= amount * machine_count
         for output_item, amount in recipe.outputs.items():
             balance[output_item] += amount * machine_count
+            total_production[output_item] += amount * machine_count
+
+    # Compute actual outputs: include requested outputs at their production rate + byproducts at excess
+    actual_outputs = {}
+    for material in outputs.keys():
+        if material in total_production:
+            actual_outputs[material] = total_production[material]
+    # Add byproducts (materials with excess that weren't requested)
+    for material, excess in balance.items():
+        if excess > 0 and material not in outputs:
+            actual_outputs[material] = excess
 
     # Phase 2: Build network graph with balancers
     dot = graphviz.Digraph(comment="Factory Network")
@@ -137,7 +161,7 @@ def design_factory(outputs: dict[str, float], inputs: list[tuple[str, float]], m
     for idx, (input_item, flow_rate) in enumerate(inputs):
         node_id = f"Input_{input_item.replace(' ', '_')}_{idx}"
         dot.node(node_id, f"{input_item}\n{flow_rate}/min",
-                shape='box', style='filled', fillcolor='lightgreen')
+                shape='box', style='filled', fillcolor='orange')
         material_flows[input_item]["sources"].append((node_id, flow_rate))
     
     # Add auto-generated input nodes for required raw materials
@@ -149,7 +173,7 @@ def design_factory(outputs: dict[str, float], inputs: list[tuple[str, float]], m
             remaining = required_amount - provided_amount
             node_id = f"Input_{material.replace(' ', '_')}_auto"
             dot.node(node_id, f"{material}\n{remaining}/min\n(auto)",
-                    shape='box', style='filled', fillcolor='lightyellow')
+                    shape='box', style='filled', fillcolor='orange')
             material_flows[material]["sources"].append((node_id, remaining))
     
     # Add mine nodes
@@ -161,35 +185,59 @@ def design_factory(outputs: dict[str, float], inputs: list[tuple[str, float]], m
                 shape='box', style='filled', fillcolor='brown')
         material_flows[resource]["sources"].append((node_id, flow_rate))
     
-    # Add machine nodes
+    # Add machine nodes grouped by recipe
     machine_node_id = 0
+    cluster_id = 0
     for (machine_type, recipe_idx), count in machine_instances.items():
         recipe = recipes_used[(machine_type, recipe_idx)]
         
-        for _ in range(count):
-            node_id = f"Machine_{machine_node_id}"
-            machine_node_id += 1
+        # Create subgraph for this recipe
+        with dot.subgraph(name=f"cluster_{cluster_id}") as cluster:
+            cluster.attr(label=f"{machine_type}\n{', '.join(f'{k}:{v}' for k, v in recipe.inputs.items())}\n→ {', '.join(f'{k}:{v}' for k, v in recipe.outputs.items())}")
+            cluster.attr(style='filled', fillcolor='lightblue')
             
-            # Create label showing machine and recipe
-            inputs_str = ", ".join(f"{k}:{v}" for k, v in recipe.inputs.items())
-            outputs_str = ", ".join(f"{k}:{v}" for k, v in recipe.outputs.items())
-            label = f"{machine_type}\n{inputs_str}\n→ {outputs_str}"
-            
-            dot.node(node_id, label,
-                    shape='box', style='filled', fillcolor='lightblue')
-            
-            # Track this machine's inputs and outputs
-            for input_item, flow_rate in recipe.inputs.items():
-                material_flows[input_item]["sinks"].append((node_id, flow_rate))
-            for output_item, flow_rate in recipe.outputs.items():
-                material_flows[output_item]["sources"].append((node_id, flow_rate))
+            for _ in range(count):
+                node_id = f"Machine_{machine_node_id}"
+                machine_node_id += 1
+                
+                # Simple label for individual machines within the subgraph
+                cluster.node(node_id, "", shape='box', style='filled', fillcolor='white')
+                
+                # Track this machine's inputs and outputs
+                for input_item, flow_rate in recipe.inputs.items():
+                    material_flows[input_item]["sinks"].append((node_id, flow_rate))
+                for output_item, flow_rate in recipe.outputs.items():
+                    material_flows[output_item]["sources"].append((node_id, flow_rate))
+        
+        cluster_id += 1
     
-    # Add output nodes
-    for output_item, flow_rate in outputs.items():
-        node_id = f"Output_{output_item.replace(' ', '_')}"
-        dot.node(node_id, f"{output_item}\n{flow_rate}/min",
-                shape='box', style='filled', fillcolor='lightcoral')
-        material_flows[output_item]["sinks"].append((node_id, flow_rate))
+    # Add output nodes for requested outputs
+    for material, requested_amount in outputs.items():
+        if material in total_production:
+            node_id = f"Output_{material.replace(' ', '_')}"
+            # Check if material has internal consumers
+            internal_sinks = sum(flow for _, flow in material_flows[material]["sinks"])
+            
+            if internal_sinks > 0:
+                # Has internal consumption - sink what's available after internal needs
+                available = total_production[material] - internal_sinks
+                sink_amount = max(0, available)
+            else:
+                # No internal consumption - sink all production
+                sink_amount = total_production[material]
+            
+            if sink_amount > 0:
+                dot.node(node_id, f"{material}\n{sink_amount}/min",
+                        shape='box', style='filled', fillcolor='lightgreen')
+                material_flows[material]["sinks"].append((node_id, sink_amount))
+    
+    # Add output nodes for byproducts (materials with positive balance not requested)
+    for material, excess in balance.items():
+        if excess > 0 and material not in outputs:
+            node_id = f"Output_{material.replace(' ', '_')}"
+            dot.node(node_id, f"{material}\n{excess}/min",
+                    shape='box', style='filled', fillcolor='salmon')
+            material_flows[material]["sinks"].append((node_id, excess))
     
     # Phase 3: Route materials with balancers
     balancer_counter = 0
@@ -201,8 +249,8 @@ def design_factory(outputs: dict[str, float], inputs: list[tuple[str, float]], m
             continue
         
         # Get flow rates
-        source_flows = [int(flow) for _, flow in sources]
-        sink_flows = [int(flow) for _, flow in sinks]
+        source_flows = [flow for _, flow in sources]
+        sink_flows = [flow for _, flow in sinks]
         
         # Check if balancing is needed
         total_source = sum(source_flows)
@@ -217,10 +265,10 @@ def design_factory(outputs: dict[str, float], inputs: list[tuple[str, float]], m
         if total_source > total_sink:
             # Scale down source flows to match sink needs
             scale = total_sink / total_source
-            source_flows = [int(flow * scale) for flow in source_flows]
+            source_flows = [flow * scale for flow in source_flows]
             # Adjust for rounding - add remainder to first source
             remainder = total_sink - sum(source_flows)
-            if remainder > 0 and source_flows:
+            if abs(remainder) > 0.01 and source_flows:
                 source_flows[0] += remainder
         
         # Create balancer for this material
@@ -228,10 +276,40 @@ def design_factory(outputs: dict[str, float], inputs: list[tuple[str, float]], m
             # Direct connection
             source_id, _ = sources[0]
             sink_id, _ = sinks[0]
-            dot.edge(source_id, sink_id, label=f"{material}\n{sink_flows[0]}")
+            # Format flow rate nicely (remove .0 for whole numbers)
+            flow_label = int(sink_flows[0]) if sink_flows[0] == int(sink_flows[0]) else sink_flows[0]
+            dot.edge(source_id, sink_id, label=f"{material}\n{flow_label}")
         else:
-            # Need balancer
-            balancer_graph = design_balancer(source_flows, sink_flows)
+            # Need balancer (requires integer flows)
+            # Round while preserving total
+            source_total = sum(source_flows)
+            sink_total = sum(sink_flows)
+            target_total = min(int(source_total), int(sink_total))
+            
+            # Proportionally allocate integer flows
+            source_flows_int = []
+            remaining = target_total
+            for i, flow in enumerate(source_flows):
+                if i == len(source_flows) - 1:
+                    # Last one gets remainder
+                    source_flows_int.append(remaining)
+                else:
+                    allocated = int(flow * target_total / source_total)
+                    source_flows_int.append(allocated)
+                    remaining -= allocated
+            
+            sink_flows_int = []
+            remaining = target_total
+            for i, flow in enumerate(sink_flows):
+                if i == len(sink_flows) - 1:
+                    # Last one gets remainder
+                    sink_flows_int.append(remaining)
+                else:
+                    allocated = int(flow * target_total / sink_total)
+                    sink_flows_int.append(allocated)
+                    remaining -= allocated
+            
+            balancer_graph = design_balancer(source_flows_int, sink_flows_int)
             
             # Extract balancer nodes and edges, renaming them with material prefix
             balancer_src = balancer_graph.source
@@ -255,7 +333,7 @@ def design_factory(outputs: dict[str, float], inputs: list[tuple[str, float]], m
                 if old_id.startswith('S'):
                     dot.node(new_id, "", shape='diamond', style='filled', fillcolor='lightyellow')
                 else:
-                    dot.node(new_id, "", shape='diamond', style='filled', fillcolor='lightcoral')
+                    dot.node(new_id, "", shape='diamond', style='filled', fillcolor='thistle')
             
             # Copy edges with remapped node IDs
             for match in re.finditer(r'(\w+)\s+->\s+(\w+)\s+\[label=(\d+)\]', balancer_src):
@@ -269,7 +347,7 @@ def design_factory(outputs: dict[str, float], inputs: list[tuple[str, float]], m
             
             balancer_counter += 1
     
-    return Factory(dot, inputs, outputs, mines)
+    return Factory(dot, inputs, actual_outputs, mines)
 
 
 def build_graph(factory: Factory) -> graphviz.Digraph:

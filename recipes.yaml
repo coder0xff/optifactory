@@ -183,34 +183,18 @@
       }
     }
   ],
+  "Foundry": [
+    {
+      "in": {
+        "Iron Ore": 45.0,
+        "Coal": 45.0
+      },
+      "out": {
+        "Steel Ingot": 45.0
+      }
+    }
+  ],
   "Assembler": [
-    {
-      "in": {
-        "Iron Plate": 30.0,
-        "Screws": 60.0
-      },
-      "out": {
-        "Reinforced Iron Plate": 5.0
-      }
-    },
-    {
-      "in": {
-        "Iron Rod": 20.0,
-        "Screws": 100.0
-      },
-      "out": {
-        "Rotor": 4.0
-      }
-    },
-    {
-      "in": {
-        "Reinforced Iron Plate": 3.0,
-        "Iron Rod": 12.0
-      },
-      "out": {
-        "Modular Frame": 2.0
-      }
-    },
     {
       "in": {
         "Reinforced Iron Plate": 2.0,
@@ -218,15 +202,6 @@
       },
       "out": {
         "Smart Plating": 2.0
-      }
-    },
-    {
-      "in": {
-        "Steel Beam": 18.0,
-        "Concrete": 36.0
-      },
-      "out": {
-        "Encased Industrial Beam": 6.0
       }
     },
     {
@@ -240,20 +215,83 @@
     },
     {
       "in": {
-        "Steel Pipe": 15.0,
-        "Wire": 8.0
-      },
-      "out": {
-        "Stator": 5.0
-      }
-    },
-    {
-      "in": {
         "Stator": 2.5,
         "Cable": 50.0
       },
       "out": {
         "Automated Wiring": 2.5
+      }
+    },
+    {
+      "in": {
+        "Iron Plate": 30.0,
+        "Screws": 60.0
+      },
+      "out": {
+        "Reinforced Iron Plate": 5.0
+      }
+    },
+    {
+      "in": {
+        "Reinforced Iron Plate": 3.0,
+        "Iron Rod": 12.0
+      },
+      "out": {
+        "Modular Frame": 2.0
+      }
+    },
+    {
+      "in": {
+        "Steel Beam": 18.0,
+        "Concrete": 36.0
+      },
+      "out": {
+        "Encased Industrial Beam": 6.0
+      }
+    },
+    {
+      "in": {
+        "Copper Sheet": 15.0,
+        "Plastic": 30.0
+      },
+      "out": {
+        "Circuit Board": 7.5
+      }
+    },
+    {
+      "in": {
+        "Copper Sheet": 25.0,
+        "Quickwire": 100.0
+      },
+      "out": {
+        "AI Limiter": 5.0
+      }
+    },
+    {
+      "in": {
+        "Mycelia": 15.0,
+        "Biomass": 75.0
+      },
+      "out": {
+        "Fabric": 15.0
+      }
+    },
+    {
+      "in": {
+        "Iron Rod": 20.0,
+        "Screws": 100.0
+      },
+      "out": {
+        "Rotor": 4.0
+      }
+    },
+    {
+      "in": {
+        "Steel Pipe": 15.0,
+        "Wire": 8.0
+      },
+      "out": {
+        "Stator": 5.0
       }
     },
     {
@@ -267,22 +305,230 @@
     },
     {
       "in": {
-        "Mycelia": 15.0,
-        "Biomass": 75.0
+        "Coal": 15.0,
+        "Sulfur": 15.0
       },
       "out": {
-        "Fabric": 15.0
+        "Black Powder": 30.0
+      }
+    },
+    {
+      "in": {
+        "Iron Rebar": 10.0,
+        "Quickwire": 50.0
+      },
+      "out": {
+        "Stun Rebar": 10.0
+      }
+    },
+    {
+      "in": {
+        "Iron Rebar": 10.0,
+        "Quartz Crystal": 15.0
+      },
+      "out": {
+        "Shatter Rebar": 5.0
+      }
+    },
+    {
+      "in": {
+        "Black Powder": 20.0,
+        "Steel Pipe": 20.0
+      },
+      "out": {
+        "Nobelisk": 10.0
+      }
+    },
+    {
+      "in": {
+        "Nobelisk": 5.0,
+        "Biomass": 50.0
+      },
+      "out": {
+        "Gas Nobelisk": 5.0
+      }
+    },
+    {
+      "in": {
+        "Nobelisk": 5.0,
+        "Crystal Oscillator": 1.0
+      },
+      "out": {
+        "Pulse Nobelisk": 5.0
+      }
+    },
+    {
+      "in": {
+        "Copper Sheet": 15.0,
+        "Smokeless Powder": 10.0
+      },
+      "out": {
+        "Rifle Ammo": 75.0
       }
     }
   ],
-  "Foundry": [
+  "Manufacturer": [
     {
       "in": {
-        "Iron Ore": 45.0,
-        "Coal": 45.0
+        "Motor": 2.0,
+        "Rubber": 15.0,
+        "Smart Plating": 2.0
       },
       "out": {
-        "Steel Ingot": 45.0
+        "Modular Engine": 1.0
+      }
+    },
+    {
+      "in": {
+        "Automated Wiring": 5.0,
+        "Circuit Board": 5.0,
+        "Heavy Modular Frame": 1.0,
+        "Computer": 2.0
+      },
+      "out": {
+        "Adaptive Control Unit": 1.0
+      }
+    },
+    {
+      "in": {
+        "Modular Frame": 10.0,
+        "Steel Pipe": 40.0,
+        "Encased Industrial Beam": 10.0,
+        "Screws": 120.0
+      },
+      "out": {
+        "Heavy Modular Frame": 2.0
+      }
+    },
+    {
+      "in": {
+        "Quickwire": 210.0,
+        "Cable": 37.5,
+        "Circuit Board": 3.75
+      },
+      "out": {
+        "High-Speed Connector": 3.75
+      }
+    },
+    {
+      "in": {
+        "Reanimated SAM": 60.0,
+        "Wire": 50.0,
+        "Steel Pipe": 30.0
+      },
+      "out": {
+        "SAM Fluctuator": 10.0
+      }
+    },
+    {
+      "in": {
+        "Circuit Board": 10.0,
+        "Cable": 20.0,
+        "Plastic": 40.0
+      },
+      "out": {
+        "Computer": 2.5
+      }
+    },
+    {
+      "in": {
+        "Quartz Crystal": 18.0,
+        "Cable": 14.0,
+        "Reinforced Iron Plate": 2.5
+      },
+      "out": {
+        "Crystal Oscillator": 1.0
+      }
+    },
+    {
+      "in": {
+        "Fabric": 15.0,
+        "Coal": 30.0,
+        "Iron Plate": 15.0
+      },
+      "out": {
+        "Gas Filter": 7.5
+      }
+    }
+  ],
+  "Oil Refinery": [
+    {
+      "in": {
+        "Crude Oil": 30.0
+      },
+      "out": {
+        "Plastic": 20.0,
+        "Heavy Oil Residue": 10.0
+      }
+    },
+    {
+      "in": {
+        "Polymer Resin": 60.0,
+        "Water": 20.0
+      },
+      "out": {
+        "Plastic": 20.0
+      }
+    },
+    {
+      "in": {
+        "Crude Oil": 30.0
+      },
+      "out": {
+        "Rubber": 2.0,
+        "Heavy Oil Residue": 20.0
+      }
+    },
+    {
+      "in": {
+        "Polymer Resin": 40.0,
+        "Water": 40.0
+      },
+      "out": {
+        "Rubber": 20.0
+      }
+    },
+    {
+      "in": {
+        "Heavy Oil Residue": 40.0
+      },
+      "out": {
+        "Petroleum Coke": 120.0
+      }
+    },
+    {
+      "in": {
+        "Crude Oil": 60.0
+      },
+      "out": {
+        "Fuel": 40.0,
+        "Polymer Resin": 30.0
+      }
+    },
+    {
+      "in": {
+        "Heavy Oil Residue": 60.0
+      },
+      "out": {
+        "Fuel": 40.0
+      }
+    },
+    {
+      "in": {
+        "Solid Biofuel": 90.0,
+        "Water": 45.0
+      },
+      "out": {
+        "Liquid Biofuel": 60.0
+      }
+    },
+    {
+      "in": {
+        "Black Powder": 20.0,
+        "Heavy Oil Residue": 10.0
+      },
+      "out": {
+        "Smokeless Powder": 20.0
       }
     }
   ]

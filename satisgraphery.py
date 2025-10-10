@@ -100,6 +100,10 @@ class MainWindow(tk.Tk):
         # Generate button
         self.generate_btn = ttk.Button(control_frame, text="Generate Factory", command=self._generate_factory)
         self.generate_btn.grid(row=8, column=0, sticky=(tk.W, tk.E), pady=(10, 0))
+        
+        # Export button
+        self.export_btn = ttk.Button(control_frame, text="Copy Graphviz to Clipboard", command=self._copy_graphviz)
+        self.export_btn.grid(row=9, column=0, sticky=(tk.W, tk.E), pady=(5, 0))
 
         # Create a dedicated frame for the viewer and its scrollbars
         viewer_frame = ttk.Frame(main_frame)
@@ -208,6 +212,22 @@ class MainWindow(tk.Tk):
             traceback.print_exc()
         finally:
             self.generate_btn.config(state='normal')
+
+    def _copy_graphviz(self):
+        """Copy graphviz source to clipboard"""
+        try:
+            if self.viewer.dot is None:
+                self.status_label.config(text="No graph to export")
+                return
+            
+            graphviz_source = self.viewer.dot.source
+            self.clipboard_clear()
+            self.clipboard_append(graphviz_source)
+            self.status_label.config(text="Graphviz source copied to clipboard")
+            _LOGGER.info("Graphviz source copied to clipboard")
+        except Exception as e:
+            self.status_label.config(text=f"Error copying to clipboard: {str(e)}")
+            _LOGGER.error(f"Clipboard copy failed: {str(e)}")
 
 
 def main():
