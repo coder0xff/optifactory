@@ -53,6 +53,12 @@ class LRUCache(Generic[K, V]):
         while len(self._cache) >= self.max_size:
             # Evict least recently used (first item)
             lru_key, lru_value = self._cache.popitem(last=False)
+            # Try to close the image if it has a close method
+            if hasattr(lru_value, 'close'):
+                try:
+                    lru_value.close()
+                except:
+                    pass
             self.trash_bin.append(lru_value)
             _LOGGER.debug(f"Evicted LRU item {lru_key} for gc.")
 
@@ -62,6 +68,12 @@ class LRUCache(Generic[K, V]):
         """Delete item and move to trash_bin"""
         if key in self._cache:
             value = self._cache.pop(key)
+            # Try to close the image if it has a close method
+            if hasattr(value, 'close'):
+                try:
+                    value.close()
+                except:
+                    pass
             self.trash_bin.append(value)
             _LOGGER.debug(f"Removed item {key} for gc.")
 
@@ -79,6 +91,12 @@ class LRUCache(Generic[K, V]):
     def clear(self) -> None:
         """Clear cache, moving all items to trash_bin"""
         for value in self._cache.values():
+            # Try to close the image if it has a close method
+            if hasattr(value, 'close'):
+                try:
+                    value.close()
+                except:
+                    pass
             self.trash_bin.append(value)
         self._cache.clear()
 
@@ -121,44 +139,75 @@ class GraphvizViewer:
     """Canvas-based viewer component for displaying a graphviz.Graph"""
 
     def __init__(self, parent_widget, diagram=None):
-        self.parent = parent_widget
+        self._parent = parent_widget
 
         # Zoom and pan variables
-        self.zoom_exponent = 0
-        self.last_pan_x = 0
-        self.last_pan_y = 0
-        self.is_panning = False
+        self._zoom_exponent = 0
+        self._last_pan_x = 0
+        self._last_pan_y = 0
+        self._is_panning = False
 
-        self.cache_lock = threading.Lock()
-        self.trash_bin: list[object] = []
-        self.image_cache: LRUCache[float, ImageFile.ImageFile] = LRUCache(
-            trash_bin=self.trash_bin, max_size=20
+        self._cache_lock = threading.Lock()
+        self._trash_bin: list[object] = []
+        self._image_cache: LRUCache[float, ImageFile.ImageFile] = LRUCache(
+            trash_bin=self._trash_bin, max_size=20
         )
-        self.photo_cache: LRUCache[float, ImageTk.PhotoImage] = LRUCache(
-            trash_bin=self.trash_bin, max_size=20
+        self._photo_cache: LRUCache[float, ImageTk.PhotoImage] = LRUCache(
+            trash_bin=self._trash_bin, max_size=20
         )
+        
+        # Track renders that failed due to memory/size issues to prevent infinite retries
+        self._failed_renders: set[int] = set()
 
-        self.system_dpi_scale = get_system_dpi_scale()
-        self.base_dpi = int(96 * self.system_dpi_scale)
+        self._system_dpi_scale = get_system_dpi_scale()
+        self._base_dpi = int(96 * self._system_dpi_scale)
         _LOGGER.debug(
-            f"System DPI scale: {self.system_dpi_scale:.2f}x, using base DPI: {self.base_dpi}"
+            f"System DPI scale: {self._system_dpi_scale:.2f}x, using base DPI: {self._base_dpi}"
         )
 
-        self.dot = diagram or graphviz.Digraph()
+        self._dot = diagram or graphviz.Digraph()
 
         # After event ID for updating the UI image
-        self.after_event_id = None
+        self._after_event_id = None
         self._setup_canvas()
-        self._render_callback(self.zoom_exponent, self._render(self.zoom_exponent))
+        self._render_callback(self._zoom_exponent, self._render(self._zoom_exponent))
 
     def grid(self, **kwargs):
         """Grid the canvas widget"""
-        self.canvas.grid(**kwargs)
+        self._canvas.grid(**kwargs)
+
+    @property
+    def dot(self):
+        """Get the current diagram"""
+        return self._dot
+    
+    @dot.setter
+    def dot(self, diagram):
+        """Set a new diagram to display.
+        
+        Automatically clears caches, resets failed renders, and triggers re-render.
+        """
+        self._dot = diagram
+        
+        # Clear all caches and failed renders for new diagram
+        with self._cache_lock:
+            self._image_cache.clear()
+            self._photo_cache.clear()
+            self._trash_bin.clear()
+        
+        self._failed_renders.clear()
+        
+        # Force garbage collection
+        import gc
+        gc.collect()
+        
+        # Trigger render of new diagram
+        self._schedule_render(self._zoom_exponent)
 
     @property
     def zoom(self):
         """Get the current zoom factor (e.g., 1.0 for 100%, 2.0 for 200%)"""
-        return self._zoom_exponent_to_zoom_factor(self.zoom_exponent)
+        return self._zoom_exponent_to_zoom_factor(self._zoom_exponent)
 
     @zoom.setter
     def zoom(self, value):
@@ -166,28 +215,33 @@ class GraphvizViewer:
         if value <= 0:
             raise ValueError("Zoom factor must be positive")
         # Convert zoom factor to zoom_exponent using log with base 1.1
-        self.zoom_exponent = math.log(value, 1.1)
+        self._zoom_exponent = math.log(value, 1.1)
         # Update the UI to reflect the new zoom level
-        self._schedule_render(self.zoom_exponent)
+        self._schedule_render(self._zoom_exponent)
 
     def _setup_canvas(self):
         """Setup the canvas widget and its event bindings"""
         # Canvas for displaying the graph
-        self.canvas = tk.Canvas(self.parent, bg="white", relief=tk.SUNKEN, bd=2)
+        self._canvas = tk.Canvas(self._parent, bg="white", relief=tk.SUNKEN, bd=2)
 
         # Bind mouse events for pan and zoom
-        self.canvas.bind("<Button-1>", self._handle_start_pan)
-        self.canvas.bind("<B1-Motion>", self._handle_pan)
-        self.canvas.bind("<ButtonRelease-1>", self._handle_end_pan)
-        self.canvas.bind("<MouseWheel>", self._handle_zoom_event)
-        self.canvas.bind("<Button-4>", self._handle_zoom_event)  # Linux scroll up
-        self.canvas.bind("<Button-5>", self._handle_zoom_event)  # Linux scroll down
+        self._canvas.bind("<Button-1>", self._handle_start_pan)
+        self._canvas.bind("<B1-Motion>", self._handle_pan)
+        self._canvas.bind("<ButtonRelease-1>", self._handle_end_pan)
+        self._canvas.bind("<MouseWheel>", self._handle_zoom_event)
+        self._canvas.bind("<Button-4>", self._handle_zoom_event)  # Linux scroll up
+        self._canvas.bind("<Button-5>", self._handle_zoom_event)  # Linux scroll down
 
     def _schedule_render(self, zoom_exponent):
         """Schedule a render operation"""
+        # Skip if this zoom level already failed
+        if zoom_exponent in self._failed_renders:
+            _LOGGER.debug(f"Skipping render at {zoom_exponent} - previously failed due to size/memory")
+            return
+            
         if FORCE_SINGLE_THREADED_RENDERING:
             self._render_callback(
-                zoom_exponent, self.renderer.render_graph(zoom_exponent)
+                zoom_exponent, self._render(zoom_exponent)
             )
         else:
             threading.Thread(
@@ -200,15 +254,20 @@ class GraphvizViewer:
         """Callback for when rendering is complete"""
         if error:
             _LOGGER.error(f"Render error: {error}")
+            # Check if this is a size/memory error
+            if "size" in error.lower() or "memory" in error.lower() or "decompression bomb" in error.lower():
+                # Mark this zoom level as failed to prevent retries
+                self._failed_renders.add(zoom_exponent)
+                _LOGGER.warning(f"Marking zoom {zoom_exponent} as failed due to size/memory issue")
             self._schedule_update_ui_image()
             return
 
         if image:
-            with self.cache_lock:
-                self.image_cache[zoom_exponent] = image
+            with self._cache_lock:
+                self._image_cache[zoom_exponent] = image
                 # Remove old photo cache entry (will be moved to trash_bin automatically)
-                if zoom_exponent in self.photo_cache:
-                    del self.photo_cache[zoom_exponent]
+                if zoom_exponent in self._photo_cache:
+                    del self._photo_cache[zoom_exponent]
 
             _LOGGER.debug(f"Render completed at zoom {zoom_exponent}")
             self._schedule_update_ui_image()
@@ -228,7 +287,7 @@ class GraphvizViewer:
 
         try:
             scaled = self._graphviz_with_dpi(
-                self.dot, self._zoom_exponent_to_dpi(zoom_exponent)
+                self._dot, self._zoom_exponent_to_dpi(zoom_exponent)
             )
 
             # Render to PNG format with calculated DPI
@@ -263,39 +322,39 @@ class GraphvizViewer:
         return 1.1**zoom_exponent
 
     def _zoom_exponent_to_dpi(self, zoom_exponent):
-        return int(self.base_dpi * self._zoom_exponent_to_zoom_factor(zoom_exponent))
+        return int(self._base_dpi * self._zoom_exponent_to_zoom_factor(zoom_exponent))
 
     def _handle_start_pan(self, event):
         """Start panning when mouse button is pressed"""
-        self.is_panning = True
-        self.last_pan_x = event.x
-        self.last_pan_y = event.y
-        self.canvas.scan_mark(event.x, event.y)
+        self._is_panning = True
+        self._last_pan_x = event.x
+        self._last_pan_y = event.y
+        self._canvas.scan_mark(event.x, event.y)
 
     def _handle_pan(self, event):
         """Pan the canvas while mouse is dragged"""
-        if self.is_panning:
-            self.canvas.scan_dragto(event.x, event.y, gain=1)
+        if self._is_panning:
+            self._canvas.scan_dragto(event.x, event.y, gain=1)
 
     def _handle_end_pan(self, _event):
         """End panning when mouse button is released"""
-        self.is_panning = False
+        self._is_panning = False
 
     def _inv_canvasx(self, x):
-        origin = self.canvas.canvasx(0)
-        scale = self.canvas.canvasx(1000000) / 1000000
+        origin = self._canvas.canvasx(0)
+        scale = self._canvas.canvasx(1000000) / 1000000
         return int(x / scale - origin)
 
     def _inv_canvasy(self, y):
-        origin = self.canvas.canvasy(0)
-        scale = self.canvas.canvasx(1000000) / 1000000
+        origin = self._canvas.canvasy(0)
+        scale = self._canvas.canvasx(1000000) / 1000000
         return int(y / scale - origin)
 
     def _event_to_world_coordinates(self, event_x, event_y, zoom_exponent):
         """Convert event coordinates to world coordinates"""
         current_zoom_factor = self._zoom_exponent_to_zoom_factor(zoom_exponent)
-        canvas_x = self.canvas.canvasx(event_x)
-        canvas_y = self.canvas.canvasy(event_y)
+        canvas_x = self._canvas.canvasx(event_x)
+        canvas_y = self._canvas.canvasy(event_y)
         world_x = canvas_x / current_zoom_factor
         world_y = canvas_y / current_zoom_factor
         return world_x, world_y
@@ -310,50 +369,93 @@ class GraphvizViewer:
 
     def _handle_zoom_event(self, event):
         """Zoom in/out with mouse wheel - immediate feedback + background rendering"""
-        old_zoom_exponent = self.zoom_exponent
-        canvas_x, canvas_y = self.canvas.canvasx(event.x), self.canvas.canvasy(event.y)
+        old_zoom_exponent = self._zoom_exponent
+        canvas_x, canvas_y = self._canvas.canvasx(event.x), self._canvas.canvasy(event.y)
 
         if event.delta > 0 or event.num == 4:  # Zoom in
-            self.zoom_exponent = max(
-                old_zoom_exponent, int(min(20.0, self.zoom_exponent + 1))
+            self._zoom_exponent = max(
+                old_zoom_exponent, int(min(7.0, self._zoom_exponent + 1))
             )
         else:  # Zoom out
-            self.zoom_exponent = min(
-                old_zoom_exponent, int(max(-7, self.zoom_exponent - 1))
+            self._zoom_exponent = min(
+                old_zoom_exponent, int(max(-10, self._zoom_exponent - 1))
             )
 
-        if old_zoom_exponent != self.zoom_exponent:
-            _LOGGER.debug(f"Zooming from {old_zoom_exponent} to {self.zoom_exponent}")
+        if old_zoom_exponent != self._zoom_exponent:
+            _LOGGER.debug(f"Zooming from {old_zoom_exponent} to {self._zoom_exponent}")
             ratio = self._zoom_exponent_to_zoom_factor(
-                self.zoom_exponent
+                self._zoom_exponent
             ) / self._zoom_exponent_to_zoom_factor(old_zoom_exponent)
             delta_x = int(canvas_x * (ratio - 1) / 9)  # TODO: 9? What in the world?
             delta_y = int(canvas_y * (ratio - 1) / 9)
             _LOGGER.debug(f"Delta: {delta_x}, {delta_y}")
-            self.canvas.scan_mark(self._inv_canvasx(delta_x), self._inv_canvasy(delta_y))
-            self.canvas.scan_dragto(self._inv_canvasx(0), self._inv_canvasy(0))
+            self._canvas.scan_mark(self._inv_canvasx(delta_x), self._inv_canvasy(delta_y))
+            self._canvas.scan_dragto(self._inv_canvasx(0), self._inv_canvasy(0))
             self._update_ui_image()
 
     def _schedule_update_ui_image(self):
         """Schedule the update of the UI image"""
-        if self.after_event_id:
-            _LOGGER.debug(f"Cancelling after event {self.after_event_id}")
-            self.parent.after_cancel(self.after_event_id)
-            _LOGGER.debug(f"After event {self.after_event_id} cancelled")
-        _LOGGER.debug(f"Scheduling after event {self.after_event_id}")
-        self.after_event_id = self.parent.after(10, self._update_ui_image)
-        _LOGGER.debug(f"After event {self.after_event_id} scheduled")
+        if self._after_event_id:
+            _LOGGER.debug(f"Cancelling after event {self._after_event_id}")
+            self._parent.after_cancel(self._after_event_id)
+            _LOGGER.debug(f"After event {self._after_event_id} cancelled")
+        _LOGGER.debug(f"Scheduling after event {self._after_event_id}")
+        self._after_event_id = self._parent.after(10, self._update_ui_image)
+        _LOGGER.debug(f"After event {self._after_event_id} scheduled")
+    
+    def _create_photo_image(self, image, zoom_exponent):
+        """Create PhotoImage with memory error handling and retry.
+        
+        Args:
+            image: PIL Image object to convert
+            zoom_exponent: zoom level (for failure tracking)
+            
+        Returns:
+            PhotoImage if successful, None if failed
+        """
+        def attempt_create():
+            photo = ImageTk.PhotoImage(image)
+            self._photo_cache[zoom_exponent] = photo
+            return photo
+        
+        # First attempt
+        try:
+            return attempt_create()
+        except MemoryError as e:
+            _LOGGER.warning(f"MemoryError creating PhotoImage: {e}, clearing caches and retrying")
+        except tk.TclError as e:
+            if "memory" not in str(e).lower() and "alloc" not in str(e).lower():
+                raise  # Not a memory error, re-raise
+            _LOGGER.warning(f"TclError (memory) creating PhotoImage: {e}, clearing caches and retrying")
+        
+        # Memory error occurred - clean up and retry once
+        self._failed_renders.add(zoom_exponent)
+        self._image_cache.clear()
+        self._photo_cache.clear()
+        self._trash_bin.clear()
+        import gc
+        gc.collect()
+        
+        # Second attempt
+        try:
+            result = attempt_create()
+            _LOGGER.debug("PhotoImage created after cleanup")
+            self._failed_renders.discard(zoom_exponent)  # Succeeded, remove from failed set
+            return result
+        except:
+            _LOGGER.error(f"Still failed after cleanup, giving up on zoom {zoom_exponent}")
+            return None
 
     def _get_photo_image(self, zoom_exponent):
         zoom_factor = self._zoom_exponent_to_zoom_factor(zoom_exponent)
-        with self.cache_lock:
-            self.trash_bin.clear()
+        with self._cache_lock:
+            self._trash_bin.clear()
 
-            if zoom_exponent in self.photo_cache:
+            if zoom_exponent in self._photo_cache:
                 _LOGGER.debug(f"Cache hit for PhotoImage {zoom_factor:.2f}x")
-                return self.photo_cache[zoom_exponent]
+                return self._photo_cache[zoom_exponent]
 
-            if zoom_exponent in self.image_cache:
+            if zoom_exponent in self._image_cache:
                 _LOGGER.debug(
                     f"Cache miss for PhotoImage {zoom_factor:.2f}x,"
                     f" cache hit for Image {zoom_exponent:.2f}x"
@@ -361,11 +463,10 @@ class GraphvizViewer:
                 _LOGGER.debug(
                     f"About to create PhotoImage from Image {zoom_factor:.2f}x"
                 )
-                self.photo_cache[zoom_exponent] = ImageTk.PhotoImage(
-                    self.image_cache[zoom_exponent]
-                )
-                _LOGGER.debug("PhotoImage created and cached")
-                return self.photo_cache[zoom_exponent]
+                photo = self._create_photo_image(self._image_cache[zoom_exponent], zoom_exponent)
+                if photo:
+                    _LOGGER.debug("PhotoImage created and cached")
+                return photo
 
         if FORCE_SINGLE_THREADED_RENDERING:
             _LOGGER.debug(
@@ -376,7 +477,7 @@ class GraphvizViewer:
                 _LOGGER.debug(
                     f"About to create PhotoImage from Image {zoom_factor:.2f}x"
                 )
-                photo = self.photo_cache[zoom_exponent] = ImageTk.PhotoImage(image)
+                photo = self._photo_cache[zoom_exponent] = ImageTk.PhotoImage(image)
                 _LOGGER.debug("PhotoImage created and cached")
                 return photo
             return None
@@ -388,13 +489,17 @@ class GraphvizViewer:
         _LOGGER.debug("Background render started")
 
         # Find the closest zoom factor in the cache, favoring higher zoom factors.
-        with self.cache_lock:
-            sorted_keys = sorted(self.image_cache.keys())
+        with self._cache_lock:
+            sorted_keys = sorted(self._image_cache.keys())
+            if not sorted_keys:
+                # Cache is empty (perhaps just cleared due to memory error)
+                _LOGGER.debug("Image cache is empty, waiting for background render")
+                return None
             closest_index = min(
                 bisect.bisect_right(sorted_keys, zoom_exponent), len(sorted_keys) - 1
             )
             closest_zoom_exponent = sorted_keys[closest_index]
-            closest_image = self.image_cache[closest_zoom_exponent]
+            closest_image = self._image_cache[closest_zoom_exponent]
 
         _LOGGER.debug(
             f"Temporarily using {zoom_factor:.2f}x as fallback during background render"
@@ -405,47 +510,71 @@ class GraphvizViewer:
             zoom_exponent
         ) / self._zoom_exponent_to_zoom_factor(closest_zoom_exponent)
         # Dont put the rescale in the cache, because its temporary.
-        image = closest_image.resize(
-            (int(closest_image.width * rescale), int(closest_image.height * rescale)),
-            Image.Resampling.LANCZOS,
-        )
+        try:
+            image = closest_image.resize(
+                (int(closest_image.width * rescale), int(closest_image.height * rescale)),
+                Image.Resampling.LANCZOS,
+            )
+        except MemoryError as e:
+            _LOGGER.warning(f"MemoryError during image resize: {e}, clearing caches and retrying")
+            self._failed_renders.add(zoom_exponent)
+            with self._cache_lock:
+                self._image_cache.clear()
+                self._photo_cache.clear()
+                self._trash_bin.clear()
+            import gc
+            gc.collect()
+            # Retry resize after cleanup
+            try:
+                image = closest_image.resize(
+                    (int(closest_image.width * rescale), int(closest_image.height * rescale)),
+                    Image.Resampling.LANCZOS,
+                )
+                _LOGGER.debug("Image resize succeeded after cleanup")
+                self._failed_renders.discard(zoom_exponent)
+            except:
+                _LOGGER.error(f"Image resize still failed after cleanup, giving up on zoom {zoom_exponent}")
+                return None
 
-        with self.cache_lock:
+        with self._cache_lock:
             # Never replace the image in the cache, as that would overwrite the background render.
-            if zoom_exponent not in self.image_cache:
-                self.image_cache[zoom_exponent] = image
+            if zoom_exponent not in self._image_cache:
+                self._image_cache[zoom_exponent] = image
             else:
-                image = self.image_cache[zoom_exponent]
+                image = self._image_cache[zoom_exponent]
             _LOGGER.debug(f"About to create PhotoImage from Image {zoom_factor:.2f}x")
-            photo = self.photo_cache[zoom_exponent] = ImageTk.PhotoImage(image)
-            _LOGGER.debug("PhotoImage created and cached")
-            return photo
+            return self._create_photo_image(image, zoom_exponent)
 
     def _update_ui_image(self):
         """Update UI with new high-quality image (called from main thread)"""
         _LOGGER.debug("Updating UI image")
 
-        if self.after_event_id:
-            _LOGGER.debug(f"Cancelling after event {self.after_event_id}")
-            self.parent.after_cancel(self.after_event_id)
-            _LOGGER.debug(f"After event {self.after_event_id} cancelled")
-            self.after_event_id = None
+        if self._after_event_id:
+            _LOGGER.debug(f"Cancelling after event {self._after_event_id}")
+            self._parent.after_cancel(self._after_event_id)
+            _LOGGER.debug(f"After event {self._after_event_id} cancelled")
+            self._after_event_id = None
 
         _LOGGER.debug("Updating UI image")
-        self.canvas.delete("all")
-        self.canvas.create_image(
+        photo = self._get_photo_image(self._zoom_exponent)
+        if photo is None:
+            _LOGGER.debug("No photo image available, skipping UI update")
+            return
+        
+        self._canvas.delete("all")
+        self._canvas.create_image(
             0,
             0,
             anchor=tk.NW,
-            image=self._get_photo_image(self.zoom_exponent),
+            image=photo,
         )
 
         # Update scroll region to fit the image
         self._update_scroll_region()
         _LOGGER.info(
-            f"Zoom: {self._zoom_exponent_to_zoom_factor(self.zoom_exponent):.1f}x"
+            f"Zoom: {self._zoom_exponent_to_zoom_factor(self._zoom_exponent):.1f}x"
         )
 
     def _update_scroll_region(self):
         """Update scroll region to fit the image"""
-        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        self._canvas.configure(scrollregion=self._canvas.bbox("all"))

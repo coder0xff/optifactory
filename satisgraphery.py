@@ -8,7 +8,7 @@ from tkinter import ttk
 import sys
 
 from graphviz_viewer import GraphvizViewer
-from factory import design_factory, Purity
+from factory import design_factory
 
 _LOGGER = logging.getLogger("satisgraphery")
 _LOGGER.setLevel(logging.DEBUG)
@@ -113,16 +113,16 @@ class MainWindow(tk.Tk):
 
         # Scrollbars for canvas (inside viewer_frame)
         v_scrollbar = ttk.Scrollbar(
-            viewer_frame, orient=tk.VERTICAL, command=self.viewer.canvas.yview
+            viewer_frame, orient=tk.VERTICAL, command=self.viewer._canvas.yview
         )
         v_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
-        self.viewer.canvas.configure(yscrollcommand=v_scrollbar.set)
+        self.viewer._canvas.configure(yscrollcommand=v_scrollbar.set)
 
         h_scrollbar = ttk.Scrollbar(
-            viewer_frame, orient=tk.HORIZONTAL, command=self.viewer.canvas.xview
+            viewer_frame, orient=tk.HORIZONTAL, command=self.viewer._canvas.xview
         )
         h_scrollbar.grid(row=1, column=0, sticky=(tk.W, tk.E))
-        self.viewer.canvas.configure(xscrollcommand=h_scrollbar.set)
+        self.viewer._canvas.configure(xscrollcommand=h_scrollbar.set)
 
         # Status label (spans both columns)
         self.status_label = ttk.Label(main_frame, text="Ready", relief=tk.SUNKEN, anchor=tk.W)
@@ -192,14 +192,10 @@ class MainWindow(tk.Tk):
                 mines=[]
             )
             
-            # Update viewer with new graph
+            # Update viewer with new diagram (dot setter handles all cleanup)
             self.viewer.dot = factory.network
-            self.viewer.zoom_exponent = 0
-            self.viewer.image_cache.clear()
-            self.viewer.photo_cache.clear()
-            self.viewer._schedule_render(0)
             
-            self.status_label.config(text=f"Factory generated successfully")
+            self.status_label.config(text="Factory generated successfully")
             _LOGGER.info("Factory generated successfully")
             
         except ValueError as e:
