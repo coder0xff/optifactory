@@ -10,6 +10,7 @@ import sys
 from ttkwidgets import CheckboxTreeview
 from graphviz_viewer import GraphvizViewer
 from factory import design_factory, _RECIPES
+from parsing_utils import parse_material_rate
 
 _LOGGER = logging.getLogger("satisgraphery")
 _LOGGER.setLevel(logging.DEBUG)
@@ -46,7 +47,7 @@ def build_graph():
         outputs={"Concrete": 480},
         inputs=[],  # No inputs specified - will auto-generate required materials
         mines=[],
-        enablement_set=None  # allow all recipes
+        enablement_set=None,  # allow all recipes
     )
     return factory.network
 
@@ -72,85 +73,100 @@ class MainWindow(tk.Tk):
         main_frame.rowconfigure(1, weight=1)
 
         # Left panel for controls
-        control_frame = ttk.LabelFrame(main_frame, text="Factory Configuration", padding="10")
-        control_frame.grid(row=0, column=0, rowspan=2, sticky=(tk.N, tk.S, tk.W), padx=(0, 10))
+        control_frame = ttk.LabelFrame(
+            main_frame, text="Factory Configuration", padding="10"
+        )
+        control_frame.grid(
+            row=0, column=0, rowspan=2, sticky=(tk.N, tk.S, tk.W), padx=(0, 10)
+        )
 
         # Outputs section
-        ttk.Label(control_frame, text="Desired Outputs:", font=("TkDefaultFont", 9, "bold")).grid(
-            row=0, column=0, sticky=tk.W, pady=(0, 5))
-        ttk.Label(control_frame, text="Format: Material:Rate", font=("TkDefaultFont", 8)).grid(
-            row=1, column=0, sticky=tk.W)
-        ttk.Label(control_frame, text="Example: Concrete:480", font=("TkDefaultFont", 8)).grid(
-            row=2, column=0, sticky=tk.W, pady=(0, 5))
-        
+        ttk.Label(
+            control_frame, text="Desired Outputs:", font=("TkDefaultFont", 9, "bold")
+        ).grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
+        ttk.Label(
+            control_frame, text="Format: Material:Rate", font=("TkDefaultFont", 8)
+        ).grid(row=1, column=0, sticky=tk.W)
+        ttk.Label(
+            control_frame, text="Example: Concrete:480", font=("TkDefaultFont", 8)
+        ).grid(row=2, column=0, sticky=tk.W, pady=(0, 5))
+
         self.outputs_text = tk.Text(control_frame, width=30, height=8, wrap=tk.WORD)
         self.outputs_text.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         self.outputs_text.insert("1.0", "Concrete:480")
-        
+
         # Inputs section
-        ttk.Label(control_frame, text="Available Inputs (optional):", font=("TkDefaultFont", 9, "bold")).grid(
-            row=4, column=0, sticky=tk.W, pady=(10, 5))
-        ttk.Label(control_frame, text="One per line for separate conveyors", font=("TkDefaultFont", 8)).grid(
-            row=5, column=0, sticky=tk.W)
-        ttk.Label(control_frame, text="Example: Limestone:480", font=("TkDefaultFont", 8)).grid(
-            row=6, column=0, sticky=tk.W, pady=(0, 5))
-        
+        ttk.Label(
+            control_frame,
+            text="Available Inputs (optional):",
+            font=("TkDefaultFont", 9, "bold"),
+        ).grid(row=4, column=0, sticky=tk.W, pady=(10, 5))
+        ttk.Label(
+            control_frame,
+            text="One per line for separate conveyors",
+            font=("TkDefaultFont", 8),
+        ).grid(row=5, column=0, sticky=tk.W)
+        ttk.Label(
+            control_frame, text="Example: Limestone:480", font=("TkDefaultFont", 8)
+        ).grid(row=6, column=0, sticky=tk.W, pady=(0, 5))
+
         self.inputs_text = tk.Text(control_frame, width=30, height=8, wrap=tk.WORD)
         self.inputs_text.grid(row=7, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
-        self.inputs_text.insert("1.0", "# Leave empty to auto-detect\n# Or specify like:\n# Limestone:480\n# Limestone:480\n# Limestone:480")
-        
+        default_input_text = (
+            "# Leave empty to auto-detect\n"
+            "# Or specify like:\n"
+            "# Limestone:480\n"
+            "# Limestone:480\n"
+            "# Limestone:480"
+        )
+        self.inputs_text.insert("1.0", default_input_text)
+
         # Recipe filter section
-        ttk.Label(control_frame, text="Recipe Filter:", font=("TkDefaultFont", 9, "bold")).grid(
-            row=8, column=0, sticky=tk.W, pady=(10, 5))
-        
+        ttk.Label(
+            control_frame, text="Recipe Filter:", font=("TkDefaultFont", 9, "bold")
+        ).grid(row=8, column=0, sticky=tk.W, pady=(10, 5))
+
         # Create frame for checkbox tree and scrollbar
         tree_frame = ttk.Frame(control_frame)
         tree_frame.grid(row=9, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
-        
+
         self.recipe_tree = CheckboxTreeview(tree_frame, height=10)
         self.recipe_tree.grid(row=0, column=0, sticky=(tk.W, tk.E))
-        
-        tree_scrollbar = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=self.recipe_tree.yview)
+
+        tree_scrollbar = ttk.Scrollbar(
+            tree_frame, orient=tk.VERTICAL, command=self.recipe_tree.yview
+        )
         tree_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
         self.recipe_tree.configure(yscrollcommand=tree_scrollbar.set)
-        
+
         # Populate recipe tree
         self._populate_recipe_tree()
-        
+
         # Generate button
-        self.generate_btn = ttk.Button(control_frame, text="Generate Factory", command=self._generate_factory)
+        self.generate_btn = ttk.Button(
+            control_frame, text="Generate Factory", command=self._generate_factory
+        )
         self.generate_btn.grid(row=10, column=0, sticky=(tk.W, tk.E), pady=(10, 0))
-        
+
         # Export button
-        self.export_btn = ttk.Button(control_frame, text="Copy Graphviz to Clipboard", command=self._copy_graphviz)
+        self.export_btn = ttk.Button(
+            control_frame,
+            text="Copy Graphviz to Clipboard",
+            command=self._copy_graphviz,
+        )
         self.export_btn.grid(row=11, column=0, sticky=(tk.W, tk.E), pady=(5, 0))
 
-        # Create a dedicated frame for the viewer and its scrollbars
-        viewer_frame = ttk.Frame(main_frame)
-        viewer_frame.grid(row=0, column=1, rowspan=2, sticky=(tk.W, tk.E, tk.N, tk.S))
-        viewer_frame.columnconfigure(0, weight=1)
-        viewer_frame.rowconfigure(0, weight=1)
-
-        # Create the graph viewer component inside the viewer frame
-        self.viewer = GraphvizViewer(viewer_frame, diagram=build_graph())
-        self.viewer.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-
-        # Scrollbars for canvas (inside viewer_frame)
-        v_scrollbar = ttk.Scrollbar(
-            viewer_frame, orient=tk.VERTICAL, command=self.viewer._canvas.yview
-        )
-        v_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
-        self.viewer._canvas.configure(yscrollcommand=v_scrollbar.set)
-
-        h_scrollbar = ttk.Scrollbar(
-            viewer_frame, orient=tk.HORIZONTAL, command=self.viewer._canvas.xview
-        )
-        h_scrollbar.grid(row=1, column=0, sticky=(tk.W, tk.E))
-        self.viewer._canvas.configure(xscrollcommand=h_scrollbar.set)
+        # Create the graph viewer component (includes scrollbars)
+        self.viewer = GraphvizViewer(main_frame, diagram=build_graph())
+        self.viewer.grid(row=0, column=1, rowspan=2, sticky=(tk.W, tk.E, tk.N, tk.S))
 
         # Status label (spans both columns)
-        self.status_label = ttk.Label(main_frame, text="Ready", relief=tk.SUNKEN, anchor=tk.W)
-        self.status_label.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
+        self.status_label = ttk.Label(
+            main_frame, text="Ready", relief=tk.SUNKEN, anchor=tk.W
+        )
+        self.status_label.grid(
+            row=2, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0)
+        )
 
         # Setup custom log handler for status bar
         status_handler = StatusBarLogHandler(self, self.status_label)
@@ -161,101 +177,81 @@ class MainWindow(tk.Tk):
         for machine_name, recipes in _RECIPES.items():
             # Add machine as parent node
             machine_id = self.recipe_tree.insert("", "end", text=machine_name)
-            
+
             # Add recipes as children
             for recipe_name in recipes.keys():
                 recipe_id = self.recipe_tree.insert(machine_id, "end", text=recipe_name)
                 # Check recipe by default
                 self.recipe_tree.change_state(recipe_id, "checked")
-            
+
             # Check parent machine (which should check all children)
             self.recipe_tree.change_state(machine_id, "checked")
-    
+
     def _get_selected_recipes(self):
         """Get set of selected recipe names from the checkbox tree"""
-        selected_recipes = set()
-        
-        # Iterate through all machines (top level items)
-        for machine_id in self.recipe_tree.get_children():
-            # Iterate through recipes under each machine
-            for recipe_id in self.recipe_tree.get_children(machine_id):
-                # Check if this recipe is checked
-                if self.recipe_tree.get_checked(recipe_id):
-                    recipe_name = self.recipe_tree.item(recipe_id, "text")
-                    selected_recipes.add(recipe_name)
-        
+        # get_checked() returns leaf nodes only (recipes, not machines)
+        checked_items = self.recipe_tree.get_checked()
+        selected_recipes = {
+            self.recipe_tree.item(item_id, "text") for item_id in checked_items
+        }
         return selected_recipes
-    
+
     def _parse_config_text(self, text):
         """Parse configuration text into list of (material, rate) tuples.
-        
+
         Format: Material:Rate, one per line
         Lines starting with # are comments and ignored
         Empty lines are ignored
         """
         items = []
-        for line in text.strip().split('\n'):
+        for line in text.strip().split("\n"):
             line = line.strip()
             # Skip comments and empty lines
-            if not line or line.startswith('#'):
+            if not line or line.startswith("#"):
                 continue
-            
+
             # Parse Material:Rate
-            if ':' not in line:
-                raise ValueError(f"Invalid format: '{line}'. Expected 'Material:Rate'")
-            
-            material, rate_str = line.split(':', 1)
-            material = material.strip()
-            rate_str = rate_str.strip()
-            
-            try:
-                rate = float(rate_str)
-            except ValueError:
-                raise ValueError(f"Invalid rate '{rate_str}' for {material}. Must be a number.")
-            
+            material, rate = parse_material_rate(line)
             items.append((material, rate))
-        
+
         return items
 
     def _generate_factory(self):
         """Generate factory based on current inputs"""
         try:
             self.status_label.config(text="Generating factory...")
-            self.generate_btn.config(state='disabled')
+            self.generate_btn.config(state="disabled")
             self.update()
-            
+
             # Parse outputs
             outputs_text = self.outputs_text.get("1.0", tk.END)
             outputs_list = self._parse_config_text(outputs_text)
             if not outputs_list:
                 self.status_label.config(text="Error: No outputs specified")
-                self.generate_btn.config(state='normal')
+                self.generate_btn.config(state="normal")
                 return
-            
-            outputs = {material: rate for material, rate in outputs_list}
-            
+
+            outputs = dict(outputs_list)
+
             # Parse inputs
             inputs_text = self.inputs_text.get("1.0", tk.END)
             inputs = self._parse_config_text(inputs_text)
-            
+
             # Get selected recipes
             enablement_set = self._get_selected_recipes()
-            
+
             # Generate factory
             _LOGGER.info(f"Generating factory for outputs: {outputs}")
             factory = design_factory(
-                outputs=outputs,
-                inputs=inputs,
-                mines=[],
-                enablement_set=enablement_set
+                outputs=outputs, inputs=inputs, mines=[], enablement_set=enablement_set
             )
-            
+
             # Update viewer with new diagram (dot setter handles all cleanup)
             self.viewer.dot = factory.network
-            
+
             self.status_label.config(text="Factory generated successfully")
             _LOGGER.info("Factory generated successfully")
-            
+
         except ValueError as e:
             self.status_label.config(text=f"Error: {str(e)}")
             _LOGGER.error(f"Configuration error: {str(e)}")
@@ -263,9 +259,10 @@ class MainWindow(tk.Tk):
             self.status_label.config(text=f"Error: {str(e)}")
             _LOGGER.error(f"Factory generation failed: {str(e)}")
             import traceback
+
             traceback.print_exc()
         finally:
-            self.generate_btn.config(state='normal')
+            self.generate_btn.config(state="normal")
 
     def _copy_graphviz(self):
         """Copy graphviz source to clipboard"""
@@ -273,7 +270,7 @@ class MainWindow(tk.Tk):
             if self.viewer.dot is None:
                 self.status_label.config(text="No graph to export")
                 return
-            
+
             graphviz_source = self.viewer.dot.source
             self.clipboard_clear()
             self.clipboard_append(graphviz_source)
