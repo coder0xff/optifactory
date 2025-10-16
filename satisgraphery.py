@@ -7,8 +7,9 @@ import tkinter as tk
 from tkinter import ttk
 import sys
 
+from ttkwidgets import CheckboxTreeview
 from graphviz_viewer import GraphvizViewer
-from factory import design_factory
+from factory import design_factory, _RECIPES
 
 _LOGGER = logging.getLogger("satisgraphery")
 _LOGGER.setLevel(logging.DEBUG)
@@ -44,7 +45,8 @@ def build_graph():
     factory = design_factory(
         outputs={"Concrete": 480},
         inputs=[],  # No inputs specified - will auto-generate required materials
-        mines=[]
+        mines=[],
+        enablement_set=None  # allow all recipes
     )
     return factory.network
 
@@ -97,13 +99,31 @@ class MainWindow(tk.Tk):
         self.inputs_text.grid(row=7, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         self.inputs_text.insert("1.0", "# Leave empty to auto-detect\n# Or specify like:\n# Limestone:480\n# Limestone:480\n# Limestone:480")
         
+        # Recipe filter section
+        ttk.Label(control_frame, text="Recipe Filter:", font=("TkDefaultFont", 9, "bold")).grid(
+            row=8, column=0, sticky=tk.W, pady=(10, 5))
+        
+        # Create frame for checkbox tree and scrollbar
+        tree_frame = ttk.Frame(control_frame)
+        tree_frame.grid(row=9, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        
+        self.recipe_tree = CheckboxTreeview(tree_frame, height=10)
+        self.recipe_tree.grid(row=0, column=0, sticky=(tk.W, tk.E))
+        
+        tree_scrollbar = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=self.recipe_tree.yview)
+        tree_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        self.recipe_tree.configure(yscrollcommand=tree_scrollbar.set)
+        
+        # Populate recipe tree
+        self._populate_recipe_tree()
+        
         # Generate button
         self.generate_btn = ttk.Button(control_frame, text="Generate Factory", command=self._generate_factory)
-        self.generate_btn.grid(row=8, column=0, sticky=(tk.W, tk.E), pady=(10, 0))
+        self.generate_btn.grid(row=10, column=0, sticky=(tk.W, tk.E), pady=(10, 0))
         
         # Export button
         self.export_btn = ttk.Button(control_frame, text="Copy Graphviz to Clipboard", command=self._copy_graphviz)
-        self.export_btn.grid(row=9, column=0, sticky=(tk.W, tk.E), pady=(5, 0))
+        self.export_btn.grid(row=11, column=0, sticky=(tk.W, tk.E), pady=(5, 0))
 
         # Create a dedicated frame for the viewer and its scrollbars
         viewer_frame = ttk.Frame(main_frame)
@@ -136,6 +156,36 @@ class MainWindow(tk.Tk):
         status_handler = StatusBarLogHandler(self, self.status_label)
         _LOGGER.addHandler(status_handler)
 
+    def _populate_recipe_tree(self):
+        """Populate the recipe tree with machines and recipes, all checked by default"""
+        for machine_name, recipes in _RECIPES.items():
+            # Add machine as parent node
+            machine_id = self.recipe_tree.insert("", "end", text=machine_name)
+            
+            # Add recipes as children
+            for recipe_name in recipes.keys():
+                recipe_id = self.recipe_tree.insert(machine_id, "end", text=recipe_name)
+                # Check recipe by default
+                self.recipe_tree.change_state(recipe_id, "checked")
+            
+            # Check parent machine (which should check all children)
+            self.recipe_tree.change_state(machine_id, "checked")
+    
+    def _get_selected_recipes(self):
+        """Get set of selected recipe names from the checkbox tree"""
+        selected_recipes = set()
+        
+        # Iterate through all machines (top level items)
+        for machine_id in self.recipe_tree.get_children():
+            # Iterate through recipes under each machine
+            for recipe_id in self.recipe_tree.get_children(machine_id):
+                # Check if this recipe is checked
+                if self.recipe_tree.get_checked(recipe_id):
+                    recipe_name = self.recipe_tree.item(recipe_id, "text")
+                    selected_recipes.add(recipe_name)
+        
+        return selected_recipes
+    
     def _parse_config_text(self, text):
         """Parse configuration text into list of (material, rate) tuples.
         
@@ -188,12 +238,16 @@ class MainWindow(tk.Tk):
             inputs_text = self.inputs_text.get("1.0", tk.END)
             inputs = self._parse_config_text(inputs_text)
             
+            # Get selected recipes
+            enablement_set = self._get_selected_recipes()
+            
             # Generate factory
             _LOGGER.info(f"Generating factory for outputs: {outputs}")
             factory = design_factory(
                 outputs=outputs,
                 inputs=inputs,
-                mines=[]
+                mines=[],
+                enablement_set=enablement_set
             )
             
             # Update viewer with new diagram (dot setter handles all cleanup)

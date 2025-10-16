@@ -48,13 +48,19 @@ class Recipe:
     outputs: dict[str, float]
 
 
-def get_recipes_for(output: str) -> dict[float, list[Recipe]]:
+def get_recipes_for(output: str, enablement_set: set[str] | None=None) -> dict[float, list[Recipe]]:
     """Get all recipes for a given output."""
-    return {amount: [Recipe(machine, (r:=_RECIPES[machine][recipe_name])["in"], r["out"]) for machine, recipe_name in machine_recipe_name_pairs] for amount, machine_recipe_name_pairs in _BY_OUTPUT[output].items()}
+    results = defaultdict(list)
+    for amount, machine_recipe_name_pairs in _BY_OUTPUT[output].items():
+        for machine, recipe_name in machine_recipe_name_pairs:
+            if not enablement_set or recipe_name in enablement_set:
+                results[amount].append(Recipe(machine, (r:=_RECIPES[machine][recipe_name])["in"], r["out"]))
+    return results
 
-def get_recipe_for(output: str) -> tuple[float, Recipe]:
+
+def get_recipe_for(output: str, enablement_set: set[str] | None=None) -> tuple[float, Recipe]:
     """Get the highest rate recipe for a given output."""
-    amount, recipes = max(get_recipes_for(output).items(), key=lambda x: x[0])
+    amount, recipes = max(get_recipes_for(output, enablement_set).items(), key=lambda x: x[0])
     return amount, recipes[0]
 
 
@@ -67,7 +73,7 @@ class Factory:
     mines: list[tuple[str, Purity]]
 
 
-def design_factory(outputs: dict[str, float], inputs: list[tuple[str, float]], mines: list[tuple[str, Purity]]) -> Factory:
+def design_factory(outputs: dict[str, float], inputs: list[tuple[str, float]], mines: list[tuple[str, Purity]], enablement_set: set[str] | None=None) -> Factory:
     """Design a complete factory network with machines and balancers.
     
     Args:
@@ -108,7 +114,7 @@ def design_factory(outputs: dict[str, float], inputs: list[tuple[str, float]], m
         output_item, deficit = min(balance.items(), key=lambda x: x[1])
         
         # Check if we have a recipe for this item
-        recipes_available = get_recipes_for(output_item)
+        recipes_available = get_recipes_for(output_item, enablement_set)
         if not recipes_available:
             # No recipe - this is a raw material that needs to be supplied
             # Add it to required raw materials and update balance
@@ -117,7 +123,7 @@ def design_factory(outputs: dict[str, float], inputs: list[tuple[str, float]], m
             balance[output_item] += required_amount
             continue
         
-        recipe_amount, recipe = get_recipe_for(output_item)
+        recipe_amount, recipe = get_recipe_for(output_item, enablement_set)
         machine_count = int((-deficit + recipe_amount - 1) // recipe_amount)
         
         # Find which recipe this is
