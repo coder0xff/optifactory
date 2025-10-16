@@ -1,0 +1,12 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Satisgraphery",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/satisgraphery.py",
+            "console": "integratedTerminal"
+        }
+    ]
+}
