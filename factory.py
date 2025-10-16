@@ -32,9 +32,9 @@ _BY_OUTPUT = defaultdict(lambda: defaultdict(list))
 # This is just to keep the global scope cleaner
 def _populate_by_output():
     for machine, recipes in _RECIPES.items():
-        for recipe_number, recipe in enumerate(recipes):
+        for recipe_name, recipe in recipes.items():
             for output, amount in recipe["out"].items():
-                _BY_OUTPUT[output][amount].append((machine, recipe_number))
+                _BY_OUTPUT[output][amount].append((machine, recipe_name))
 
 
 _populate_by_output()
@@ -48,10 +48,9 @@ class Recipe:
     outputs: dict[str, float]
 
 
-def get_recipes_for(output: str) -> dict[float, Recipe]:
+def get_recipes_for(output: str) -> dict[float, list[Recipe]]:
     """Get all recipes for a given output."""
-    return {amount: [Recipe(machine, (r:=_RECIPES[machine][recipe_number])["in"], r["out"]) for machine, recipe_number in machine_recipe_index_pairs] for amount, machine_recipe_index_pairs in _BY_OUTPUT[output].items()}
-
+    return {amount: [Recipe(machine, (r:=_RECIPES[machine][recipe_name])["in"], r["out"]) for machine, recipe_name in machine_recipe_name_pairs] for amount, machine_recipe_name_pairs in _BY_OUTPUT[output].items()}
 
 def get_recipe_for(output: str) -> tuple[float, Recipe]:
     """Get the highest rate recipe for a given output."""
@@ -123,13 +122,13 @@ def design_factory(outputs: dict[str, float], inputs: list[tuple[str, float]], m
         
         # Find which recipe this is
         machine_type = recipe.machine
-        recipe_idx = None
-        for idx, r in enumerate(_RECIPES[machine_type]):
+        recipe_name = None
+        for name, r in _RECIPES[machine_type].items():
             if r["in"] == recipe.inputs and r["out"] == recipe.outputs:
-                recipe_idx = idx
+                recipe_name = name
                 break
         
-        machine_key = (machine_type, recipe_idx)
+        machine_key = (machine_type, recipe_name)
         machine_instances[machine_key] += machine_count
         recipes_used[machine_key] = recipe
         
