@@ -24,7 +24,7 @@ _MINERS = [
 _WATER_EXTRACTOR = 120  # cubic meters per minute
 
 # All qunaities are "per minute"
-_RECIPES = json.load(open("recipes.yaml", "r", encoding="utf-8"))
+_RECIPES = json.load(open("recipes.json", "r", encoding="utf-8"))
 
 _BY_OUTPUT = defaultdict(lambda: defaultdict(list))
 

@@ -451,7 +451,7 @@
       }
     }
   ],
-  "Oil Refinery": [
+  "Refinery": [
     {
       "in": {
         "Crude Oil": 30.0
