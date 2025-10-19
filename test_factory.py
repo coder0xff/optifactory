@@ -2,7 +2,8 @@
 
 import re
 
-from factory import design_factory, Purity, get_recipes_for
+from factory import design_factory
+from recipes import Purity, get_recipes_for
 
 
 def test_get_recipes_for():
@@ -139,25 +140,3 @@ def test_auto_raw_materials():
     assert "Constructor" in source
 
     print("PASS: Auto raw materials detection")
-
-
-def run_all_tests():
-    """Run all tests"""
-    print("Running factory tests...\n")
-
-    test_get_recipes_for()
-    test_design_factory_with_input()
-    test_design_factory_with_mine()
-    test_balancers_included()
-    test_material_flow_labels()
-    test_no_recipe_error()
-    test_factory_dataclass()
-    test_auto_raw_materials()
-
-    print("\n" + "=" * 50)
-    print("All factory tests passed!")
-    print("=" * 50)
-
-
-if __name__ == "__main__":
-    run_all_tests()

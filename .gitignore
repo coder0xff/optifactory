@@ -1,1 +1,4 @@
 *.pyc
+
+# temp files when debugging the optimizer
+*.lp

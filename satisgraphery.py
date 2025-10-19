@@ -3,14 +3,16 @@
 # pylint: disable=logging-fstring-interpolation,import-outside-toplevel,bare-except,broad-exception-caught
 
 import logging
+import sys
 import tkinter as tk
 from tkinter import ttk
-import sys
 
 from ttkwidgets import CheckboxTreeview
+
+from factory import design_factory
 from graphviz_viewer import GraphvizViewer
-from factory import design_factory, _RECIPES
 from parsing_utils import parse_material_rate
+from recipes import get_all_recipes_by_machine
 
 _LOGGER = logging.getLogger("satisgraphery")
 _LOGGER.setLevel(logging.DEBUG)
@@ -174,7 +176,7 @@ class MainWindow(tk.Tk):
 
     def _populate_recipe_tree(self):
         """Populate the recipe tree with machines and recipes, all checked by default"""
-        for machine_name, recipes in _RECIPES.items():
+        for machine_name, recipes in get_all_recipes_by_machine().items():
             # Add machine as parent node
             machine_id = self.recipe_tree.insert("", "end", text=machine_name)
 

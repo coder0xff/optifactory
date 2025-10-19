@@ -5,7 +5,7 @@
                 "Leaves": 120.0
             },
             "out": {
-                "Wm": 30000000.0
+                "MWm": 30.0
             }
         },
         "Power (Wood)": {
@@ -13,7 +13,7 @@
                 "Wood": 18.0
             },
             "out": {
-                "Wm": 30000000.0
+                "MWm": 30.0
             }
         },
         "Power (Biomass)": {
@@ -21,7 +21,7 @@
                 "Solid Biofuel": 4.0
             },
             "out": {
-                "Wm": 30000000.0
+                "MWm": 30.0
             }
         }
     },
@@ -31,7 +31,7 @@
                 "Coal": 15.0
             },
             "out": {
-                "Wm": 75000000.0
+                "MWm": 75.0
             }
         }
     },
@@ -128,7 +128,7 @@
         },
         "Quickwire": {
             "in": {
-                "Copper Ingot": 12.0
+                "Caterium Ingot": 12.0
             },
             "out": {
                 "Quickwire": 60.0

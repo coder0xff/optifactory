@@ -1,4 +1,7 @@
+frozendict
 graphviz
+git+https://github.com/coin-or/python-mip.git@master
 pillow
-tkinter
+pytest
+tarjan
 ttkwidgets

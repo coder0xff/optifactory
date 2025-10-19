@@ -1,71 +1,13 @@
 """Factory design system for Satisfactory production chains."""
 
-import json
 import re
 from dataclasses import dataclass
 from collections import defaultdict
-from enum import IntEnum
 
 import graphviz
 from balancer import design_balancer
-
-# The speeds of the conveyors in the game
-_CONVEYORS = [60, 120, 270]
-
-
-class Purity(IntEnum):
-    """resource node purity levels"""
-
-    IMPURE = 0
-    NORMAL = 1
-    PURE = 2
-
-
-@dataclass
-class Recipe:
-    """a Satisfactory recipe"""
-
-    machine: str
-    inputs: dict[str, float]
-    outputs: dict[str, float]
-
-
-@dataclass
-class _FactoryState:
-    """Holds mutable state during factory calculation."""
-
-    balance: dict
-    machine_instances: dict
-    recipes_used: dict
-    required_raw_materials: dict
-    total_production: dict
-
-
-# The speeds of the miners in the gamers, major axis is miner version, second axis is purity
-_MINERS = [
-    [30, 60, 120],  # Mk. 1
-    [60, 120, 240],  # Mk. 2
-    [120, 240, 480],  # Mk. 3
-]
-
-_WATER_EXTRACTOR = 120  # cubic meters per minute
-
-# All qunaities are "per minute"
-with open("recipes.json", "r", encoding="utf-8") as f:
-    _RECIPES = json.load(f)
-
-_BY_OUTPUT = defaultdict(lambda: defaultdict(list))
-
-
-# This is just to keep the global scope cleaner
-def _populate_by_output():
-    for machine, recipes in _RECIPES.items():
-        for recipe_name, recipe in recipes.items():
-            for output, amount in recipe["out"].items():
-                _BY_OUTPUT[output][amount].append((machine, recipe_name))
-
-
-_populate_by_output()
+from recipes import Purity, get_mining_rate, Recipe, get_all_recipes
+from optimize import optimize_recipes
 
 
 def _initialize_balance(
@@ -80,55 +22,12 @@ def _initialize_balance(
         balance[material] += flow_rate
 
     for resource, purity in mines:
-        balance[resource] += _MINERS[2][purity]  # Assume Mk.3 miner
+        balance[resource] += get_mining_rate(2, purity)  # Assume Mk.3 miner
 
     for output_item, amount in outputs.items():
         balance[output_item] -= amount
 
     return balance
-
-
-def _find_recipe_name(recipe: Recipe, machine_type: str) -> str:
-    """Find the recipe name in _RECIPES that matches the given recipe."""
-    for name, r in _RECIPES[machine_type].items():
-        if r["in"] == recipe.inputs and r["out"] == recipe.outputs:
-            return name
-    return None
-
-
-def _add_machines_for_recipe(
-    recipe: Recipe, machine_count: int, machine_type: str, state: _FactoryState
-):
-    """Add machines for a recipe and update balance."""
-    recipe_name = _find_recipe_name(recipe, machine_type)
-    machine_key = (machine_type, recipe_name)
-    state.machine_instances[machine_key] += machine_count
-    state.recipes_used[machine_key] = recipe
-
-    for input_item, amount in recipe.inputs.items():
-        state.balance[input_item] -= amount * machine_count
-    for out_item, amount in recipe.outputs.items():
-        state.balance[out_item] += amount * machine_count
-        state.total_production[out_item] += amount * machine_count
-
-
-def _handle_deficit(
-    output_item: str,
-    deficit: float,
-    enablement_set: set[str] | None,
-    state: _FactoryState,
-):
-    """Handle a material deficit by adding recipe or marking as raw material."""
-    recipes_available = get_recipes_for(output_item, enablement_set)
-    if not recipes_available:
-        state.required_raw_materials[output_item] += -deficit
-        state.balance[output_item] += -deficit
-        return
-
-    recipe_amount, recipe = get_recipe_for(output_item, enablement_set)
-    machine_count = int((-deficit + recipe_amount - 1) // recipe_amount)
-
-    _add_machines_for_recipe(recipe, machine_count, recipe.machine, state)
 
 
 def _calculate_machines(
@@ -142,23 +41,57 @@ def _calculate_machines(
     Returns:
         tuple of (machine_instances, recipes_used, required_raw_materials, total_production)
     """
-    state = _FactoryState(
-        balance=_initialize_balance(outputs, inputs, mines),
-        machine_instances=defaultdict(int),
-        recipes_used={},
-        required_raw_materials=defaultdict(float),
-        total_production=defaultdict(float),
+    # Convert inputs list to dict for optimizer
+    inputs_dict = defaultdict(float)
+    for material, flow_rate in inputs:
+        inputs_dict[material] += flow_rate
+    
+    # Add mine outputs to inputs_dict
+    for resource, purity in mines:
+        inputs_dict[resource] += get_mining_rate(2, purity)
+    
+    # Call optimizer - returns {recipe_name: machine_count}
+    recipe_counts = optimize_recipes(
+        inputs=dict(inputs_dict),
+        outputs=outputs,
+        enablement_set=enablement_set
     )
-
-    while any(amount < 0 for amount in state.balance.values()):
-        output_item, deficit = min(state.balance.items(), key=lambda x: x[1])
-        _handle_deficit(output_item, deficit, enablement_set, state)
-
+    
+    # Transform optimizer output to existing format
+    all_recipes = get_all_recipes()
+    machine_instances = defaultdict(int)
+    recipes_used = {}
+    total_production = defaultdict(float)
+    
+    for recipe_name, count in recipe_counts.items():
+        recipe = all_recipes[recipe_name]
+        machine_key = (recipe.machine, recipe_name)
+        
+        machine_instances[machine_key] = int(count)
+        recipes_used[machine_key] = recipe
+        
+        for output_item, amount in recipe.outputs.items():
+            total_production[output_item] += amount * count
+    
+    # Compute required_raw_materials by checking final balance
+    balance = _initialize_balance(outputs, inputs, mines)
+    for recipe_name, count in recipe_counts.items():
+        recipe = all_recipes[recipe_name]
+        for input_item, amount in recipe.inputs.items():
+            balance[input_item] -= amount * count
+        for output_item, amount in recipe.outputs.items():
+            balance[output_item] += amount * count
+    
+    required_raw_materials = defaultdict(float)
+    for material, amount in balance.items():
+        if amount < 0:
+            required_raw_materials[material] = -amount
+    
     return (
-        state.machine_instances,
-        state.recipes_used,
-        state.required_raw_materials,
-        state.total_production,
+        machine_instances,
+        recipes_used,
+        required_raw_materials,
+        total_production,
     )
 
 
@@ -218,7 +151,7 @@ def _add_mine_nodes(inputs_group, mines: list, material_flows: dict):
     """Add mine nodes."""
     for idx, (resource, purity) in enumerate(mines):
         node_id = f"Mine_{idx}"
-        flow_rate = _MINERS[2][purity]  # Assume Mk.3 miner
+        flow_rate = get_mining_rate(2, purity)  # Assume Mk.3 miner
         inputs_group.node(
             node_id,
             f"Miner\n{resource}\n{flow_rate}/min",
@@ -510,32 +443,6 @@ def _route_materials_with_balancers(dot: graphviz.Digraph, material_flows: dict)
         balancer_counter = _route_single_material(
             dot, material, flows, balancer_counter
         )
-
-
-def get_recipes_for(
-    output: str, enablement_set: set[str] | None = None
-) -> dict[float, list[Recipe]]:
-    """Get all recipes for a given output."""
-    results = defaultdict(list)
-    for amount, machine_recipe_name_pairs in _BY_OUTPUT[output].items():
-        for machine, recipe_name in machine_recipe_name_pairs:
-            if not enablement_set or recipe_name in enablement_set:
-                results[amount].append(
-                    Recipe(
-                        machine, (r := _RECIPES[machine][recipe_name])["in"], r["out"]
-                    )
-                )
-    return results
-
-
-def get_recipe_for(
-    output: str, enablement_set: set[str] | None = None
-) -> tuple[float, Recipe]:
-    """Get the highest rate recipe for a given output."""
-    amount, recipes = max(
-        get_recipes_for(output, enablement_set).items(), key=lambda x: x[0]
-    )
-    return amount, recipes[0]
 
 
 @dataclass
