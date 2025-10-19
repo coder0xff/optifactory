@@ -60,7 +60,7 @@ class MainWindow(tk.Tk):
         
         # Economy state
         from economy import get_default_economy
-        self.economy = get_default_economy()
+        self.economy = dict(get_default_economy())
         self.pinned_items = set()
         
         self._setup_ui()

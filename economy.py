@@ -4,6 +4,7 @@ from collections import defaultdict
 from functools import cache
 from itertools import chain
 
+from frozendict import frozendict
 from tarjan import tarjan
 
 from recipes import Recipe, get_all_recipes
@@ -325,18 +326,18 @@ def compute_item_values(recipes: dict[str, Recipe] | None = None, pinned_values:
 
 @freezeargs
 @cache
-def get_default_economies(recipes: dict[str, Recipe] | None=None) -> list[dict[str, Recipe]]:
+def get_default_economies(recipes: dict[str, Recipe] | None=None) -> tuple[frozendict[str, float], ...]:
     """Get the default economies for a given set of recipes."""
     recipes = recipes or get_all_recipes()
     economy_recipes = separate_economies(recipes)
-    return [_compute_economy_values(economy) for economy in economy_recipes]
+    return tuple(frozendict(_compute_economy_values(economy)) for economy in economy_recipes)
 
 
 @freezeargs
 @cache
-def get_default_economy(recipes: dict[str, Recipe] | None=None) -> dict[str, float]:
+def get_default_economy(recipes: dict[str, Recipe] | None=None) -> frozendict[str, float]:
     """Get the default economy for a given set of recipes and naively combine all economies into a single dictionary. The relationships between items in different economies are chosen arbitrarily."""
-    return compute_item_values(recipes)
+    return frozendict(compute_item_values(recipes))
 
 
 def cost_of_recipes(recipes: dict[str, int], economy: dict[str, float] | None=None) -> float:
