@@ -31,8 +31,22 @@ class StatusBarLogHandler(logging.Handler):
         """Emit a log record to the status bar"""
         try:
             msg = self.format(record)
+            
+            # Determine color and font based on log level
+            if record.levelno >= logging.ERROR:
+                color = "red"
+                font = ("TkDefaultFont", 9, "bold")
+            elif record.levelno >= logging.WARNING:
+                color = "brown"
+                font = ("TkDefaultFont", 9)
+            else:
+                color = "black"
+                font = ("TkDefaultFont", 9)
+            
             # Update status bar in main thread
-            self.root.after(10, lambda: self.status_label.config(text=msg))
+            self.root.after(10, lambda: self.status_label.config(
+                text=msg, foreground=color, font=font
+            ))
         except Exception:
             print(f"Error updating status bar: {record}", file=sys.stderr)
 
@@ -84,7 +98,7 @@ class MainWindow(tk.Tk):
         self._setup_economy_tab(economy_frame)
         
         # Status label (below tabs)
-        self.status_label = ttk.Label(
+        self.status_label = tk.Label(
             main_frame, text="Ready", relief=tk.SUNKEN, anchor=tk.W
         )
         self.status_label.grid(
