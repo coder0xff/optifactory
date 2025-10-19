@@ -31,6 +31,13 @@ class FactoryEditor(ttk.Frame):
         self.economy = economy
         self.on_status_change = on_status_change
         
+        # Initialize enabled recipes with default set
+        self.enabled_recipes = set()
+        for machine_name, recipes in get_all_recipes_by_machine().items():
+            for recipe_name, recipe in recipes.items():
+                if "MWm" not in recipe.outputs and machine_name != "Packager":
+                    self.enabled_recipes.add(recipe_name)
+        
         self._setup_ui()
     
     def _setup_ui(self):
@@ -94,9 +101,20 @@ class FactoryEditor(ttk.Frame):
             control_frame, text="Recipe Filter:", font=("TkDefaultFont", 9, "bold")
         ).grid(row=8, column=0, sticky=tk.W, pady=(10, 5))
         
+        # Search box for filtering recipes
+        search_frame = ttk.Frame(control_frame)
+        search_frame.grid(row=9, column=0, sticky=(tk.W, tk.E), pady=(0, 5))
+        search_frame.columnconfigure(0, weight=1)
+        
+        ttk.Label(search_frame, text="Search:").grid(row=0, column=0, sticky=tk.W)
+        self.recipe_search_var = tk.StringVar()
+        self.recipe_search_var.trace_add("write", lambda *args: self._refresh_recipe_tree())
+        self.recipe_search_entry = ttk.Entry(search_frame, textvariable=self.recipe_search_var)
+        self.recipe_search_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(5, 0))
+        
         # Create frame for checkbox tree and scrollbar
         tree_frame = ttk.Frame(control_frame)
-        tree_frame.grid(row=9, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        tree_frame.grid(row=10, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         tree_frame.columnconfigure(0, weight=1)
         
         self.recipe_tree = CheckboxTreeview(tree_frame, height=10)
@@ -111,13 +129,13 @@ class FactoryEditor(ttk.Frame):
         # Populate recipe tree
         self._populate_recipe_tree()
         
-        # Bind recipe tree state changes to update power warning
-        self.recipe_tree.bind("<ButtonRelease-1>", lambda e: self._update_power_warning())
+        # Bind recipe tree state changes to update enabled set and power warning
+        self.recipe_tree.bind("<ButtonRelease-1>", lambda e: self._on_recipe_tree_change())
         
         # Optimization weights section
         ttk.Label(
             control_frame, text="Optimize For:", font=("TkDefaultFont", 9, "bold")
-        ).grid(row=10, column=0, sticky=tk.W, pady=(10, 5))
+        ).grid(row=11, column=0, sticky=tk.W, pady=(10, 5))
         
         self.input_costs_weight = SliderSpinbox(
             control_frame,
@@ -127,7 +145,7 @@ class FactoryEditor(ttk.Frame):
             initial_value=1.0,
             label="Input Costs:",
         )
-        self.input_costs_weight.grid(row=11, column=0, sticky=(tk.W, tk.E), pady=2)
+        self.input_costs_weight.grid(row=12, column=0, sticky=(tk.W, tk.E), pady=2)
         
         self.machine_counts_weight = SliderSpinbox(
             control_frame,
@@ -137,7 +155,7 @@ class FactoryEditor(ttk.Frame):
             initial_value=0.0,
             label="Machine Counts:",
         )
-        self.machine_counts_weight.grid(row=12, column=0, sticky=(tk.W, tk.E), pady=2)
+        self.machine_counts_weight.grid(row=13, column=0, sticky=(tk.W, tk.E), pady=2)
         
         self.power_consumption_weight = SliderSpinbox(
             control_frame,
@@ -147,7 +165,7 @@ class FactoryEditor(ttk.Frame):
             initial_value=1.0,
             label="Power Usage:",
         )
-        self.power_consumption_weight.grid(row=13, column=0, sticky=(tk.W, tk.E), pady=2)
+        self.power_consumption_weight.grid(row=14, column=0, sticky=(tk.W, tk.E), pady=2)
         
         # Design power checkbox
         self.design_power_var = tk.BooleanVar(value=False)
@@ -157,7 +175,7 @@ class FactoryEditor(ttk.Frame):
             variable=self.design_power_var,
             command=self._update_power_warning,
         )
-        self.design_power_check.grid(row=14, column=0, sticky=tk.W, pady=(10, 0))
+        self.design_power_check.grid(row=15, column=0, sticky=tk.W, pady=(10, 0))
         
         # Warning label for power design without power recipes
         self.power_warning_label = ttk.Label(
@@ -172,7 +190,7 @@ class FactoryEditor(ttk.Frame):
         self.generate_btn = ttk.Button(
             control_frame, text="Generate Factory", command=self._generate_factory
         )
-        self.generate_btn.grid(row=16, column=0, sticky=(tk.W, tk.E), pady=(5, 0))
+        self.generate_btn.grid(row=17, column=0, sticky=(tk.W, tk.E), pady=(5, 0))
         
         # Export button
         self.export_btn = ttk.Button(
@@ -180,7 +198,7 @@ class FactoryEditor(ttk.Frame):
             text="Copy Graphviz to Clipboard",
             command=self._copy_graphviz,
         )
-        self.export_btn.grid(row=17, column=0, sticky=(tk.W, tk.E), pady=(5, 0))
+        self.export_btn.grid(row=18, column=0, sticky=(tk.W, tk.E), pady=(5, 0))
         
         # Create the graph viewer component (includes scrollbars)
         self.viewer = GraphvizViewer(self)
@@ -190,18 +208,41 @@ class FactoryEditor(ttk.Frame):
         self._update_power_warning()
     
     def _populate_recipe_tree(self):
-        """Populate the recipe tree with machines and recipes, all checked by default"""
+        """Populate the recipe tree with machines and recipes, all with correct enabled state"""
+        # Store metadata for each tree item for filtering
+        self.recipe_metadata = {}
+        
         for machine_name, recipes in get_all_recipes_by_machine().items():
             # Add machine as parent node
             machine_id = self.recipe_tree.insert("", "end", text=machine_name)
+            self.recipe_metadata[machine_id] = {
+                "type": "machine",
+                "name": machine_name.lower(),
+                "children": []
+            }
             
             any_checked = False
             any_unchecked = False
             # Add recipes as children
             for recipe_name, recipe in recipes.items():
                 recipe_id = self.recipe_tree.insert(machine_id, "end", text=recipe_name)
-                if "MWm" not in recipe.outputs and machine_name != "Packager":
-                    # Check no-power recipe by default
+                
+                # Store searchable content for this recipe
+                input_names = [name.lower() for name in recipe.inputs.keys()]
+                output_names = [name.lower() for name in recipe.outputs.keys()]
+                self.recipe_metadata[recipe_id] = {
+                    "type": "recipe",
+                    "name": recipe_name.lower(),
+                    "inputs": input_names,
+                    "outputs": output_names,
+                    "parent": machine_id
+                }
+                self.recipe_metadata[machine_id]["children"].append(recipe_id)
+                
+                # Use saved enabled state
+                is_enabled = recipe_name in self.enabled_recipes
+                
+                if is_enabled:
                     self.recipe_tree.change_state(recipe_id, "checked")
                     any_checked = True
                 else:
@@ -209,11 +250,113 @@ class FactoryEditor(ttk.Frame):
                     any_unchecked = True
             
             if any_checked and any_unchecked:
-                self.recipe_tree.change_state(machine_id, "mixed")
+                self.recipe_tree.change_state(machine_id, "tristate")
             elif any_checked:
                 self.recipe_tree.change_state(machine_id, "checked")
             else:
                 self.recipe_tree.change_state(machine_id, "unchecked")
+    
+    def _refresh_recipe_tree(self):
+        """Refresh the recipe tree based on current search text"""
+        # Don't update enabled_recipes here - just refresh the display
+        # The enabled state is independent of visibility
+        search_text = self.recipe_search_var.get().lower()
+        
+        # Process all machines (use metadata to get all, not just visible ones)
+        for machine_id in self.recipe_metadata.keys():
+            if self.recipe_metadata[machine_id]["type"] != "machine":
+                continue
+                
+            metadata = self.recipe_metadata[machine_id]
+            visible_children = []
+            
+            # Check each recipe child
+            for recipe_id in metadata["children"]:
+                recipe_meta = self.recipe_metadata[recipe_id]
+                
+                # Check if search text matches recipe name, inputs, or outputs
+                if not search_text:
+                    # Empty search - show everything
+                    matches = True
+                else:
+                    matches = (
+                        search_text in recipe_meta["name"]
+                        or any(search_text in inp for inp in recipe_meta["inputs"])
+                        or any(search_text in out for out in recipe_meta["outputs"])
+                    )
+                
+                if matches:
+                    visible_children.append(recipe_id)
+                    # Reattach recipe to tree (move works even if already attached)
+                    self.recipe_tree.move(recipe_id, machine_id, "end")
+                else:
+                    # Detach recipe from tree (hides it but preserves state)
+                    try:
+                        self.recipe_tree.detach(recipe_id)
+                    except tk.TclError:
+                        pass  # Already detached
+            
+            # Show/hide machine based on whether it has visible children
+            if visible_children:
+                # Reattach machine to tree (move works even if already attached)
+                self.recipe_tree.move(machine_id, "", "end")
+            else:
+                # Detach machine from tree
+                try:
+                    self.recipe_tree.detach(machine_id)
+                except tk.TclError:
+                    pass  # Already detached
+        
+        # Update parent states after all children have been attached/detached
+        for machine_id in self.recipe_metadata.keys():
+            if self.recipe_metadata[machine_id]["type"] != "machine":
+                continue
+            
+            # Get visible children for this machine
+            visible_children = []
+            for recipe_id in self.recipe_metadata[machine_id]["children"]:
+                # Check if recipe is attached (visible)
+                try:
+                    parent = self.recipe_tree.parent(recipe_id)
+                    if parent:  # Has a parent, so it's attached
+                        visible_children.append(recipe_id)
+                except tk.TclError:
+                    pass
+            
+            if visible_children:
+                # Update parent check state based on visible children
+                # Count checked children by checking each one individually
+                visible_checked_count = 0
+                for recipe_id in visible_children:
+                    if self.recipe_tree.tag_has("checked", recipe_id):
+                        visible_checked_count += 1
+                
+                # Set the appropriate state based on how many visible children are checked
+                if visible_checked_count == 0:
+                    self.recipe_tree.change_state(machine_id, "unchecked")
+                elif visible_checked_count == len(visible_children):
+                    self.recipe_tree.change_state(machine_id, "checked")
+                else:
+                    self.recipe_tree.change_state(machine_id, "tristate")
+    
+    def _on_recipe_tree_change(self):
+        """Handle recipe tree checkbox changes"""
+        # Get currently visible recipes
+        visible_recipes = set()
+        for machine_id in self.recipe_tree.get_children(""):
+            for recipe_id in self.recipe_tree.get_children(machine_id):
+                recipe_name = self.recipe_tree.item(recipe_id, "text")
+                visible_recipes.add(recipe_name)
+        
+        # Get which visible recipes are checked
+        visible_checked = self._get_selected_recipes()
+        
+        # Update enabled_recipes: remove all visible recipes, then add back the checked ones
+        # This preserves the state of non-visible recipes
+        self.enabled_recipes = (self.enabled_recipes - visible_recipes) | visible_checked
+        
+        # Update power warning
+        self._update_power_warning()
     
     def _get_selected_recipes(self):
         """Get set of selected recipe names from the checkbox tree"""
@@ -235,7 +378,7 @@ class FactoryEditor(ttk.Frame):
             
             if not power_recipes:
                 # Show warning
-                self.power_warning_label.grid(row=15, column=0, sticky=tk.W, pady=(2, 5))
+                self.power_warning_label.grid(row=16, column=0, sticky=tk.W, pady=(2, 5))
             else:
                 # Hide warning
                 self.power_warning_label.grid_remove()
