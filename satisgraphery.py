@@ -12,7 +12,8 @@ from ttkwidgets import CheckboxTreeview
 from factory import design_factory
 from graphviz_viewer import GraphvizViewer
 from parsing_utils import parse_material_rate
-from recipes import get_all_recipes_by_machine
+from recipes import get_all_recipes_by_machine, get_recipes_for
+from slider_spinbox import SliderSpinbox
 
 _LOGGER = logging.getLogger("satisgraphery")
 _LOGGER.setLevel(logging.DEBUG)
@@ -39,19 +40,6 @@ class StatusBarLogHandler(logging.Handler):
             self.root.after(10, lambda: self.status_label.config(text=msg))
         except Exception:
             print(f"Error updating status bar: {record}", file=sys.stderr)
-
-
-def build_graph():
-    """Build a demo factory graph"""
-    # Demo: Create a concrete factory with automatic raw material detection
-    # Just specify we want 480 concrete - the system figures out we need limestone
-    factory = design_factory(
-        outputs={"Concrete": 480},
-        inputs=[],  # No inputs specified - will auto-generate required materials
-        mines=[],
-        enablement_set=None,  # allow all recipes
-    )
-    return factory.network
 
 
 class MainWindow(tk.Tk):
@@ -81,6 +69,7 @@ class MainWindow(tk.Tk):
         control_frame.grid(
             row=0, column=0, rowspan=2, sticky=(tk.N, tk.S, tk.W), padx=(0, 10)
         )
+        control_frame.columnconfigure(0, weight=1)
 
         # Outputs section
         ttk.Label(
@@ -131,6 +120,7 @@ class MainWindow(tk.Tk):
         # Create frame for checkbox tree and scrollbar
         tree_frame = ttk.Frame(control_frame)
         tree_frame.grid(row=9, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        tree_frame.columnconfigure(0, weight=1)
 
         self.recipe_tree = CheckboxTreeview(tree_frame, height=10)
         self.recipe_tree.grid(row=0, column=0, sticky=(tk.W, tk.E))
@@ -144,11 +134,68 @@ class MainWindow(tk.Tk):
         # Populate recipe tree
         self._populate_recipe_tree()
 
+        # Bind recipe tree state changes to update power warning
+        self.recipe_tree.bind("<ButtonRelease-1>", lambda e: self._update_power_warning())
+
+        # Optimization weights section
+        ttk.Label(
+            control_frame, text="Optimize For:", font=("TkDefaultFont", 9, "bold")
+        ).grid(row=10, column=0, sticky=tk.W, pady=(10, 5))
+
+        self.input_costs_weight = SliderSpinbox(
+            control_frame,
+            from_=0.0,
+            to=1.0,
+            increment=0.01,
+            initial_value=1.0,
+            label="Input Costs:",
+        )
+        self.input_costs_weight.grid(row=11, column=0, sticky=(tk.W, tk.E), pady=2)
+
+        self.machine_counts_weight = SliderSpinbox(
+            control_frame,
+            from_=0.0,
+            to=1.0,
+            increment=0.01,
+            initial_value=0.0,
+            label="Machine Counts:",
+        )
+        self.machine_counts_weight.grid(row=12, column=0, sticky=(tk.W, tk.E), pady=2)
+
+        self.power_consumption_weight = SliderSpinbox(
+            control_frame,
+            from_=0.0,
+            to=1.0,
+            increment=0.01,
+            initial_value=1.0,
+            label="Power Usage:",
+        )
+        self.power_consumption_weight.grid(row=13, column=0, sticky=(tk.W, tk.E), pady=2)
+
+        # Design power checkbox
+        self.design_power_var = tk.BooleanVar(value=False)
+        self.design_power_check = ttk.Checkbutton(
+            control_frame,
+            text="Include power in design",
+            variable=self.design_power_var,
+            command=self._update_power_warning,
+        )
+        self.design_power_check.grid(row=14, column=0, sticky=tk.W, pady=(10, 0))
+
+        # Warning label for power design without power recipes
+        self.power_warning_label = ttk.Label(
+            control_frame,
+            text="Warning: No power-generating recipes are enabled",
+            foreground="red",
+            font=("TkDefaultFont", 8),
+        )
+        # Will be shown/hidden by _update_power_warning()
+
         # Generate button
         self.generate_btn = ttk.Button(
             control_frame, text="Generate Factory", command=self._generate_factory
         )
-        self.generate_btn.grid(row=10, column=0, sticky=(tk.W, tk.E), pady=(10, 0))
+        self.generate_btn.grid(row=16, column=0, sticky=(tk.W, tk.E), pady=(5, 0))
 
         # Export button
         self.export_btn = ttk.Button(
@@ -156,10 +203,10 @@ class MainWindow(tk.Tk):
             text="Copy Graphviz to Clipboard",
             command=self._copy_graphviz,
         )
-        self.export_btn.grid(row=11, column=0, sticky=(tk.W, tk.E), pady=(5, 0))
+        self.export_btn.grid(row=17, column=0, sticky=(tk.W, tk.E), pady=(5, 0))
 
         # Create the graph viewer component (includes scrollbars)
-        self.viewer = GraphvizViewer(main_frame, diagram=build_graph())
+        self.viewer = GraphvizViewer(main_frame)
         self.viewer.grid(row=0, column=1, rowspan=2, sticky=(tk.W, tk.E, tk.N, tk.S))
 
         # Status label (spans both columns)
@@ -169,6 +216,11 @@ class MainWindow(tk.Tk):
         self.status_label.grid(
             row=2, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0)
         )
+
+        self._generate_factory()
+
+        # Initialize power warning state
+        self._update_power_warning()
 
         # Setup custom log handler for status bar
         status_handler = StatusBarLogHandler(self, self.status_label)
@@ -180,14 +232,25 @@ class MainWindow(tk.Tk):
             # Add machine as parent node
             machine_id = self.recipe_tree.insert("", "end", text=machine_name)
 
+            any_checked = False
+            any_unchecked = False
             # Add recipes as children
-            for recipe_name in recipes.keys():
+            for recipe_name, recipe in recipes.items():
                 recipe_id = self.recipe_tree.insert(machine_id, "end", text=recipe_name)
-                # Check recipe by default
-                self.recipe_tree.change_state(recipe_id, "checked")
+                if "MWm" not in recipe.outputs and machine_name != "Packager":
+                    # Check no-power recipe by default
+                    self.recipe_tree.change_state(recipe_id, "checked")
+                    any_checked = True
+                else:
+                    self.recipe_tree.change_state(recipe_id, "unchecked")
+                    any_unchecked = True
 
-            # Check parent machine (which should check all children)
-            self.recipe_tree.change_state(machine_id, "checked")
+            if any_checked and any_unchecked:
+                self.recipe_tree.change_state(machine_id, "mixed")
+            elif any_checked:
+                self.recipe_tree.change_state(machine_id, "checked")
+            else:
+                self.recipe_tree.change_state(machine_id, "unchecked")
 
     def _get_selected_recipes(self):
         """Get set of selected recipe names from the checkbox tree"""
@@ -197,6 +260,25 @@ class MainWindow(tk.Tk):
             self.recipe_tree.item(item_id, "text") for item_id in checked_items
         }
         return selected_recipes
+
+    def _update_power_warning(self):
+        """show/hide warning if design_power is enabled but no power recipes are enabled"""
+        design_power = self.design_power_var.get()
+        
+        if design_power:
+            # Check if any power-generating recipes are enabled
+            enablement_set = self._get_selected_recipes()
+            power_recipes = get_recipes_for("MWm", enablement_set)
+            
+            if not power_recipes:
+                # Show warning
+                self.power_warning_label.grid(row=15, column=0, sticky=tk.W, pady=(2, 5))
+            else:
+                # Hide warning
+                self.power_warning_label.grid_remove()
+        else:
+            # Hide warning when design_power is disabled
+            self.power_warning_label.grid_remove()
 
     def _parse_config_text(self, text):
         """Parse configuration text into list of (material, rate) tuples.
@@ -242,10 +324,25 @@ class MainWindow(tk.Tk):
             # Get selected recipes
             enablement_set = self._get_selected_recipes()
 
+            # Get optimization weights
+            input_costs_weight = self.input_costs_weight.get()
+            machine_counts_weight = self.machine_counts_weight.get()
+            power_consumption_weight = self.power_consumption_weight.get()
+
+            # Get power design setting
+            design_power = self.design_power_var.get()
+
             # Generate factory
             _LOGGER.info(f"Generating factory for outputs: {outputs}")
             factory = design_factory(
-                outputs=outputs, inputs=inputs, mines=[], enablement_set=enablement_set
+                outputs=outputs,
+                inputs=inputs,
+                mines=[],
+                enablement_set=enablement_set,
+                input_costs_weight=input_costs_weight,
+                machine_counts_weight=machine_counts_weight,
+                power_consumption_weight=power_consumption_weight,
+                design_power=design_power,
             )
 
             # Update viewer with new diagram (dot setter handles all cleanup)

@@ -35,6 +35,10 @@ def _calculate_machines(
     inputs: list[tuple[str, float]],
     mines: list[tuple[str, Purity]],
     enablement_set: set[str] | None,
+    input_costs_weight: float,
+    machine_counts_weight: float,
+    power_consumption_weight: float,
+    design_power: bool,
 ) -> tuple[dict, dict, dict, dict]:
     """Calculate required machines and material balance.
 
@@ -54,7 +58,11 @@ def _calculate_machines(
     recipe_counts = optimize_recipes(
         inputs=dict(inputs_dict),
         outputs=outputs,
-        enablement_set=enablement_set
+        enablement_set=enablement_set,
+        input_costs_weight=input_costs_weight,
+        machine_counts_weight=machine_counts_weight,
+        power_consumption_weight=power_consumption_weight,
+        design_power=design_power,
     )
     
     # Transform optimizer output to existing format
@@ -440,6 +448,8 @@ def _route_materials_with_balancers(dot: graphviz.Digraph, material_flows: dict)
     """Route materials between sources and sinks using balancers."""
     balancer_counter = 0
     for material, flows in material_flows.items():
+        if material == "MWm":  # skip electricity - doesn't need balancing
+            continue
         balancer_counter = _route_single_material(
             dot, material, flows, balancer_counter
         )
@@ -483,6 +493,10 @@ def design_factory(
     inputs: list[tuple[str, float]],
     mines: list[tuple[str, Purity]],
     enablement_set: set[str] | None = None,
+    input_costs_weight: float = 1.0,
+    machine_counts_weight: float = 0.0,
+    power_consumption_weight: float = 1.0,
+    design_power: bool = False,
 ) -> Factory:
     """Design a complete factory network with machines and balancers.
 
@@ -491,13 +505,23 @@ def design_factory(
         inputs: list of (material, flow_rate) tuples for input conveyors
             (e.g., [("Iron Ore", 200), ("Iron Ore", 200)])
         mines: list of (resource_name, purity) tuples for mining nodes
+        design_power: whether to include power generation in the design
 
     Returns:
         Factory with complete network graph including machines and balancers
     """
     # Phase 1: Calculate required machines
     machine_instances, recipes_used, required_raw_materials, total_production = (
-        _calculate_machines(outputs, inputs, mines, enablement_set)
+        _calculate_machines(
+            outputs,
+            inputs,
+            mines,
+            enablement_set,
+            input_costs_weight,
+            machine_counts_weight,
+            power_consumption_weight,
+            design_power,
+        )
     )
 
     # Recompute balance for output calculation

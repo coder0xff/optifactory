@@ -920,7 +920,7 @@
                 "Compacted Coal": 30.0
             },
             "out": {
-                "Turbo Fuel": 30.0
+                "Turbofuel": 30.0
             }
         },
         "Alternate: Pure Iron Ingot": {
@@ -1026,11 +1026,11 @@
         },
         "Packaged Turbofuel": {
             "in": {
-                "Turbo Fuel": 20.0,
+                "Turbofuel": 20.0,
                 "Empty Canister": 20.0
             },
             "out": {
-                "Packaged Turbo Fuel": 20.0
+                "Packaged Turbofuel": 20.0
             }
         },
         "Unpackage Water": {
@@ -1078,13 +1078,55 @@
                 "Empty Canister": 60.0
             }
         },
-        "Unpackage Turbo Fuel": {
+        "Unpackage Turbofuel": {
             "in": {
-                "Packaged Turbo Fuel": 20.0
+                "Packaged Turbofuel": 20.0
             },
             "out": {
-                "Turbo Fuel": 20.0,
+                "Turbofuel": 20.0,
                 "Empty Canister": 20.0
+            }
+        }
+    },
+    "Fuel-Powered Generator": {
+        "Power (Fuel)": {
+            "in": {
+                "Fuel": 20.0
+            },
+            "out": {
+                "MWm": 250.0
+            }
+        },
+        "Power (Liquid Biofuel)": {
+            "in": {
+                "Liquid Biofuel": 20.0
+            },
+            "out": {
+                "MWm": 250.0
+            }
+        },
+        "Power (Turbofuel)": {
+            "in": {
+                "Turbofuel": 7.5
+            },
+            "out": {
+                "MWm": 250.0
+            }
+        },
+        "Power (Rocket Fuel)": {
+            "in": {
+                "Rocket Fuel": 4.167
+            },
+            "out": {
+                "MWm": 250.0
+            }
+        },
+        "Power (Ionized Fuel)": {
+            "in": {
+                "Ionized Fuel": 3.0
+            },
+            "out": {
+                "MWm": 250.0
             }
         }
     }
