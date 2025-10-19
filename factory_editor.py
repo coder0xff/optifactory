@@ -11,6 +11,7 @@ from graphviz_viewer import GraphvizViewer
 from parsing_utils import parse_material_rate
 from recipes import get_all_recipes_by_machine, get_recipes_for
 from slider_spinbox import SliderSpinbox
+from tooltip import Tooltip
 
 _LOGGER = logging.getLogger("satisgraphery")
 
@@ -146,6 +147,11 @@ class FactoryEditor(ttk.Frame):
             label="Input Costs:",
         )
         self.input_costs_weight.grid(row=12, column=0, sticky=(tk.W, tk.E), pady=2)
+        Tooltip(
+            self.input_costs_weight,
+            text="Drag the slider to the right to prioritize minimizing raw material usage from inputs",
+            waittime=500
+        )
         
         self.machine_counts_weight = SliderSpinbox(
             control_frame,
@@ -156,6 +162,11 @@ class FactoryEditor(ttk.Frame):
             label="Machine Counts:",
         )
         self.machine_counts_weight.grid(row=13, column=0, sticky=(tk.W, tk.E), pady=2)
+        Tooltip(
+            self.machine_counts_weight,
+            text="Drag the slider to the right to prioritize fewer machines",
+            waittime=500
+        )
         
         self.power_consumption_weight = SliderSpinbox(
             control_frame,
@@ -166,6 +177,11 @@ class FactoryEditor(ttk.Frame):
             label="Power Usage:",
         )
         self.power_consumption_weight.grid(row=14, column=0, sticky=(tk.W, tk.E), pady=2)
+        Tooltip(
+            self.power_consumption_weight,
+            text="Drag the slider to the right to prioritize minimizing power consumption",
+            waittime=500
+        )
         
         # Design power checkbox
         self.design_power_var = tk.BooleanVar(value=False)
