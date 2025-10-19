@@ -9,6 +9,7 @@ from tkinter import ttk
 
 from ttkwidgets import CheckboxTreeview
 
+from economy_editor import EconomyEditor
 from factory import design_factory
 from graphviz_viewer import GraphvizViewer
 from parsing_utils import parse_material_rate
@@ -48,6 +49,12 @@ class MainWindow(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Satisgraphery - Factory Planner")
+        
+        # Economy state
+        from economy import get_default_economy
+        self.economy = get_default_economy()
+        self.pinned_items = set()
+        
         self._setup_ui()
 
     def _setup_ui(self):
@@ -59,12 +66,50 @@ class MainWindow(tk.Tk):
         # Configure grid weights
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
-        main_frame.columnconfigure(1, weight=1)
-        main_frame.rowconfigure(1, weight=1)
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(0, weight=1)
+        
+        # Create notebook for tabs
+        self.notebook = ttk.Notebook(main_frame)
+        self.notebook.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        
+        # Create Factory tab
+        factory_frame = ttk.Frame(self.notebook)
+        self.notebook.add(factory_frame, text="Factory")
+        factory_frame.columnconfigure(1, weight=1)
+        factory_frame.rowconfigure(1, weight=1)
+        
+        # Create Economy tab
+        economy_frame = ttk.Frame(self.notebook)
+        self.notebook.add(economy_frame, text="Economy")
+        
+        # Setup Factory tab
+        self._setup_factory_tab(factory_frame)
+        
+        # Setup Economy tab
+        self._setup_economy_tab(economy_frame)
+        
+        # Status label (below tabs)
+        self.status_label = ttk.Label(
+            main_frame, text="Ready", relief=tk.SUNKEN, anchor=tk.W
+        )
+        self.status_label.grid(
+            row=1, column=0, sticky=(tk.W, tk.E), pady=(10, 0)
+        )
+        
+        # Setup custom log handler for status bar
+        status_handler = StatusBarLogHandler(self, self.status_label)
+        _LOGGER.addHandler(status_handler)
+        
+        # Generate initial factory
+        self._generate_factory()
+
+    def _setup_factory_tab(self, parent_frame):
+        """Setup the factory configuration tab"""
 
         # Left panel for controls
         control_frame = ttk.LabelFrame(
-            main_frame, text="Factory Configuration", padding="10"
+            parent_frame, text="Factory Configuration", padding="10"
         )
         control_frame.grid(
             row=0, column=0, rowspan=2, sticky=(tk.N, tk.S, tk.W), padx=(0, 10)
@@ -206,25 +251,30 @@ class MainWindow(tk.Tk):
         self.export_btn.grid(row=17, column=0, sticky=(tk.W, tk.E), pady=(5, 0))
 
         # Create the graph viewer component (includes scrollbars)
-        self.viewer = GraphvizViewer(main_frame)
+        self.viewer = GraphvizViewer(parent_frame)
         self.viewer.grid(row=0, column=1, rowspan=2, sticky=(tk.W, tk.E, tk.N, tk.S))
-
-        # Status label (spans both columns)
-        self.status_label = ttk.Label(
-            main_frame, text="Ready", relief=tk.SUNKEN, anchor=tk.W
-        )
-        self.status_label.grid(
-            row=2, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0)
-        )
-
-        self._generate_factory()
 
         # Initialize power warning state
         self._update_power_warning()
 
-        # Setup custom log handler for status bar
-        status_handler = StatusBarLogHandler(self, self.status_label)
-        _LOGGER.addHandler(status_handler)
+    def _setup_economy_tab(self, parent_frame):
+        """Setup the economy settings tab"""
+        parent_frame.columnconfigure(0, weight=1)
+        parent_frame.rowconfigure(0, weight=1)
+        
+        # Create economy editor component
+        self.economy_editor = EconomyEditor(
+            parent_frame,
+            self.economy,
+            self.pinned_items,
+            on_change=self._on_economy_change
+        )
+        self.economy_editor.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+    
+    def _on_economy_change(self):
+        """Handle economy changes"""
+        # Future: could update status bar or trigger other actions here
+        return
 
     def _populate_recipe_tree(self):
         """Populate the recipe tree with machines and recipes, all checked by default"""
@@ -339,6 +389,7 @@ class MainWindow(tk.Tk):
                 inputs=inputs,
                 mines=[],
                 enablement_set=enablement_set,
+                economy=self.economy,
                 input_costs_weight=input_costs_weight,
                 machine_counts_weight=machine_counts_weight,
                 power_consumption_weight=power_consumption_weight,

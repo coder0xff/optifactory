@@ -1,3 +1,4 @@
+import csv
 import logging
 from collections import defaultdict
 from functools import cache
@@ -12,16 +13,17 @@ _LOGGER = logging.getLogger("satisgraphery")
 _LOGGER.setLevel(logging.DEBUG)
 
 
-def _compute_item_values(recipes: dict[str, Recipe]) -> dict[str, float]:
-    """compute values for all items using iterative convergence
+def _compute_economy_values(recipes: dict[str, Recipe], pinned_values: dict[str, float] | None = None) -> dict[str, float]:
+    """compute values for all items in a single economy using iterative convergence
     
     Args:
-        max_iterations: maximum number of iterations to run
-        convergence_threshold: stop if max value change is below this
+        recipes: dict of recipes that form a single interconnected economy
+        pinned_values: dict of item names to fixed values that won't change during convergence
     
     Returns:
         dict mapping item names to their computed values
     """
+    pinned_values = pinned_values or {}
 
     # collect all parts
     all_parts: set[str] = set()
@@ -33,6 +35,8 @@ def _compute_item_values(recipes: dict[str, Recipe]) -> dict[str, float]:
 
     sorted_parts = sorted(all_parts)
     parts_to_index = {part: index for index, part in enumerate(sorted_parts)}
+    # Map indices to their pinned values
+    pinned_index_values = {parts_to_index[part]: value for part, value in pinned_values.items() if part in parts_to_index}
 
     def recipe_to_lookup(recipe: Recipe) -> tuple[list[tuple[int, int]], list[tuple[int, int]]]:
         inputs = [(parts_to_index[input_part], amount) for input_part, amount in recipe.inputs.items()]
@@ -41,6 +45,9 @@ def _compute_item_values(recipes: dict[str, Recipe]) -> dict[str, float]:
 
     # initialize values
     values = [1] * len(all_parts)
+    # set pinned values in initial state
+    for index, value in pinned_index_values.items():
+        values[index] = value
 
     # organize recipes by their outputs for efficient lookup
     recipes_producing_dict = defaultdict(list)
@@ -77,7 +84,7 @@ def _compute_item_values(recipes: dict[str, Recipe]) -> dict[str, float]:
         # print(f"{'Part':<40} {'Previous Value':>12} {'Value':>12} {'Change':>12} {'Error':>12} {'Direction':<10}")
         # print(f"{'-'*120}")
 
-        new_values, changes, errors = _step(recipes_producing, recipes_consuming, values, temperature)
+        new_values, changes, errors = _step(recipes_producing, recipes_consuming, values, temperature, pinned_index_values)
 
         # for part, original_value, new_value, change, error in zip(sorted_parts, values, new_values, changes, errors):
         #     direction = '▲ UP' if change > 0 else '▼ DOWN' if change < 0 else '═ FLAT'
@@ -140,10 +147,14 @@ def _compute_item_values(recipes: dict[str, Recipe]) -> dict[str, float]:
             # print(f"Converged after {iterations} iterations")
             break
 
-    values = _relax(recipes_producing, recipes_consuming, values, sorted_parts)
+    values = _relax(recipes_producing, recipes_consuming, values, sorted_parts, pinned_index_values)
+    
     min_value = min(values)
     normalization = 1 / min_value
-    values = [value * normalization for value in values] 
+    values = [value * normalization for value in values]
+    for index, value in pinned_index_values.items():
+        values[index] = value
+    
     values = [round(value, 8) for value in values]
     return dict(zip(sorted_parts, values))
 
@@ -152,23 +163,33 @@ def _step(
     recipes_producing: list[list[tuple[list[str, float], list[str, float]]]],
     recipes_consuming: list[list[tuple[list[str, float], list[str, float]]]],
     values: list[float],
-    temperature: float
+    temperature: float,
+    pinned_index_values: dict[int, float],
 ) -> tuple[list[float], list[float], list[float]]:
     instantaneous_values = []
 
     for part_index, (producing_recipes, consuming_recipes) in enumerate(zip(recipes_producing, recipes_consuming)):
-        instantaneous = _instantaneous_value(
-            part_index,
-            producing_recipes,
-            consuming_recipes,
-            values,
-        )
-        instantaneous_values.append(instantaneous)
+        if part_index in pinned_index_values:
+            # for pinned items, use their pinned value
+            instantaneous_values.append(pinned_index_values[part_index])
+        else:
+            instantaneous = _instantaneous_value(
+                part_index,
+                producing_recipes,
+                consuming_recipes,
+                values,
+            )
+            instantaneous_values.append(instantaneous)
 
     normalization = 1 / min(instantaneous_values)
     instantaneous_values = [instantaneous * normalization for instantaneous in instantaneous_values]
 
     new_values = [original * (1 - temperature) + instantaneous * temperature for original, instantaneous in zip(values, instantaneous_values)]
+    
+    # Ensure pinned values stay exactly at their pinned value after interpolation
+    for index, pinned_value in pinned_index_values.items():
+        new_values[index] = pinned_value
+    
     errors = [abs(instantaneous - value) for value, instantaneous in zip(new_values, instantaneous_values)]
     changes = [new - original for original, new in zip(values, new_values)]
 
@@ -180,6 +201,7 @@ def _relax(
     recipes_consuming: list[list[tuple[list[str, float], list[str, float]]]],
     values: list[float],
     _sorted_parts: list[str],
+    pinned_index_values: dict[int, float],
 ) -> list[float]:
     two_way_ranks = [len(values)] * len(values)
     two_way_ranks_done = False
@@ -211,11 +233,13 @@ def _relax(
                 values,
             )
             # print(f"Relaxed {_sorted_parts[part_index]} from {values[part_index]:.6f} to {new_values[part_index]:.6f}")
+        for index, value in pinned_index_values.items():
+            new_values[index] = value
         values = new_values
     
     return values
- 
-        
+
+
 def _instantaneous_value(
     part_index: int,
     producing_recipes: list[tuple[list[str, float], list[str, float]]],
@@ -277,24 +301,42 @@ def separate_economies(recipes: dict[str, Recipe]) -> list[dict[str, Recipe]]:
     return result
 
 
+def compute_item_values(recipes: dict[str, Recipe] | None = None, pinned_values: dict[str, float] | None = None) -> dict[str, float]:
+    """Compute item values for all recipes, handling multiple separate economies.
+    
+    Args:
+        recipes: dict of all recipes to consider. If None, uses all available recipes.
+        pinned_values: dict of item names to fixed values that won't change during convergence
+    
+    Returns:
+        dict mapping all item names to their computed values
+    """
+    recipes = recipes or get_all_recipes()
+    pinned_values = pinned_values or {}
+    economy_recipes = separate_economies(recipes)
+    
+    result = {}
+    for economy in economy_recipes:
+        economy_values = _compute_economy_values(economy, pinned_values)
+        result.update(economy_values)
+    
+    return result
+
+
 @freezeargs
 @cache
 def get_default_economies(recipes: dict[str, Recipe] | None=None) -> list[dict[str, Recipe]]:
     """Get the default economies for a given set of recipes."""
     recipes = recipes or get_all_recipes()
     economy_recipes = separate_economies(recipes)
-    return [_compute_item_values(economy) for economy in economy_recipes]
+    return [_compute_economy_values(economy) for economy in economy_recipes]
 
 
 @freezeargs
 @cache
 def get_default_economy(recipes: dict[str, Recipe] | None=None) -> dict[str, float]:
     """Get the default economy for a given set of recipes and naively combine all economies into a single dictionary. The relationships between items in different economies are chosen arbitrarily."""
-    recipes = recipes or get_all_recipes()
-    result = dict()
-    for economy in get_default_economies(recipes):
-        result.update(economy)
-    return result
+    return compute_item_values(recipes)
 
 
 def cost_of_recipes(recipes: dict[str, int], economy: dict[str, float] | None=None) -> float:
@@ -306,6 +348,52 @@ def cost_of_recipes(recipes: dict[str, int], economy: dict[str, float] | None=No
         for input_part, input_amount in get_all_recipes()[recipe].inputs.items():
             cost += economy[input_part] * input_amount * amount
     return cost
+
+
+def save_economy_to_csv(filepath: str, economy: dict[str, float], pinned_items: set[str] | None = None) -> None:
+    """Save economy values and pinned status to CSV file.
+    
+    Args:
+        filepath: path to CSV file
+        economy: dict mapping item names to values
+        pinned_items: set of item names that are pinned
+    """
+    pinned_items = pinned_items or set()
+    
+    with open(filepath, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(['Item', 'Value', 'Pinned'])
+        
+        for item in sorted(economy.keys()):
+            value = economy[item]
+            pinned = 'true' if item in pinned_items else 'false'
+            writer.writerow([item, value, pinned])
+
+
+def load_economy_from_csv(filepath: str) -> tuple[dict[str, float], set[str]]:
+    """Load economy values and pinned status from CSV file.
+    
+    Args:
+        filepath: path to CSV file
+    
+    Returns:
+        tuple of (economy dict, pinned_items set)
+    """
+    economy = {}
+    pinned_items = set()
+    
+    with open(filepath, 'r', newline='', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            item = row['Item']
+            value = float(row['Value'])
+            pinned = row['Pinned'].lower() == 'true'
+            
+            economy[item] = value
+            if pinned:
+                pinned_items.add(item)
+    
+    return economy, pinned_items
 
 
 def _main():
