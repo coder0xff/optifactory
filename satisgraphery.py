@@ -111,6 +111,8 @@ class MainWindow(tk.Tk):
         
         # Generate initial factory after everything is set up
         self.factory_editor._generate_factory()
+        # Delay greeting to appear after log handler updates (which use 10ms delay)
+        self.after(50, lambda: self._update_status("Welcome to Satisgraphery!"))
 
     def _setup_factory_tab(self, parent_frame):
         """Setup the factory configuration tab"""
