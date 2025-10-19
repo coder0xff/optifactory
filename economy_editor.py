@@ -48,7 +48,7 @@ class EconomyEditor(ttk.Frame):
         ttk.Button(controls_frame, text="Reset to Default", command=self._reset_economy).grid(
             row=0, column=2, padx=2
         )
-        ttk.Button(controls_frame, text="Recompute Values", command=self._recompute_economy).grid(
+        ttk.Button(controls_frame, text="Rebalance Values", command=self._recompute_economy).grid(
             row=0, column=3, padx=2
         )
         ttk.Button(controls_frame, text="Load CSV", command=self._load_economy).grid(
@@ -98,7 +98,7 @@ class EconomyEditor(ttk.Frame):
         ttk.Label(self.grid_frame, text="Value", font=("TkDefaultFont", 9, "bold")).grid(
             row=0, column=1, sticky=tk.W, padx=5, pady=5
         )
-        ttk.Label(self.grid_frame, text="Pinned", font=("TkDefaultFont", 9, "bold")).grid(
+        ttk.Label(self.grid_frame, text="Locked", font=("TkDefaultFont", 9, "bold")).grid(
             row=0, column=2, sticky=tk.W, padx=5, pady=5
         )
         
@@ -133,9 +133,16 @@ class EconomyEditor(ttk.Frame):
             label = ttk.Label(self.grid_frame, text=item_name)
             label.grid(row=idx, column=0, sticky=tk.W, padx=5, pady=2)
             
-            # Value entry
-            value_var = tk.StringVar(value=f"{value:.6f}")
-            entry = ttk.Entry(self.grid_frame, textvariable=value_var, width=15)
+            # Value spinbox
+            value_var = tk.DoubleVar(value=value)
+            entry = ttk.Spinbox(
+                self.grid_frame, 
+                textvariable=value_var, 
+                width=15,
+                from_=0.0,
+                to=1000000.0,
+                increment=1.0
+            )
             entry.grid(row=idx, column=1, sticky=tk.W, padx=5, pady=2)
             
             # Bind value changes
