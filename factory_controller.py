@@ -61,8 +61,24 @@ class FactoryController:
     """Stateful controller for factory design - single source of truth for all application state"""
     
     def __init__(self, economy: Dict[str, float]):
-        """Initialize controller with economy values
-        
+        """Initialize controller with economy values.
+
+        Precondition:
+            economy is a dict mapping item names to float values
+
+        Postcondition:
+            self.economy references the provided economy
+            self._outputs_text is initialized to default "Concrete:480"
+            self._inputs_text is initialized to comment template
+            self._mines_text is initialized to empty string
+            self.enabled_recipes is initialized to default enabled recipes
+            self._recipe_search_text is empty string
+            self._input_costs_weight is 1.0
+            self._machine_counts_weight is 0.0
+            self._power_consumption_weight is 1.0
+            self._design_power is False
+            self._current_factory is None
+
         Args:
             economy: dict of item names to values
         """
@@ -95,48 +111,156 @@ class FactoryController:
     # ========== State Getters ==========
     
     def get_outputs_text(self) -> str:
-        """Get outputs configuration text"""
+        """Get outputs configuration text.
+
+        Precondition:
+            none
+
+        Postcondition:
+            returns current outputs text string
+
+        Returns:
+            outputs configuration text
+        """
         return self._outputs_text
     
     def get_inputs_text(self) -> str:
-        """Get inputs configuration text"""
+        """Get inputs configuration text.
+
+        Precondition:
+            none
+
+        Postcondition:
+            returns current inputs text string
+
+        Returns:
+            inputs configuration text
+        """
         return self._inputs_text
     
     def get_mines_text(self) -> str:
-        """Get mines configuration text"""
+        """Get mines configuration text.
+
+        Precondition:
+            none
+
+        Postcondition:
+            returns current mines text string
+
+        Returns:
+            mines configuration text
+        """
         return self._mines_text
     
     def get_recipe_search_text(self) -> str:
-        """Get recipe search filter text"""
+        """Get recipe search filter text.
+
+        Precondition:
+            none
+
+        Postcondition:
+            returns current recipe search text string
+
+        Returns:
+            recipe search filter text
+        """
         return self._recipe_search_text
     
     def get_input_costs_weight(self) -> float:
-        """Get input costs optimization weight"""
+        """Get input costs optimization weight.
+
+        Precondition:
+            none
+
+        Postcondition:
+            returns current input costs weight
+
+        Returns:
+            input costs optimization weight
+        """
         return self._input_costs_weight
     
     def get_machine_counts_weight(self) -> float:
-        """Get machine counts optimization weight"""
+        """Get machine counts optimization weight.
+
+        Precondition:
+            none
+
+        Postcondition:
+            returns current machine counts weight
+
+        Returns:
+            machine counts optimization weight
+        """
         return self._machine_counts_weight
     
     def get_power_consumption_weight(self) -> float:
-        """Get power consumption optimization weight"""
+        """Get power consumption optimization weight.
+
+        Precondition:
+            none
+
+        Postcondition:
+            returns current power consumption weight
+
+        Returns:
+            power consumption optimization weight
+        """
         return self._power_consumption_weight
     
     def get_design_power(self) -> bool:
-        """Get design power flag"""
+        """Get design power flag.
+
+        Precondition:
+            none
+
+        Postcondition:
+            returns current design power setting
+
+        Returns:
+            design power flag
+        """
         return self._design_power
     
     def get_current_factory(self) -> Optional[Factory]:
-        """Get currently generated factory"""
+        """Get currently generated factory.
+
+        Precondition:
+            none
+
+        Postcondition:
+            returns current factory or None
+
+        Returns:
+            currently generated Factory, or None if not generated
+        """
         return self._current_factory
     
     def get_enabled_recipes(self) -> Set[str]:
-        """Get set of enabled recipe names"""
+        """Get set of enabled recipe names.
+
+        Precondition:
+            self.enabled_recipes is initialized
+
+        Postcondition:
+            returns copy of enabled recipes set
+            modifications to returned set do not affect controller state
+
+        Returns:
+            copy of enabled recipe names
+        """
         return self.enabled_recipes.copy()
     
     def get_graphviz_source(self) -> Optional[str]:
-        """Get graphviz source from current factory
-        
+        """Get graphviz source from current factory.
+
+        Precondition:
+            none
+
+        Postcondition:
+            returns Graphviz source string if factory and network exist
+            returns None if no factory generated or network is None
+
         Returns:
             Graphviz source string, or None if no factory generated
         """
@@ -145,69 +269,191 @@ class FactoryController:
         return self._current_factory.network.source
     
     def get_all_recipes_by_machine(self) -> Dict[str, Dict[str, Recipe]]:
-        """Get all recipes organized by machine
-        
+        """Get all recipes organized by machine.
+
+        Precondition:
+            none
+
+        Postcondition:
+            returns dict of all recipes grouped by machine
+            delegates to recipes module function
+
         Returns:
             Dict of {machine_name: {recipe_name: Recipe}}
         """
         return get_all_recipes_by_machine()
     
-    def get_recipe_tooltip(self, recipe_name: str) -> Optional[str]:
-        """Get formatted tooltip text for a recipe
-        
+    def _find_recipe(self, recipe_name: str) -> Optional[Recipe]:
+        """Find a recipe by name across all machines.
+
+        Precondition:
+            recipe_name is a string
+
+        Postcondition:
+            returns Recipe if found, None otherwise
+            searches across all machines
+
         Args:
-            recipe_name: Name of the recipe
-            
+            recipe_name: name of the recipe to find
+
         Returns:
-            Formatted tooltip string, or None if recipe not found
+            Recipe object or None
         """
-        # Find the recipe
         all_recipes = get_all_recipes_by_machine()
         for machine_recipes in all_recipes.values():
             if recipe_name in machine_recipes:
-                recipe = machine_recipes[recipe_name]
-                return self.format_recipe_tooltip(recipe)
+                return machine_recipes[recipe_name]
+        return None
+    
+    def get_recipe_tooltip(self, recipe_name: str) -> Optional[str]:
+        """Get formatted tooltip text for a recipe.
+
+        Precondition:
+            recipe_name is a string
+
+        Postcondition:
+            returns formatted tooltip if recipe found
+            returns None if recipe not found
+
+        Args:
+            recipe_name: name of the recipe
+            
+        Returns:
+            formatted tooltip string, or None if recipe not found
+        """
+        recipe = self._find_recipe(recipe_name)
+        if recipe is not None:
+            return self.format_recipe_tooltip(recipe)
         return None
     
     # ========== State Setters ==========
     
     def set_outputs_text(self, text: str):
-        """Set outputs configuration text"""
+        """Set outputs configuration text.
+
+        Precondition:
+            text is a string
+
+        Postcondition:
+            self._outputs_text is updated to text
+
+        Args:
+            text: new outputs configuration text
+        """
         self._outputs_text = text
     
     def set_inputs_text(self, text: str):
-        """Set inputs configuration text"""
+        """Set inputs configuration text.
+
+        Precondition:
+            text is a string
+
+        Postcondition:
+            self._inputs_text is updated to text
+
+        Args:
+            text: new inputs configuration text
+        """
         self._inputs_text = text
     
     def set_mines_text(self, text: str):
-        """Set mines configuration text"""
+        """Set mines configuration text.
+
+        Precondition:
+            text is a string
+
+        Postcondition:
+            self._mines_text is updated to text
+
+        Args:
+            text: new mines configuration text
+        """
         self._mines_text = text
     
     def set_recipe_search_text(self, text: str):
-        """Set recipe search filter text"""
+        """Set recipe search filter text.
+
+        Precondition:
+            text is a string
+
+        Postcondition:
+            self._recipe_search_text is updated to text
+
+        Args:
+            text: new recipe search filter text
+        """
         self._recipe_search_text = text
     
     def set_input_costs_weight(self, value: float):
-        """Set input costs optimization weight"""
+        """Set input costs optimization weight.
+
+        Precondition:
+            value is a float
+
+        Postcondition:
+            self._input_costs_weight is updated to value
+
+        Args:
+            value: new input costs weight
+        """
         self._input_costs_weight = value
     
     def set_machine_counts_weight(self, value: float):
-        """Set machine counts optimization weight"""
+        """Set machine counts optimization weight.
+
+        Precondition:
+            value is a float
+
+        Postcondition:
+            self._machine_counts_weight is updated to value
+
+        Args:
+            value: new machine counts weight
+        """
         self._machine_counts_weight = value
     
     def set_power_consumption_weight(self, value: float):
-        """Set power consumption optimization weight"""
+        """Set power consumption optimization weight.
+
+        Precondition:
+            value is a float
+
+        Postcondition:
+            self._power_consumption_weight is updated to value
+
+        Args:
+            value: new power consumption weight
+        """
         self._power_consumption_weight = value
     
     def set_design_power(self, value: bool):
-        """Set design power flag"""
+        """Set design power flag.
+
+        Precondition:
+            value is a bool
+
+        Postcondition:
+            self._design_power is updated to value
+
+        Args:
+            value: new design power flag
+        """
         self._design_power = value
     
     def set_recipe_enabled(self, recipe_name: str, enabled: bool):
-        """Enable or disable a recipe
-        
+        """Enable or disable a recipe.
+
+        Precondition:
+            recipe_name is a string
+            enabled is a bool
+            self.enabled_recipes is initialized
+
+        Postcondition:
+            if enabled is True, recipe_name is added to self.enabled_recipes
+            if enabled is False, recipe_name is removed from self.enabled_recipes
+
         Args:
-            recipe_name: Name of recipe to modify
+            recipe_name: name of recipe to modify
             enabled: True to enable, False to disable
         """
         if enabled:
@@ -216,18 +462,32 @@ class FactoryController:
             self.enabled_recipes.discard(recipe_name)
     
     def set_recipes_enabled(self, recipe_names: Set[str]):
-        """Set the complete set of enabled recipes
-        
+        """Set the complete set of enabled recipes.
+
+        Precondition:
+            recipe_names is a set of strings
+
+        Postcondition:
+            self.enabled_recipes is replaced with a copy of recipe_names
+
         Args:
-            recipe_names: Set of recipe names to enable (all others disabled)
+            recipe_names: set of recipe names to enable (all others disabled)
         """
         self.enabled_recipes = recipe_names.copy()
     
     # ========== Derived State / Queries ==========
     
     def should_show_power_warning(self) -> bool:
-        """Check if power warning should be displayed
-        
+        """Check if power warning should be displayed.
+
+        Precondition:
+            self._design_power is a bool
+            self.enabled_recipes is initialized
+
+        Postcondition:
+            returns True if design_power enabled but no power recipes enabled
+            returns False otherwise
+
         Returns:
             True if design_power is enabled but no power recipes are enabled
         """
@@ -241,23 +501,58 @@ class FactoryController:
     
     @staticmethod
     def _make_machine_id(machine_name: str) -> str:
-        """Generate stable tree ID for machine"""
+        """Generate stable tree ID for machine.
+
+        Precondition:
+            machine_name is a non-empty string
+
+        Postcondition:
+            returns string in format "machine:{machine_name}"
+
+        Args:
+            machine_name: name of the machine
+
+        Returns:
+            stable tree ID string
+        """
         return f"machine:{machine_name}"
     
     @staticmethod
     def _make_recipe_id(machine_name: str, recipe_name: str) -> str:
-        """Generate stable tree ID for recipe"""
+        """Generate stable tree ID for recipe.
+
+        Precondition:
+            machine_name is a non-empty string
+            recipe_name is a non-empty string
+
+        Postcondition:
+            returns string in format "recipe:{machine}:{recipe}"
+
+        Args:
+            machine_name: name of the machine
+            recipe_name: name of the recipe
+
+        Returns:
+            stable tree ID string
+        """
         return f"recipe:{machine_name}:{recipe_name}"
     
     @staticmethod
     def _parse_recipe_id(tree_id: str) -> Optional[Tuple[str, str]]:
-        """Parse recipe tree ID into (machine_name, recipe_name)
-        
+        """Parse recipe tree ID into (machine_name, recipe_name).
+
+        Precondition:
+            tree_id is a string
+
+        Postcondition:
+            if tree_id starts with "recipe:" and has valid format, returns tuple
+            otherwise returns None
+
         Args:
-            tree_id: Tree ID in format "recipe:{machine}:{recipe}"
+            tree_id: tree ID in format "recipe:{machine}:{recipe}"
             
         Returns:
-            Tuple of (machine_name, recipe_name) or None if not a recipe ID
+            tuple of (machine_name, recipe_name) or None if not a recipe ID
         """
         if tree_id.startswith("recipe:"):
             parts = tree_id[7:].split(":", 1)
@@ -266,13 +561,22 @@ class FactoryController:
         return None
     
     def _recipe_matches_search(self, recipe_name: str, recipe: Recipe, search_text: str) -> bool:
-        """Check if recipe matches search text
-        
+        """Check if recipe matches search text.
+
+        Precondition:
+            recipe_name is a string
+            recipe is a Recipe object
+            search_text is a lowercase string
+
+        Postcondition:
+            returns True if recipe_name, inputs, or outputs contain search_text
+            returns False otherwise
+
         Args:
-            recipe_name: Name of the recipe
+            recipe_name: name of the recipe
             recipe: Recipe object
-            search_text: Lowercase search string
-            
+            search_text: lowercase search text
+        
         Returns:
             True if recipe matches search criteria
         """
@@ -286,8 +590,17 @@ class FactoryController:
         )
     
     def get_recipe_tree_structure(self) -> RecipeTreeStructure:
-        """Get complete tree structure with IDs, states, and visibility
-        
+        """Get complete tree structure with IDs, states, and visibility.
+
+        Precondition:
+            self._recipe_search_text is a string
+            self.enabled_recipes is initialized
+
+        Postcondition:
+            returns RecipeTreeStructure with machine and recipe nodes
+            visibility is based on search text
+            check states reflect enabled/disabled recipes
+
         Returns:
             RecipeTreeStructure ready for rendering
         """
@@ -336,11 +649,19 @@ class FactoryController:
         return RecipeTreeStructure(machines=machines)
     
     def on_recipe_toggled(self, recipe_tree_id: str, is_checked: bool):
-        """Handle recipe toggle event
-        
+        """Handle recipe toggle event.
+
+        Precondition:
+            recipe_tree_id is a string (may be in recipe format)
+            is_checked is a boolean
+
+        Postcondition:
+            if recipe_tree_id is valid recipe format, recipe enablement is updated
+            if recipe_tree_id is not valid recipe format, no action taken
+
         Args:
-            recipe_tree_id: Tree ID in format "recipe:{machine}:{recipe}"
-            is_checked: New checked state
+            recipe_tree_id: tree ID in format "recipe:{machine}:{recipe}"
+            is_checked: new checked state
         """
         parsed = self._parse_recipe_id(recipe_tree_id)
         if parsed:
@@ -348,13 +669,20 @@ class FactoryController:
             self.set_recipe_enabled(recipe_name, is_checked)
     
     def get_tooltip_for_tree_id(self, tree_id: str) -> Optional[str]:
-        """Get tooltip text for a tree ID
-        
+        """Get tooltip text for a tree ID.
+
+        Precondition:
+            tree_id is a string
+
+        Postcondition:
+            if tree_id is valid recipe format, returns formatted tooltip
+            otherwise returns None
+
         Args:
-            tree_id: Tree ID (machine or recipe format)
+            tree_id: tree ID (machine or recipe format)
             
         Returns:
-            Tooltip text or None
+            tooltip text or None
         """
         parsed = self._parse_recipe_id(tree_id)
         if parsed:
@@ -365,13 +693,24 @@ class FactoryController:
     # ========== Actions ==========
     
     def generate_factory_from_state(self) -> object:
-        """Generate factory using current controller state
-        
+        """Generate factory using current controller state.
+
+        Precondition:
+            self._outputs_text, _inputs_text, _mines_text are initialized
+            self.enabled_recipes is initialized
+            self.economy is initialized
+            optimization weights are set
+
+        Postcondition:
+            self._current_factory is updated with generated Factory
+            info messages are logged
+            returns Graphviz diagram
+
         Returns:
-            graphviz_diagram suitable for display
+            graphviz diagram suitable for display
             
         Raises:
-            ValueError: If configuration is invalid or generation fails
+            ValueError: if configuration is invalid or generation fails
         """
         _LOGGER.info("Generating factory...")
         
@@ -401,10 +740,18 @@ class FactoryController:
         return factory.network
     
     def copy_graphviz_source(self) -> Optional[str]:
-        """Get graphviz source for copying to clipboard
-        
+        """Get graphviz source for copying to clipboard.
+
+        Precondition:
+            none
+
+        Postcondition:
+            if factory exists with network, returns graphviz source
+            if no factory, returns None
+            info message is logged
+
         Returns:
-            graphviz_source or None if no factory available
+            graphviz source or None if no factory available
         """
         source = self.get_graphviz_source()
         if source is None:
@@ -418,12 +765,18 @@ class FactoryController:
     
     @staticmethod
     def _get_default_enabled_recipes() -> Set[str]:
-        """Get default set of enabled recipes
-        
-        Excludes power generation and packager recipes by default
-        
+        """Get default set of enabled recipes.
+
+        Precondition:
+            none
+
+        Postcondition:
+            returns set of recipe names
+            excludes power generation recipes (MWm in outputs)
+            excludes Packager recipes
+
         Returns:
-            Set of enabled recipe names
+            set of enabled recipe names
         """
         enabled = set()
         for machine_name, recipes in get_all_recipes_by_machine().items():
@@ -434,20 +787,28 @@ class FactoryController:
     
     @staticmethod
     def parse_config_text(text: str) -> List[Tuple[str, float]]:
-        """Parse configuration text into list of (material, rate) tuples
-        
+        """Parse configuration text into list of (material, rate) tuples.
+
+        Precondition:
+            text is a string (may be multi-line)
+
+        Postcondition:
+            returns list of (material, rate) tuples
+            comments (lines starting with #) are ignored
+            empty lines are ignored
+
         Format: Material:Rate, one per line
         Lines starting with # are comments and ignored
         Empty lines are ignored
         
         Args:
-            text: Multi-line configuration text
+            text: multi-line configuration text
             
         Returns:
-            List of (material, rate) tuples
+            list of (material, rate) tuples
             
         Raises:
-            ValueError: If parsing fails for any line
+            ValueError: if parsing fails for any line
         """
         items = []
         for line in text.strip().split("\n"):
@@ -460,13 +821,22 @@ class FactoryController:
     
     @staticmethod
     def format_recipe_tooltip(recipe: Recipe) -> str:
-        """Format recipe inputs/outputs for display
-        
+        """Format recipe inputs/outputs for display.
+
+        Precondition:
+            recipe is a Recipe object with inputs and outputs dicts
+
+        Postcondition:
+            returns formatted multi-line string
+            inputs section lists all input materials and rates
+            outputs section lists all output materials and rates
+            sections are separated by blank line
+
         Args:
             recipe: Recipe to format
             
         Returns:
-            Formatted string with inputs and outputs
+            formatted string with inputs and outputs
         """
         lines = []
         
@@ -485,10 +855,18 @@ class FactoryController:
         return "\n".join(lines)
     
     def validate_config(self, config: FactoryConfig) -> ValidationResult:
-        """Validate factory configuration
-        
+        """Validate factory configuration.
+
+        Precondition:
+            config is a FactoryConfig object
+
+        Postcondition:
+            returns ValidationResult with is_valid, warnings, errors
+            checks for empty outputs (error)
+            checks for power design without power recipes (warning)
+
         Args:
-            config: Factory configuration to validate
+            config: factory configuration to validate
             
         Returns:
             ValidationResult with any warnings or errors
@@ -513,16 +891,24 @@ class FactoryController:
         )
     
     def generate_factory(self, config: FactoryConfig) -> Factory:
-        """Generate factory from configuration
-        
+        """Generate factory from configuration.
+
+        Precondition:
+            config is a FactoryConfig object
+            self.economy is initialized
+
+        Postcondition:
+            configuration is validated before generation
+            returns Factory object with network design
+            
         Args:
-            config: Factory configuration
+            config: factory configuration
             
         Returns:
-            Generated Factory object
+            generated Factory object
             
         Raises:
-            ValueError: If configuration is invalid or generation fails
+            ValueError: if configuration is invalid or generation fails
         """
         # Validate first
         validation = self.validate_config(config)

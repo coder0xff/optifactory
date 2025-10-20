@@ -5,9 +5,65 @@ from collections import defaultdict
 from graphviz import Digraph
 
 
+def _consume_input_flow(
+    in_idx: int,
+    in_flow: int,
+    remaining: int,
+    out_idx: int,
+    flow_matrix: dict,
+    available_inputs: list,
+) -> int:
+    """Assign flow from a single input to an output.
+    
+    Precondition:
+        in_flow > 0
+        remaining > 0
+        flow_matrix is a nested defaultdict
+        available_inputs is a list of (input_idx, flow) tuples
+    
+    Postcondition:
+        flow_matrix[in_idx][out_idx] is updated with the assigned flow
+        if input is not fully consumed, remainder is added back to available_inputs
+        returns the new remaining requirement after assignment
+    
+    Args:
+        in_idx: index of the input being assigned
+        in_flow: available flow from this input
+        remaining: remaining flow requirement for the output
+        out_idx: index of the output being satisfied
+        flow_matrix: nested dict tracking assignments
+        available_inputs: list of available inputs (mutated if input not fully consumed)
+    
+    Returns:
+        remaining flow requirement after this assignment
+    """
+    if in_flow <= remaining:
+        # input fully consumed
+        flow_matrix[in_idx][out_idx] = in_flow
+        return remaining - in_flow
+    else:
+        # input partially consumed, return remainder to available inputs
+        flow_matrix[in_idx][out_idx] = remaining
+        available_inputs.insert(0, (in_idx, in_flow - remaining))
+        return 0
+
+
 def _assign_flows(inputs: list[int], outputs: list[int]) -> dict:
     """Phase 1: greedily assign inputs to outputs.
+    
+    Precondition:
+        inputs is a list of positive integers representing input flow rates
+        outputs is a list of positive integers representing output requirements
+    
+    Postcondition:
+        returns a nested dict where flow_matrix[input_idx][output_idx] = flow_amount
+        sum of assigned flows from each input <= original input flow
+        flows are assigned greedily in output order
 
+    Args:
+        inputs: list of input flow rates
+        outputs: list of output flow requirements
+        
     Returns:
         flow_matrix[input_idx][output_idx] = flow_amount
     """
@@ -19,20 +75,30 @@ def _assign_flows(inputs: list[int], outputs: list[int]) -> dict:
 
         while remaining > 0 and available_inputs:
             in_idx, in_flow = available_inputs.pop(0)
-
-            if in_flow <= remaining:
-                flow_matrix[in_idx][out_idx] = in_flow
-                remaining -= in_flow
-            else:
-                flow_matrix[in_idx][out_idx] = remaining
-                available_inputs.insert(0, (in_idx, in_flow - remaining))
-                remaining = 0
+            remaining = _consume_input_flow(
+                in_idx, in_flow, remaining, out_idx, flow_matrix, available_inputs
+            )
 
     return flow_matrix
 
 
 def _add_io_nodes(dot: Digraph, inputs: list[int], outputs: list[int]):
-    """Add input and output nodes to the graph."""
+    """Add input and output nodes to the graph.
+    
+    Precondition:
+        dot is a Graphviz Digraph object
+        inputs is a list (length determines number of input nodes)
+        outputs is a list (length determines number of output nodes)
+    
+    Postcondition:
+        dot is mutated to include input nodes (I0, I1, ...) with green fill
+        dot is mutated to include output nodes (O0, O1, ...) with blue fill
+    
+    Args:
+        dot: Graphviz graph to add nodes to
+        inputs: list of input flows (length used for node count)
+        outputs: list of output flows (length used for node count)
+    """
     for idx in range(len(inputs)):
         dot.node(
             f"I{idx}",
@@ -52,10 +118,72 @@ def _add_io_nodes(dot: Digraph, inputs: list[int], outputs: list[int]):
         )
 
 
+def _connect_child_to_splitter(
+    child_id: str,
+    child_dests: dict[int, int],
+    splitter_id: str,
+    dest_sources: dict,
+    dot: Digraph,
+) -> None:
+    """Connect a child node to its parent splitter.
+    
+    Precondition:
+        child_id is either a leaf node (starts with "_leaf_") or a regular node ID
+        child_dests maps destination IDs to flow amounts
+        splitter_id is the ID of the splitter node being created
+        dest_sources tracks which node feeds each destination (mutated for leaves)
+        dot is the Graphviz graph (mutated for non-leaves)
+    
+    Postcondition:
+        for leaf nodes: dest_sources is updated with splitter as source
+        for non-leaf nodes: an edge is added from splitter to child in dot
+    
+    Args:
+        child_id: ID of the child node
+        child_dests: mapping of destination IDs to flow amounts for this child
+        splitter_id: ID of the parent splitter node
+        dest_sources: dict tracking source nodes for each destination
+        dot: Graphviz graph
+    """
+    child_flow = sum(child_dests.values())
+
+    if child_id.startswith("_leaf_"):
+        # leaf node - record splitter as direct source
+        for dest_id in child_dests.keys():
+            dest_sources[dest_id] = (splitter_id, child_dests[dest_id])
+    else:
+        # regular node - add edge from splitter to child
+        dot.edge(splitter_id, child_id, label=str(child_flow))
+
+
 def _group_roots_into_splitter(
     roots: list, group_size: int, device_counter: list, dot: Digraph, dest_sources: dict
 ) -> tuple[str, dict]:
-    """Group roots under a new splitter, return (splitter_id, merged_dests)."""
+    """Group roots under a new splitter, return (splitter_id, merged_dests).
+    
+    Precondition:
+        roots is a list of (node_id, destinations_dict) tuples
+        group_size is a positive integer <= len(roots)
+        device_counter is a single-element list containing next device ID number
+        dot is a Graphviz Digraph
+        dest_sources tracks destination sources
+    
+    Postcondition:
+        a new splitter node is added to dot
+        device_counter[0] is incremented
+        returns (splitter_id, merged_destinations_dict)
+        dest_sources may be mutated if group contains leaf nodes
+    
+    Args:
+        roots: list of (node_id, destinations) tuples to group
+        group_size: number of roots to group together
+        device_counter: mutable counter for generating unique device IDs
+        dot: Graphviz graph to add nodes/edges to
+        dest_sources: dict tracking which node feeds each destination
+        
+    Returns:
+        tuple of (splitter_id, merged_destinations_dict)
+    """
     group = roots[:group_size]
 
     splitter_id = f"S{device_counter[0]}"
@@ -64,17 +192,41 @@ def _group_roots_into_splitter(
 
     merged_dests = {}
     for child_id, child_dests in group:
-        child_flow = sum(child_dests.values())
-
-        if child_id.startswith("_leaf_"):
-            for dest_id in child_dests.keys():
-                dest_sources[dest_id] = (splitter_id, child_dests[dest_id])
-        else:
-            dot.edge(splitter_id, child_id, label=str(child_flow))
-
+        _connect_child_to_splitter(child_id, child_dests, splitter_id, dest_sources, dot)
         merged_dests.update(child_dests)
 
     return splitter_id, merged_dests
+
+
+def _collect_sources_for_output(
+    out_idx: int,
+    flow_matrix: dict,
+    input_outputs: dict,
+) -> dict[str, int]:
+    """Collect all source nodes feeding a specific output.
+    
+    Precondition:
+        out_idx is a valid output index
+        flow_matrix maps input_idx -> {output_idx -> flow}
+        input_outputs maps input_idx -> {output_idx -> (node_id, flow)}
+    
+    Postcondition:
+        returns dict mapping source_node_id -> flow_amount for this output
+    
+    Args:
+        out_idx: index of the output to collect sources for
+        flow_matrix: flow assignments from inputs to outputs
+        input_outputs: mapping of split tree results
+        
+    Returns:
+        dict mapping source node IDs to flow amounts feeding this output
+    """
+    sources = {}
+    for in_idx, out_flows in flow_matrix.items():
+        if out_idx in out_flows:
+            source_node, flow = input_outputs[in_idx][out_idx]
+            sources[source_node] = flow
+    return sources
 
 
 def _connect_output(
@@ -84,20 +236,36 @@ def _connect_output(
     build_merge_tree_func,
     dot: Digraph,
 ):
-    """Connect sources to an output, using merge tree if needed."""
-    sources = {}
-    for in_idx, out_flows in flow_matrix.items():
-        if out_idx in out_flows:
-            source_node, flow = input_outputs[in_idx][out_idx]
-            sources[source_node] = flow
+    """Connect sources to an output, using merge tree if needed.
+    
+    Precondition:
+        out_idx is a valid output index
+        flow_matrix contains flow assignments
+        input_outputs contains split tree results
+        build_merge_tree_func is a callable that builds merge trees
+        dot is a Graphviz Digraph
+    
+    Postcondition:
+        dot is mutated to include edges connecting sources to output
+        single source creates direct edge
+        multiple sources create merge tree
+    
+    Args:
+        out_idx: index of the output to connect
+        flow_matrix: flow assignments from inputs to outputs
+        input_outputs: split tree results
+        build_merge_tree_func: function to build merge trees
+        dot: Graphviz graph
+    """
+    sources = _collect_sources_for_output(out_idx, flow_matrix, input_outputs)
 
     if len(sources) == 1:
-        # Direct connection - no merge needed
+        # direct connection - no merge needed
         source_node = list(sources.keys())[0]
         flow = sources[source_node]
         dot.edge(source_node, f"O{out_idx}", label=str(flow))
     elif len(sources) > 1:
-        # Need to merge
+        # need to merge
         merged_node = build_merge_tree_func(sources, f"O{out_idx}")
         final_flow = sum(sources.values())
         dot.edge(merged_node, f"O{out_idx}", label=str(final_flow))
@@ -105,6 +273,16 @@ def _connect_output(
 
 def design_balancer(inputs: list[int], outputs: list[int]) -> Digraph:
     """Design an optimal balancer network using splitters and mergers.
+    
+    Precondition:
+        inputs is a list of positive integers
+        outputs is a list of positive integers
+        sum(inputs) must equal sum(outputs)
+    
+    Postcondition:
+        returns a Graphviz Digraph with nodes and edges for balancer network
+        all inputs are connected to outputs via split/merge trees
+        splitters group max 3 outputs, mergers group max 3 inputs
 
     Args:
         inputs: list of input flow rates
@@ -116,7 +294,7 @@ def design_balancer(inputs: list[int], outputs: list[int]) -> Digraph:
     Raises:
         ValueError: if total input flow doesn't equal total output flow
     """
-    # Check feasibility
+    # check feasibility
     if sum(inputs) != sum(outputs):
         raise ValueError(
             f"Total input flow {sum(inputs)} must equal total output flow {sum(outputs)}"
