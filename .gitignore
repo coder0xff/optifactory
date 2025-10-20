@@ -2,3 +2,8 @@
 
 # temp files when debugging the optimizer
 *.lp
+
+# coverage files
+.coverage
+.coverage.*
+htmlcov/
