@@ -70,7 +70,7 @@ def _get_pipeline_stripe_color(mark: int, fluid: str) -> str:
     if mark == 1:
         return f"grey:{color}:{color}:grey"
     else:  # mark 2
-        return f"grey:{color}:{color}:{color}:{color}:grey"
+        return f"grey:{color}:{color}:{color}:{color}:{color}:grey"
 
 
 def _get_edge_color(material: str, flow_rate: float) -> str:
@@ -293,7 +293,7 @@ def _add_machine_nodes(
         with dot.subgraph(name=f"cluster_{cluster_id}") as cluster:
             inputs_str = ", ".join(f"{k}:{v}" for k, v in recipe.inputs.items())
             outputs_str = ", ".join(f"{k}:{v}" for k, v in recipe.outputs.items())
-            cluster.attr(label=f"{machine_type}\n{inputs_str}\n→ {outputs_str}")
+            cluster.attr(label=f"{machine_type} - {recipe_name}\n{inputs_str}\n→ {outputs_str}")
             cluster.attr(style="filled", fillcolor="lightblue")
 
             for _ in range(count):
