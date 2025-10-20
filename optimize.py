@@ -150,8 +150,8 @@ def optimize_recipes(
         model.write("model.lp")
         if model.status == OptimizationStatus.INFEASIBLE:
             if design_power:
-                raise ValueError("ERROR: Couldn't design the factory. Make sure that recipes are enabled to produce power and all intermediate parts from base parts..")
-            raise ValueError("ERROR: Couldn't design the factory. Make sure that recipes are enabled to produce all intermediate parts from base parts.")
+                raise ValueError("ERROR: Couldn't design the factory. Make sure that recipes are enabled to produce power, output parts, and all intermediate parts from base parts..")
+            raise ValueError("ERROR: Couldn't design the factory. Make sure that recipes are enabled to produce output parts and all intermediate parts from base parts.")
         raise ValueError(f"Optimization failed with status {model.status}")
 
     return {

@@ -108,7 +108,7 @@ class FactoryEditor(ttk.Frame):
         # Search box for filtering recipes
         search_frame = ttk.Frame(control_frame)
         search_frame.grid(row=9, column=0, sticky=(tk.W, tk.E), pady=(0, 5))
-        search_frame.columnconfigure(0, weight=1)
+        search_frame.columnconfigure(1, weight=1)
         
         ttk.Label(search_frame, text="Search:").grid(row=0, column=0, sticky=tk.W)
         self.recipe_search_var = tk.StringVar()
