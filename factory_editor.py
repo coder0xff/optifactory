@@ -11,7 +11,7 @@ from graphviz_viewer import GraphvizViewer
 from parsing_utils import parse_material_rate
 from recipes import get_all_recipes_by_machine, get_recipes_for
 from slider_spinbox import SliderSpinbox
-from tooltip import Tooltip
+from tooltip import Tooltip, TooltipZone
 
 _LOGGER = logging.getLogger("satisgraphery")
 
@@ -31,6 +31,9 @@ class FactoryEditor(ttk.Frame):
         
         self.economy = economy
         self.on_status_change = on_status_change
+        
+        # Initialize tooltip tracking
+        self.current_tooltip_item = None
         
         # Initialize enabled recipes with default set
         self.enabled_recipes = set()
@@ -126,6 +129,12 @@ class FactoryEditor(ttk.Frame):
         )
         tree_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
         self.recipe_tree.configure(yscrollcommand=tree_scrollbar.set)
+        
+        # Setup tooltips for recipe tree items
+        self.recipe_tooltip_zone = TooltipZone(self.recipe_tree, waittime=500)
+        self.recipe_tree.bind("<Motion>", self._on_tree_motion)
+        self.recipe_tree.bind("<Leave>", self._on_tree_leave)
+        self.recipe_tree.bind("<Button-1>", self._on_tree_button_press, add=True)
         
         # Populate recipe tree
         self._populate_recipe_tree()
@@ -401,6 +410,76 @@ class FactoryEditor(ttk.Frame):
         else:
             # Hide warning when design_power is disabled
             self.power_warning_label.grid_remove()
+    
+    def _on_tree_motion(self, event):
+        """handle mouse motion over recipe tree to show tooltips"""
+        # Identify which item is under the cursor
+        item_id = self.recipe_tree.identify_row(event.y)
+        
+        # If we're on the same item, no need to update
+        if item_id == self.current_tooltip_item:
+            return
+        
+        # Moving to different item - exit current tooltip
+        if self.current_tooltip_item is not None:
+            self.recipe_tooltip_zone.exit()
+        
+        self.current_tooltip_item = item_id
+        
+        # If no item or empty, don't show tooltip
+        if not item_id:
+            return
+        
+        # Check if this is a recipe (not a machine)
+        metadata = self.recipe_metadata.get(item_id)
+        if not metadata or metadata["type"] != "recipe":
+            return
+        
+        # Get the recipe name and look up the actual recipe data
+        recipe_name = self.recipe_tree.item(item_id, "text")
+        
+        # Get recipe from all recipes
+        all_recipes = get_all_recipes_by_machine()
+        recipe = None
+        for machine_recipes in all_recipes.values():
+            if recipe_name in machine_recipes:
+                recipe = machine_recipes[recipe_name]
+                break
+        
+        if not recipe:
+            return
+        
+        # Format tooltip text and enter the zone
+        tooltip_text = self._format_recipe_tooltip(recipe)
+        self.recipe_tooltip_zone.enter(tooltip_text)
+    
+    def _on_tree_leave(self, _event):
+        """handle mouse leaving recipe tree to hide tooltip"""
+        self.current_tooltip_item = None
+        self.recipe_tooltip_zone.exit()
+    
+    def _on_tree_button_press(self, _event):
+        """handle button press in recipe tree to dismiss tooltip"""
+        self.current_tooltip_item = None
+        self.recipe_tooltip_zone.exit()
+    
+    def _format_recipe_tooltip(self, recipe):
+        """format recipe inputs/outputs for tooltip display"""
+        lines = []
+        
+        if recipe.inputs:
+            lines.append("Inputs:")
+            for material, rate in recipe.inputs.items():
+                lines.append(f"  - {material}: {rate}/min")
+        
+        if recipe.outputs:
+            if lines:  # Add spacing if we had inputs
+                lines.append("")
+            lines.append("Outputs:")
+            for material, rate in recipe.outputs.items():
+                lines.append(f"  - {material}: {rate}/min")
+        
+        return "\n".join(lines)
     
     def _parse_config_text(self, text):
         """Parse configuration text into list of (material, rate) tuples.

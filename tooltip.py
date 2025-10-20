@@ -132,6 +132,73 @@ class Popover:
         return x1, y1
 
 
+class TooltipZone:
+    """manages delayed tooltip display with timing logic
+    
+    Encapsulates a Popover and handles scheduling/unscheduling the tooltip
+    display after a configurable wait time. Provides enter/exit/move methods
+    for controlling when tooltips appear.
+    """
+
+    def __init__(self, widget, *, bg='#FFFFEA', pad=(5, 3, 5, 3), 
+                 waittime=400, wraplength=250):
+        """Initialize the tooltip zone
+        
+        Args:
+            widget: widget for after() calls and creating popover
+            bg: background color for popover
+            pad: padding tuple for popover (left, top, right, bottom)
+            waittime: delay in milliseconds before showing tooltip
+            wraplength: maximum width before text wraps
+        """
+        self.widget = widget
+        self.waittime = waittime
+        self.popover = Popover(widget, bg=bg, pad=pad, wraplength=wraplength)
+        self.scheduled_id = None
+        self.pending_text = None
+
+    def enter(self, text):
+        """schedule showing the tooltip after waittime
+        
+        Args:
+            text: text to display in tooltip
+        """
+        self.pending_text = text
+        self._schedule()
+
+    def exit(self):
+        """cancel pending tooltip and hide if visible"""
+        self._unschedule()
+        self.popover.hide()
+        self.pending_text = None
+
+    def move(self, text):
+        """reschedule tooltip with new text (restarts timer)
+        
+        Args:
+            text: text to display in tooltip
+        """
+        self.pending_text = text
+        self._schedule()
+
+    def _schedule(self):
+        """start timer to show tooltip"""
+        self._unschedule()
+        self.scheduled_id = self.widget.after(self.waittime, self._show)
+
+    def _unschedule(self):
+        """cancel pending timer"""
+        if self.scheduled_id:
+            self.widget.after_cancel(self.scheduled_id)
+            self.scheduled_id = None
+
+    def _show(self):
+        """show the popover with pending text"""
+        self.scheduled_id = None
+        if self.pending_text:
+            self.popover.show(self.pending_text)
+
+
 class Tooltip:
     """automatic tooltip for a widget on mouse hover
     
@@ -170,7 +237,6 @@ class Tooltip:
                  waittime=400,
                  wraplength=250):
 
-        self.waittime = waittime  # in miliseconds, originally 500
         self.widget = widget
         self.text = text
         self.entered_widgets = set()  # track which widgets mouse is currently over
@@ -183,8 +249,8 @@ class Tooltip:
         # Bind events to all child widgets
         self._bind_to_children(widget)
         
-        self.popover = Popover(widget, bg=bg, pad=pad, wraplength=wraplength)
-        self.id = None
+        self.zone = TooltipZone(widget, bg=bg, pad=pad, waittime=waittime, 
+                                wraplength=wraplength)
     
     def _bind_to_children(self, widget):
         """recursively bind events to widget and all its children"""
@@ -197,36 +263,18 @@ class Tooltip:
     def onEnter(self, event=None):
         widget = event.widget if event else self.widget
         self.entered_widgets.add(widget)
-        self.schedule()
+        self.zone.enter(self.text)
 
     def onLeave(self, event=None):
         widget = event.widget if event else self.widget
         self.entered_widgets.discard(widget)
         
-        # Only unschedule/hide if we've left all widgets
+        # Only exit if we've left all widgets
         if not self.entered_widgets:
-            self.unschedule()
-            self.hide()
+            self.zone.exit()
     
     def onButtonPress(self, _event=None):
         self.entered_widgets.clear()
-        self.unschedule()
-        self.hide()
-
-    def schedule(self):
-        self.unschedule()
-        self.id = self.widget.after(self.waittime, self.show)
-
-    def unschedule(self):
-        id_ = self.id
-        self.id = None
-        if id_:
-            self.widget.after_cancel(id_)
-
-    def show(self):
-        self.popover.show(self.text)
-
-    def hide(self):
-        self.popover.hide()
+        self.zone.exit()
 
 
