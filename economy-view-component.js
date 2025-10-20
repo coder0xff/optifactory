@@ -137,7 +137,7 @@ const EconomyViewComponent = {
                 try {
                     const csvContent = e.target.result;
                     // Controller handles parsing, view handles file I/O
-                    this.controller.load_from_csv_data(csvContent);
+                    this.controller.load_from_csv(csvContent);
                     this.refreshView();
                     this.setStatus(`Loaded economy from ${file.name}`, 'info');
                 } catch (error) {
@@ -155,7 +155,7 @@ const EconomyViewComponent = {
         saveCSV() {
             try {
                 // Controller generates data, view handles file download
-                const csvData = this.controller.get_csv_export_data();
+                const csvData = this.controller.save_to_csv();
                 
                 // Create blob and download (view responsibility)
                 const blob = new Blob([csvData], { type: 'text/csv' });
