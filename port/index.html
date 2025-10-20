@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Satisgraphery - Factory Planner</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
+    <script src="https://unpkg.com/@hpcc-js/wasm/dist/graphviz.umd.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div class="app-title">Satisgraphery - Factory Planner</div>
+
+        <div class="tabs">
+            <div 
+                class="tab" 
+                :class="{ active: activeTab === 'factory' }"
+                @click="activeTab = 'factory'"
+            >
+                Factory
+            </div>
+            <div 
+                class="tab" 
+                :class="{ active: activeTab === 'economy' }"
+                @click="activeTab = 'economy'"
+            >
+                Economy
+            </div>
+        </div>
+
+        <!-- Factory Tab -->
+        <div class="tab-content" :class="{ active: activeTab === 'factory' }">
+            <factory-view
+                ref="factoryView"
+                :controller="factoryController"
+                @status-change="handleStatusChange"
+            />
+        </div>
+
+        <!-- Economy Tab -->
+        <div class="tab-content" :class="{ active: activeTab === 'economy' }">
+            <economy-view
+                ref="economyView"
+                :controller="economyController"
+                @status-change="handleStatusChange"
+            />
+        </div>
+
+        <div class="status-bar" :class="statusClass">{{ statusText }}</div>
+    </div>
+
+    <script src="controllers.js"></script>
+    <script src="graphviz-viewer.js"></script>
+    <script src="factory-view-component.js"></script>
+    <script src="economy-view-component.js"></script>
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            components: {
+                'factory-view': FactoryViewComponent,
+                'economy-view': EconomyViewComponent
+            },
+            data() {
+                return {
+                    activeTab: 'factory',
+                    statusText: 'Ready',
+                    statusClass: '',
+                    economyController: null,
+                    factoryController: null
+                };
+            },
+            created() {
+                // Initialize controllers before components mount (economy shares data with factory)
+                this.economyController = new EconomyController();
+                this.factoryController = new FactoryController(this.economyController.economy);
+            },
+            mounted() {
+                // Generate initial factory after components mount
+                this.$nextTick(() => {
+                    const factoryView = this.$refs.factoryView;
+                    if (factoryView) {
+                        factoryView.generateFactory().then(() => {
+                            this.setStatus('Welcome to Satisgraphery!');
+                        });
+                    } else {
+                        console.error('Factory view ref not found');
+                        this.setStatus('Welcome to Satisgraphery!');
+                    }
+                });
+            },
+            methods: {
+                handleStatusChange(event) {
+                    this.setStatus(event.text, event.level);
+                },
+                setStatus(text, level = 'info') {
+                    this.statusText = text;
+                    if (level === 'error') {
+                        this.statusClass = 'error';
+                    } else if (level === 'warning') {
+                        this.statusClass = 'warning';
+                    } else {
+                        this.statusClass = '';
+                    }
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

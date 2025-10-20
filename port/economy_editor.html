@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Economy View</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
+</head>
+<body class="standalone">
+    <div id="app">
+        <economy-view
+            :controller="controller"
+            @status-change="handleStatusChange"
+        />
+    </div>
+
+    <script src="controllers.js"></script>
+    <script src="economy-view-component.js"></script>
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            components: {
+                'economy-view': EconomyViewComponent
+            },
+            data() {
+                return {
+                    controller: new EconomyController()
+                };
+            },
+            methods: {
+                handleStatusChange(event) {
+                    console.log(`[${event.level}] ${event.text}`);
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

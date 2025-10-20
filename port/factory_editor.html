@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Factory View</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
+    <script src="https://unpkg.com/@hpcc-js/wasm/dist/graphviz.umd.js"></script>
+</head>
+<body class="standalone">
+    <div id="app">
+        <factory-view
+            :controller="controller"
+            placeholder="Click 'Generate Factory' to see the graph visualization here"
+            @status-change="handleStatusChange"
+        />
+    </div>
+
+    <script src="controllers.js"></script>
+    <script src="graphviz-viewer.js"></script>
+    <script src="factory-view-component.js"></script>
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            components: {
+                'factory-view': FactoryViewComponent
+            },
+            data() {
+                return {
+                    controller: new FactoryController({ 'Iron Ore': 1.0 })
+                };
+            },
+            methods: {
+                handleStatusChange(event) {
+                    console.log(`[${event.level}] ${event.text}`);
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
