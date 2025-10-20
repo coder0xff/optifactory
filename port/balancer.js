@@ -2,7 +2,7 @@
  * Design balancer networks for Satisfactory using splitters and mergers.
  */
 
-"use strict";
+import { Digraph } from './graphviz-builder.js';
 
 // ============================================================================
 // Helper utilities
@@ -22,79 +22,6 @@ function createNestedDefaultDict() {
         }
     };
     return new Proxy({}, handler);
-}
-
-/**
- * Simple Digraph class for building graph structures.
- * Mimics Python's graphviz.Digraph interface.
- */
-class Digraph {
-    constructor() {
-        this.nodes = [];
-        this.edges = [];
-        this.graphAttrs = {};
-    }
-
-    /**
-     * Add a node to the graph.
-     * @param {string} id - node identifier
-     * @param {string} label - node label
-     * @param {Object} attrs - node attributes (shape, style, fillcolor, etc.)
-     */
-    node(id, label, attrs = {}) {
-        this.nodes.push({ id, label, ...attrs });
-    }
-
-    /**
-     * Add an edge to the graph.
-     * @param {string} fromId - source node ID
-     * @param {string} toId - target node ID
-     * @param {Object} attrs - edge attributes (label, etc.)
-     */
-    edge(fromId, toId, attrs = {}) {
-        this.edges.push({ from: fromId, to: toId, ...attrs });
-    }
-
-    /**
-     * Set graph-level attributes.
-     * @param {Object} attrs - graph attributes (rankdir, etc.)
-     */
-    attr(attrs) {
-        Object.assign(this.graphAttrs, attrs);
-    }
-
-    /**
-     * Generate a string representation of the graph (for testing).
-     * Mimics the output of graphviz's .source property.
-     * @returns {string} string representation of the graph
-     */
-    get source() {
-        let output = "digraph {\n";
-        
-        // Add graph attributes
-        for (const [key, value] of Object.entries(this.graphAttrs)) {
-            output += `  ${key}=${value}\n`;
-        }
-        
-        // Add nodes
-        for (const node of this.nodes) {
-            const attrs = [];
-            if (node.shape) attrs.push(`shape=${node.shape}`);
-            if (node.style) attrs.push(`style=${node.style}`);
-            if (node.fillcolor) attrs.push(`fillcolor=${node.fillcolor}`);
-            const attrStr = attrs.length > 0 ? ` [${attrs.join(', ')}]` : '';
-            output += `  ${node.id}${attrStr}\n`;
-        }
-        
-        // Add edges
-        for (const edge of this.edges) {
-            const label = edge.label ? ` [label=${edge.label}]` : '';
-            output += `  ${edge.from} -> ${edge.to}${label}\n`;
-        }
-        
-        output += "}\n";
-        return output;
-    }
 }
 
 // ============================================================================
@@ -520,3 +447,4 @@ function design_balancer(inputs, outputs) {
     return dot;
 }
 
+export { design_balancer };

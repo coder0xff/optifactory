@@ -359,3 +359,4 @@ class FactoryController {
     }
 }
 
+export { EconomyController, FactoryController };

@@ -1,12 +1,7 @@
 // Satisfactory economy system port from Python
 // Computes item values based on recipe interconnections
 
-// ============================================================================
-// Imports
-// ============================================================================
-
-// Import recipe data and functions (will need to be loaded in HTML)
-// Expects: RECIPES_DATA, get_all_recipes()
+import { Recipe, get_all_recipes } from './recipes.js';
 
 // ============================================================================
 // Logger
@@ -829,3 +824,13 @@ function economy_from_csv(csvString) {
     return [economy, pinnedItems];
 }
 
+export {
+    tarjan,
+    separate_economies,
+    compute_item_values,
+    get_default_economies,
+    get_default_economy,
+    cost_of_recipes,
+    economy_to_csv,
+    economy_from_csv
+};

@@ -18,3 +18,5 @@ const FLUIDS_DATA = {
     "Turbofuel": "#d4292e",
     "Water": "#7ab0d4"
 };
+
+export { FLUIDS_DATA };

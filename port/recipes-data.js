@@ -1134,3 +1134,5 @@ const RECIPES_DATA = {
         }
     }
 };
+
+export { RECIPES_DATA };

@@ -1,6 +1,10 @@
 // Satisfactory recipe system port from Python
 // All quantities are "per minute"
 
+import { RECIPES_DATA } from './recipes-data.js';
+import { LOADS_DATA } from './loads-data.js';
+import { FLUIDS_DATA } from './fluids-data.js';
+
 // ============================================================================
 // Constants
 // ============================================================================
@@ -325,3 +329,22 @@ function get_fluid_color(fluid) {
     return FLUIDS_DATA[fluid];
 }
 
+export {
+    Purity,
+    Recipe,
+    get_conveyor_rate,
+    get_mining_rate,
+    get_water_extraction_rate,
+    get_oil_extraction_rate,
+    get_load,
+    get_all_recipes_by_machine,
+    get_all_recipes,
+    get_recipes_for,
+    get_recipe_for,
+    find_recipe_name,
+    get_base_parts,
+    get_terminal_parts,
+    get_default_enablement_set,
+    get_fluids,
+    get_fluid_color
+};

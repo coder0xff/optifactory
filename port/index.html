@@ -50,15 +50,11 @@
         <div class="status-bar" :class="statusClass">{{ statusText }}</div>
     </div>
 
-    <script src="recipes-data.js"></script>
-    <script src="loads-data.js"></script>
-    <script src="fluids-data.js"></script>
-    <script src="recipes.js"></script>
-    <script src="controllers.js"></script>
-    <script src="graphviz-viewer.js"></script>
-    <script src="factory-view-component.js"></script>
-    <script src="economy-view-component.js"></script>
-    <script>
+    <script type="module">
+        import { EconomyController, FactoryController } from './controllers.js';
+        import { FactoryViewComponent } from './factory-view-component.js';
+        import { EconomyViewComponent } from './economy-view-component.js';
+
         const { createApp } = Vue;
 
         createApp({

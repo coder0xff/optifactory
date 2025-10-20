@@ -176,3 +176,4 @@ const EconomyViewComponent = {
     }
 };
 
+export { EconomyViewComponent };

@@ -2,6 +2,17 @@
  * GraphvizViewer - Reusable Vue mixin for interactive SVG graph viewing
  * Provides zoom and pan functionality for Graphviz-rendered graphs
  */
+import { Graphviz } from 'https://cdn.jsdelivr.net/npm/@hpcc-js/wasm-graphviz@1.13.0/+esm';
+
+// Lazy-load graphviz instance (shared across all components)
+let graphvizInstance = null;
+async function getGraphviz() {
+    if (!graphvizInstance) {
+        graphvizInstance = await Graphviz.load();
+    }
+    return graphvizInstance;
+}
+
 const GraphvizViewerMixin = {
     data() {
         return {
@@ -32,12 +43,9 @@ const GraphvizViewerMixin = {
             }
             
             try {
-                // Use @hpcc-js/wasm to render DOT to SVG
-                const svg = await window['@hpcc-js/wasm'].graphviz.layout(
-                    dotSource, 
-                    'svg', 
-                    'dot'
-                );
+                // Get graphviz instance and render DOT to SVG
+                const graphviz = await getGraphviz();
+                const svg = await graphviz.layout(dotSource, 'svg', 'dot');
                 container.innerHTML = svg;
                 
                 // Notify status if available
@@ -139,3 +147,4 @@ const GraphvizViewerMixin = {
     }
 };
 
+export { GraphvizViewerMixin };

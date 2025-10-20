@@ -2,6 +2,8 @@
  * FactoryView - Reusable Vue component for factory design
  * Requires: FactoryController, GraphvizViewerMixin
  */
+import { GraphvizViewerMixin } from './graphviz-viewer.js';
+
 const FactoryViewComponent = {
     template: `
         <div class="factory-editor">
@@ -313,3 +315,4 @@ const FactoryViewComponent = {
     }
 };
 
+export { FactoryViewComponent };

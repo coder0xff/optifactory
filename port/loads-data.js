@@ -14,3 +14,5 @@ const LOADS_DATA = {
     "Water Extractor": 20.0,
     "Oil Extractor": 40.0
 };
+
+export { LOADS_DATA };

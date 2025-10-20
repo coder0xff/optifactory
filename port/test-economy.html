@@ -4,101 +4,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Economy System Test</title>
-    <style>
-        body {
-            font-family: monospace;
-            padding: 20px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        .test-section {
-            margin: 20px 0;
-            padding: 10px;
-            border: 1px solid #ccc;
-            background: #f5f5f5;
-        }
-        .test-section h3 {
-            margin-top: 0;
-        }
-        .pass {
-            color: green;
-        }
-        .fail {
-            color: red;
-        }
-        pre {
-            background: white;
-            padding: 10px;
-            overflow-x: auto;
-        }
-    </style>
 </head>
 <body>
     <h1>Economy System Test</h1>
     <div id="results"></div>
 
-    <script src="recipes-data.js"></script>
-    <script src="loads-data.js"></script>
-    <script src="fluids-data.js"></script>
-    <script src="recipes.js"></script>
-    <script src="economy.js"></script>
-    <script>
-        const results = [];
+    <script type="module">
+        import { Recipe } from './recipes.js';
+        import { 
+            tarjan, 
+            separate_economies, 
+            compute_item_values,
+            get_default_economies, 
+            get_default_economy, 
+            cost_of_recipes, 
+            economy_to_csv, 
+            economy_from_csv 
+        } from './economy.js';
+        import { get_all_recipes } from './recipes.js';
+        import {
+            TestRunner,
+            injectTestStyles,
+            assertEquals,
+            assertNotNull,
+            assertGreaterThan,
+            assertLessThan,
+            assertAlmostEqual,
+            assertTrue
+        } from './test-framework.js';
+
+        // Inject common test styles
+        injectTestStyles();
         
-        function test(name, fn) {
-            try {
-                const result = fn();
-                if (result) {
-                    results.push({ name, status: 'pass', message: result });
-                } else {
-                    results.push({ name, status: 'fail', message: 'Test returned false' });
-                }
-            } catch (e) {
-                results.push({ name, status: 'fail', message: e.message, error: e });
-            }
-        }
-        
-        function assertEquals(actual, expected, message) {
-            if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-                throw new Error(`${message}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
-            }
-            return message;
-        }
-        
-        function assertNotNull(value, message) {
-            if (value === null || value === undefined) {
-                throw new Error(`${message}: value is null or undefined`);
-            }
-            return message;
-        }
-        
-        function assertGreaterThan(value, threshold, message) {
-            if (value <= threshold) {
-                throw new Error(`${message}: ${value} is not greater than ${threshold}`);
-            }
-            return message;
-        }
-        
-        function assertLessThan(value, threshold, message) {
-            if (value >= threshold) {
-                throw new Error(`${message}: ${value} is not less than ${threshold}`);
-            }
-            return message;
-        }
-        
-        function assertAlmostEqual(actual, expected, tolerance, message) {
-            if (Math.abs(actual - expected) > tolerance) {
-                throw new Error(`${message}: expected ${expected} ± ${tolerance}, got ${actual}`);
-            }
-            return message;
-        }
-        
-        function assertTrue(value, message) {
-            if (!value) {
-                throw new Error(`${message}: value is not true`);
-            }
-            return message;
-        }
+        // Create test runner
+        const runner = new TestRunner();
+        const test = (name, fn) => runner.test(name, fn);
         
         // Test Tarjan's strongly connected components algorithm
         test('Tarjan: single node', () => {
@@ -255,10 +195,10 @@
             }
             tableHtml += '</tbody></table>';
             
-            // Store the table for display
-            window.economyTable = tableHtml;
-            
-            return `Economy computed with ${Object.keys(economy).length} items (see table below)`;
+            return {
+                message: `Economy computed with ${Object.keys(economy).length} items (see table below)`,
+                html: tableHtml
+            };
         });
         
         // Test from test_economy.py: test_get_default_economy
@@ -328,42 +268,7 @@
         });
         
         // Display results
-        function displayResults() {
-            const container = document.getElementById('results');
-            const passCount = results.filter(r => r.status === 'pass').length;
-            const failCount = results.filter(r => r.status === 'fail').length;
-            
-            container.innerHTML = `
-                <div class="test-section">
-                    <h2>Summary</h2>
-                    <p><span class="pass">Passed: ${passCount}</span> | <span class="fail">Failed: ${failCount}</span></p>
-                </div>
-            `;
-            
-            for (const result of results) {
-                const div = document.createElement('div');
-                div.className = 'test-section';
-                
-                // Check if this is the real game data test and add the table
-                let extraContent = '';
-                if (result.name === 'Real game data computation' && window.economyTable) {
-                    extraContent = window.economyTable;
-                }
-                
-                div.innerHTML = `
-                    <h3 class="${result.status}">${result.status.toUpperCase()}: ${result.name}</h3>
-                    <p>${result.message}</p>
-                    ${result.error ? `<pre>${result.error.stack}</pre>` : ''}
-                    ${extraContent}
-                `;
-                container.appendChild(div);
-            }
-        }
-        
-        // Run tests when page loads
-        window.addEventListener('load', () => {
-            displayResults();
-        });
+        runner.displayResults();
     </script>
 </body>
 </html>

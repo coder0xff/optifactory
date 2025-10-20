@@ -4,93 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Balancer System Test</title>
-    <style>
-        body {
-            font-family: monospace;
-            padding: 20px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        .test-section {
-            margin: 20px 0;
-            padding: 10px;
-            border: 1px solid #ccc;
-            background: #f5f5f5;
-        }
-        .test-section h3 {
-            margin-top: 0;
-        }
-        .pass {
-            color: green;
-        }
-        .fail {
-            color: red;
-        }
-        pre {
-            background: white;
-            padding: 10px;
-            overflow-x: auto;
-        }
-    </style>
 </head>
 <body>
     <h1>Balancer System Test</h1>
     <div id="results"></div>
 
-    <script src="balancer.js"></script>
-    <script>
-        const results = [];
+    <script type="module">
+        import { design_balancer } from './balancer.js';
+        import { 
+            TestRunner,
+            injectTestStyles,
+            assertEquals,
+            assertNotNull,
+            assertGreaterThan,
+            assertInstanceOf,
+            assertThrows
+        } from './test-framework.js';
         
-        function test(name, fn) {
-            try {
-                const result = fn();
-                if (result) {
-                    results.push({ name, status: 'pass', message: result });
-                } else {
-                    results.push({ name, status: 'fail', message: 'Test returned false' });
-                }
-            } catch (e) {
-                results.push({ name, status: 'fail', message: e.message, error: e });
-            }
-        }
+        // Inject common test styles
+        injectTestStyles();
         
-        function assertEquals(actual, expected, message) {
-            if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-                throw new Error(`${message}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
-            }
-            return message;
-        }
-        
-        function assertNotNull(value, message) {
-            if (value === null || value === undefined) {
-                throw new Error(`${message}: value is null or undefined`);
-            }
-            return message;
-        }
-        
-        function assertGreaterThan(value, threshold, message) {
-            if (value <= threshold) {
-                throw new Error(`${message}: ${value} is not greater than ${threshold}`);
-            }
-            return message;
-        }
-
-        function assertInstanceOf(value, constructor, message) {
-            if (!(value instanceof constructor)) {
-                throw new Error(`${message}: value is not an instance of ${constructor.name}`);
-            }
-            return message;
-        }
-
-        function assertThrows(fn, message) {
-            try {
-                fn();
-                throw new Error(`${message}: function did not throw`);
-            } catch (e) {
-                // Expected to throw
-                return message;
-            }
-        }
+        // Create test runner
+        const runner = new TestRunner();
+        const test = (name, fn) => runner.test(name, fn);
 
         // ====================================================================
         // Helper functions
@@ -292,36 +228,7 @@
         });
 
         // Display results
-        const resultsDiv = document.getElementById('results');
-        let passCount = 0;
-        let failCount = 0;
-        
-        results.forEach(result => {
-            const section = document.createElement('div');
-            section.className = 'test-section';
-            
-            const status = result.status === 'pass' ? passCount++ : failCount++;
-            const statusClass = result.status === 'pass' ? 'pass' : 'fail';
-            
-            section.innerHTML = `
-                <h3 class="${statusClass}">${result.status.toUpperCase()}: ${result.name}</h3>
-                <pre>${result.message}</pre>
-                ${result.error ? `<pre style="color: red;">${result.error.stack}</pre>` : ''}
-            `;
-            
-            resultsDiv.appendChild(section);
-        });
-        
-        // Summary
-        const summary = document.createElement('div');
-        summary.style.cssText = 'font-size: 1.2em; padding: 20px; background: #ddd; margin-top: 20px;';
-        summary.innerHTML = `
-            <strong>Test Summary:</strong> 
-            <span class="pass">${passCount} passed</span>, 
-            <span class="fail">${failCount} failed</span>, 
-            ${passCount + failCount} total
-        `;
-        resultsDiv.insertBefore(summary, resultsDiv.firstChild);
+        runner.displayResults();
     </script>
 </body>
 </html>
