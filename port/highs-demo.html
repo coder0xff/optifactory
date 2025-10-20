@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HiGHS Demo</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .pass {
+            background-color: #1e3a1e;
+            border: 1px solid #4ec94e;
+        }
+        .fail {
+            background-color: #3a1e1e;
+            border: 1px solid #c94e4e;
+        }
+        pre {
+            background-color: #2d2d2d;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>HiGHS Linear Programming Solver Test</h1>
+    <div id="output"></div>
+
+    <script src="https://lovasoa.github.io/highs-js/highs.js"></script>
+    <script>
+        const PROBLEM = `Maximize
+ obj:
+    x1 + 2 x2 + 4 x3 + x4
+Subject To
+ c1: - x1 + x2 + x3 + 10 x4 <= 20
+ c2: x1 - 4 x2 + x3 <= 30
+ c3: x2 - 0.5 x4 = 0
+Bounds
+ 0 <= x1 <= 40
+ 2 <= x4 <= 3
+End`;
+
+        const EXPECTED_SOLUTION = {
+            Status: 'Optimal',
+            ObjectiveValue: 87.5,
+            Columns: {
+                x1: {
+                    Index: 0,
+                    Status: 'BS',
+                    Lower: 0,
+                    Upper: 40,
+                    Type: 'Continuous',
+                    Primal: 17.5,
+                    Dual: -0,
+                    Name: 'x1'
+                },
+                x2: {
+                    Index: 1,
+                    Status: 'BS',
+                    Lower: 0,
+                    Upper: Infinity,
+                    Type: 'Continuous',
+                    Primal: 1,
+                    Dual: -0,
+                    Name: 'x2'
+                },
+                x3: {
+                    Index: 2,
+                    Status: 'BS',
+                    Lower: 0,
+                    Upper: Infinity,
+                    Type: 'Continuous',
+                    Primal: 16.5,
+                    Dual: -0,
+                    Name: 'x3'
+                },
+                x4: {
+                    Index: 3,
+                    Status: 'LB',
+                    Lower: 2,
+                    Upper: 3,
+                    Type: 'Continuous',
+                    Primal: 2,
+                    Dual: -8.75,
+                    Name: 'x4'
+                }
+            },
+            Rows: [
+                {
+                    Index: 0,
+                    Name: 'c1',
+                    Status: 'UB',
+                    Lower: -Infinity,
+                    Upper: 20,
+                    Primal: 20,
+                    Dual: 1.5
+                },
+                {
+                    Index: 1,
+                    Name: 'c2',
+                    Status: 'UB',
+                    Lower: -Infinity,
+                    Upper: 30,
+                    Primal: 30,
+                    Dual: 2.5
+                },
+                {
+                    Index: 2,
+                    Name: 'c3',
+                    Status: 'UB',
+                    Lower: 0,
+                    Upper: 0,
+                    Primal: 0,
+                    Dual: 10.5
+                }
+            ]
+        };
+
+        function deepEqual(actual, expected, path = '') {
+            if (actual === expected) return { pass: true };
+            
+            if (typeof actual !== typeof expected) {
+                return { pass: false, message: `Type mismatch at ${path}: ${typeof actual} !== ${typeof expected}` };
+            }
+            
+            if (typeof actual !== 'object' || actual === null || expected === null) {
+                return { pass: false, message: `Value mismatch at ${path}: ${actual} !== ${expected}` };
+            }
+            
+            const actualKeys = Object.keys(actual).sort();
+            const expectedKeys = Object.keys(expected).sort();
+            
+            if (actualKeys.length !== expectedKeys.length || !actualKeys.every((k, i) => k === expectedKeys[i])) {
+                return { pass: false, message: `Key mismatch at ${path}: [${actualKeys}] !== [${expectedKeys}]` };
+            }
+            
+            for (const key of actualKeys) {
+                const result = deepEqual(actual[key], expected[key], `${path}.${key}`);
+                if (!result.pass) return result;
+            }
+            
+            return { pass: true };
+        }
+
+        function log(message, className = '') {
+            const output = document.getElementById('output');
+            const div = document.createElement('div');
+            if (className) div.className = className;
+            div.innerHTML = message;
+            output.appendChild(div);
+        }
+
+        async function test() {
+            log('<h2>Loading HiGHS solver...</h2>');
+            
+            try {
+                const highs_instance = await Module({
+                    locateFile: (file) => `https://lovasoa.github.io/highs-js/${file}`
+                });
+                log('<div class="pass">✓ HiGHS loaded successfully</div>', 'test-result');
+                
+                log('<h2>Solving LP problem...</h2>');
+                log(`<pre>${PROBLEM}</pre>`);
+                
+                const solution = highs_instance.solve(PROBLEM);
+                
+                log('<h2>Solution:</h2>');
+                log(`<pre>${JSON.stringify(solution, null, 2)}</pre>`);
+                
+                log('<h2>Testing solution...</h2>');
+                const result = deepEqual(solution, EXPECTED_SOLUTION);
+                
+                if (result.pass) {
+                    log('<div class="pass">✓ Test PASSED: Solution matches expected output</div>', 'test-result');
+                } else {
+                    log(`<div class="fail">✗ Test FAILED: ${result.message}</div>`, 'test-result');
+                }
+                
+            } catch (error) {
+                log(`<div class="fail">✗ Error: ${error.message}\n${error.stack}</div>`, 'test-result');
+            }
+        }
+
+        test();
+    </script>
+</body>
+</html>
+
