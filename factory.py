@@ -6,8 +6,81 @@ from collections import defaultdict
 
 import graphviz
 from balancer import design_balancer
-from recipes import Purity, get_mining_rate, Recipe, get_all_recipes
+from recipes import Purity, get_mining_rate, Recipe, get_all_recipes, get_fluids, get_fluid_color
 from optimize import optimize_recipes
+
+
+def _is_fluid(material: str) -> bool:
+    """check if a material is a fluid"""
+    return material in get_fluids()
+
+
+def _get_conveyor_mark(flow_rate: float) -> int:
+    """determine which conveyor mark is needed for a given flow rate
+    
+    Mark 1: 60/min
+    Mark 2: 120/min
+    Mark 3: 270/min
+    Mark 4: 480/min
+    """
+    conveyor_speeds = [60, 120, 270, 480]
+    for mark, speed in enumerate(conveyor_speeds, start=1):
+        if flow_rate <= speed:
+            return mark
+    return 4  # default to mark 4 for anything higher
+
+
+def _get_pipeline_mark(flow_rate: float) -> int:
+    """determine which pipeline mark is needed for a given flow rate
+    
+    Mark 1: 300/min
+    Mark 2: 600/min
+    """
+    pipeline_speeds = [300, 600]
+    for mark, speed in enumerate(pipeline_speeds, start=1):
+        if flow_rate <= speed:
+            return mark
+    return 2  # default to mark 2 for anything higher
+
+
+def _get_conveyor_stripe_color(mark: int) -> str:
+    """generate graphviz color string with alternating black and white stripes
+    
+    The number of black stripes equals the mark number:
+    - Mark 1: black
+    - Mark 2: black:white:black
+    - Mark 3: black:white:black:white:black
+    - Mark 4: black:white:black:white:black:white:black
+    """
+    stripes = []
+    for i in range(mark):
+        stripes.append("black")
+        if i < mark - 1:  # don't add white after the last black
+            stripes.append("white")
+    return ":".join(stripes)
+
+
+def _get_pipeline_stripe_color(mark: int, fluid: str) -> str:
+    """generate graphviz color string with grey and fluid color stripes
+    
+    - Mark 1: grey:color:grey
+    - Mark 2: grey:color:color:grey
+    """
+    color = get_fluid_color(fluid)
+    if mark == 1:
+        return f"grey:{color}:{color}:grey"
+    else:  # mark 2
+        return f"grey:{color}:{color}:{color}:{color}:grey"
+
+
+def _get_edge_color(material: str, flow_rate: float) -> str:
+    """get the edge color for a given material and flow rate"""
+    if _is_fluid(material):
+        mark = _get_pipeline_mark(flow_rate)
+        return _get_pipeline_stripe_color(mark, material)
+    else:
+        mark = _get_conveyor_mark(flow_rate)
+        return _get_conveyor_stripe_color(mark)
 
 
 def _initialize_balance(
@@ -310,7 +383,8 @@ def _handle_direct_connection(
     flow_label = (
         int(sink_flows[0]) if sink_flows[0] == int(sink_flows[0]) else sink_flows[0]
     )
-    dot.edge(source_id, sink_id, label=f"{material}\n{flow_label}")
+    color = _get_edge_color(material, sink_flows[0])
+    dot.edge(source_id, sink_id, label=f"{material}\n{flow_label}", color=color, penwidth="2")
 
 
 def _compute_integer_flows(flows: list, target_total: int) -> list[int]:
@@ -364,7 +438,9 @@ def _copy_balancer_edges(
     for match in re.finditer(r"(\w+)\s+->\s+(\w+)\s+\[label=(\d+)\]", balancer_src):
         src, dst, flow = match.group(1), match.group(2), match.group(3)
         if src in node_mapping and dst in node_mapping:
-            dot.edge(node_mapping[src], node_mapping[dst], label=f"{material}\n{flow}")
+            flow_rate = float(flow)
+            color = _get_edge_color(material, flow_rate)
+            dot.edge(node_mapping[src], node_mapping[dst], label=f"{material}\n{flow}", color=color, penwidth="2")
 
 
 def _normalize_flows(source_flows: list, sink_flows: list) -> tuple[list, float, float]:

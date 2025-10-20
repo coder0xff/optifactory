@@ -7,9 +7,10 @@ from frozendict import frozendict
 
 # All qunaities are "per minute"
 
-# The speeds of the conveyors in the game
+# The capacities of the conveyors in the game
 _CONVEYORS = [60, 120, 270, 480]
-
+# The capacities of the pipelines in the game
+_PIPELINES = [300, 600]
 
 class Purity(IntEnum):
     """resource node purity levels"""
@@ -46,6 +47,10 @@ with open("recipes.json", "r", encoding="utf-8") as f:
 
 with open("loads.json", "r", encoding="utf-8") as f:
     _LOADS: dict[str, float] = json.load(f)
+
+
+with open("fluids.json", "r", encoding="utf-8") as f:
+    _FLUIDS: dict[str, str] = json.load(f)
 
 
 _BY_OUTPUT: dict[str, dict[float, list[tuple[str, str]]]] = defaultdict(lambda: defaultdict(list))
@@ -178,3 +183,13 @@ def get_terminal_parts() -> set[str]:
 def get_default_enablement_set() -> set[str]:
     """Get the default enablement set."""
     return _DEFAULT_ENABLEMENT_SET.copy()
+
+
+def get_fluids() -> list[str]:
+    """Get the fluids."""
+    return list(_FLUIDS.keys())
+
+
+def get_fluid_color(fluid: str) -> str:
+    """Get the color of a given fluid as a hex string."""
+    return _FLUIDS[fluid]
