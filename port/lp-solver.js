@@ -51,20 +51,22 @@ export async function init_highs() {
 
 /**
  * Solve LP problem from CPLEX LP format text.
+ * Automatically initializes HiGHS if not already initialized.
  * 
  * Precondition:
  *     lp_text is valid CPLEX LP format
- *     init_highs() has been called
+ *     HiGHS library is loaded (via script tag or import)
  * 
  * Postcondition:
  *     returns SolverResult with optimization status and variable values
  * 
  * @param {string} lp_text - LP problem in CPLEX LP format
- * @returns {SolverResult} containing status and variable values
+ * @returns {Promise<SolverResult>} containing status and variable values
  */
-export function solve_lp(lp_text) {
+export async function solve_lp(lp_text) {
+    // Auto-initialize if not already done
     if (_highs_instance === null) {
-        throw new Error('HiGHS not initialized. Call init_highs() first.');
+        await init_highs();
     }
     
     // Solve the LP problem using HiGHS

@@ -40,6 +40,7 @@ export class TestRunner {
     constructor() {
         this.results = [];
         this.graphvizInstance = null;
+        this.testPromises = [];
     }
 
     /**
@@ -55,39 +56,49 @@ export class TestRunner {
     }
 
     /**
-     * Run a test
+     * Run a test (supports both sync and async functions)
+     * Can be called with or without await
      * @param {string} name - Test name
      * @param {Function} fn - Test function that returns a result message or {message, graph, html}
      */
     test(name, fn) {
-        try {
-            const result = fn();
-            if (result) {
-                // Check if result is an object with message and graph
-                if (typeof result === 'object' && result.message) {
-                    this.results.push({ 
-                        name, 
-                        status: 'pass', 
-                        message: result.message,
-                        graph: result.graph,
-                        html: result.html
-                    });
+        const promise = (async () => {
+            try {
+                const result = await fn();
+                if (result) {
+                    // Check if result is an object with message and graph
+                    if (typeof result === 'object' && result.message) {
+                        this.results.push({ 
+                            name, 
+                            status: 'pass', 
+                            message: result.message,
+                            graph: result.graph,
+                            html: result.html
+                        });
+                    } else {
+                        this.results.push({ name, status: 'pass', message: result });
+                    }
                 } else {
-                    this.results.push({ name, status: 'pass', message: result });
+                    this.results.push({ name, status: 'fail', message: 'Test returned false' });
                 }
-            } else {
-                this.results.push({ name, status: 'fail', message: 'Test returned false' });
+            } catch (e) {
+                this.results.push({ name, status: 'fail', message: e.message, error: e });
             }
-        } catch (e) {
-            this.results.push({ name, status: 'fail', message: e.message, error: e });
-        }
+        })();
+        
+        this.testPromises.push(promise);
+        return promise;
     }
 
     /**
      * Display results to a container element
+     * Waits for all queued tests to complete before displaying
      * @param {string} containerId - ID of the container element
      */
     async displayResults(containerId = 'results') {
+        // Wait for all tests to complete
+        await Promise.all(this.testPromises);
+        
         const container = document.getElementById(containerId);
         if (!container) {
             console.error(`Container element #${containerId} not found`);

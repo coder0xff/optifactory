@@ -13,7 +13,7 @@
     <script src="https://lovasoa.github.io/highs-js/highs.js"></script>
     
     <script type="module">
-        import { init_highs, solve_lp, SolverResult } from './lp-solver.js';
+        import { solve_lp, SolverResult } from './lp-solver.js';
         import {
             TestRunner,
             injectTestStyles,
@@ -35,11 +35,9 @@
         // Initialize HiGHS before running tests
         async function runTests() {
             try {
-                await init_highs();
-                console.log('HiGHS initialized successfully');
                 
                 // Test: simple optimization
-                test('simple optimization', () => {
+                await test('simple optimization', async () => {
                     // Simple problem: minimize x + y subject to x + y >= 10, x >= 0, y >= 0
                     // Optimal solution: x=10, y=0 or x=0, y=10 (or any point on the line)
                     const lp_text = `\\Problem name: 
@@ -53,7 +51,7 @@ Integers
 x y 
 End`;
                     
-                    const result = solve_lp(lp_text);
+                    const result = await solve_lp(lp_text);
                     
                     assertTrue(result.is_optimal(), 'Result should be optimal');
                     assertEquals(result.status, 'Optimal', 'Status should be Optimal');
@@ -70,7 +68,7 @@ End`;
                 });
                 
                 // Test: variable extraction
-                test('variable extraction', () => {
+                await test('variable extraction', async () => {
                     // Problem with specific expected solution
                     const lp_text = `\\Problem name: 
 
@@ -84,7 +82,7 @@ Integers
 a b 
 End`;
                     
-                    const result = solve_lp(lp_text);
+                    const result = await solve_lp(lp_text);
                     
                     assertTrue(result.is_optimal(), 'Result should be optimal');
                     assertTrue('a' in result.variable_values, 'Variable a should be in result');
@@ -100,7 +98,7 @@ End`;
                 });
                 
                 // Test: multiple variables
-                test('multiple variables', () => {
+                await test('multiple variables', async () => {
                     const lp_text = `\\Problem name: 
 
 Minimize
@@ -115,7 +113,7 @@ Integers
 x1 x2 x3 
 End`;
                     
-                    const result = solve_lp(lp_text);
+                    const result = await solve_lp(lp_text);
                     
                     assertTrue(result.is_optimal(), 'Result should be optimal');
                     
@@ -143,7 +141,7 @@ End`;
                 });
                 
                 // Test: infeasible problem
-                test('infeasible problem', () => {
+                await test('infeasible problem', async () => {
                     // Infeasible: x + y >= 10 and x + y <= 5
                     const lp_text = `\\Problem name: 
 
@@ -157,7 +155,7 @@ Integers
 x y 
 End`;
                     
-                    const result = solve_lp(lp_text);
+                    const result = await solve_lp(lp_text);
                     
                     assertTrue(!result.is_optimal(), 'Result should not be optimal');
                     assertEquals(result.status, 'Infeasible', 'Status should be Infeasible');
@@ -166,7 +164,7 @@ End`;
                 });
                 
                 // Test: zero variables
-                test('zero variables', () => {
+                await test('zero variables', async () => {
                     // Problem where one variable should be zero
                     const lp_text = `\\Problem name: 
 
@@ -179,7 +177,7 @@ Integers
 x y 
 End`;
                     
-                    const result = solve_lp(lp_text);
+                    const result = await solve_lp(lp_text);
                     
                     assertTrue(result.is_optimal(), 'Result should be optimal');
                     
@@ -194,7 +192,7 @@ End`;
                 });
                 
                 // Test: solver result attributes
-                test('solver result attributes', () => {
+                await test('solver result attributes', async () => {
                     const lp_text = `\\Problem name: 
 
 Minimize
@@ -206,7 +204,7 @@ Integers
 x 
 End`;
                     
-                    const result = solve_lp(lp_text);
+                    const result = await solve_lp(lp_text);
                     
                     // Check that result has expected attributes
                     assertNotNull(result.status, 'Result has status');
@@ -224,7 +222,7 @@ End`;
                 });
                 
                 // Test: maximization with equality and bounds
-                test('maximization with equality and bounds', () => {
+                await test('maximization with equality and bounds', async () => {
                     const lp_text = `\\Problem name: 
 
 Maximize
@@ -239,7 +237,7 @@ Bounds
  2 <= x4 <= 3
 End`;
                     
-                    const result = solve_lp(lp_text);
+                    const result = await solve_lp(lp_text);
                     
                     assertTrue(result.is_optimal(), 'Result should be optimal');
                     

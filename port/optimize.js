@@ -879,7 +879,7 @@ function _set_objective(
  * @throws {Error} if enablement set is invalid, outputs are unrecognized,
  *                or optimization fails (infeasible/unbounded)
  */
-function optimize_recipes(
+async function optimize_recipes(
     inputs,
     outputs,
     {
@@ -927,7 +927,7 @@ function optimize_recipes(
 
     // generate LP text and solve
     const lp_text = builder.to_lp_text();
-    const result = solve_lp(lp_text);
+    const result = await solve_lp(lp_text);
 
     _validate_optimization_succeeded(result, design_power, lp_text);
     return _extract_recipe_counts(recipe_vars, result);
