@@ -70,7 +70,7 @@ class FactoryEditor(ttk.Frame):
             control_frame, text="Example: Concrete:480", font=("TkDefaultFont", 8)
         ).grid(row=2, column=0, sticky=tk.W, pady=(0, 5))
         
-        self.outputs_text = tk.Text(control_frame, width=30, height=8, wrap=tk.WORD)
+        self.outputs_text = tk.Text(control_frame, width=30, height=8, wrap=tk.WORD, undo=True)
         self.outputs_text.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         self.outputs_text.insert("1.0", "Concrete:480")
         
@@ -89,7 +89,7 @@ class FactoryEditor(ttk.Frame):
             control_frame, text="Example: Limestone:480", font=("TkDefaultFont", 8)
         ).grid(row=6, column=0, sticky=tk.W, pady=(0, 5))
         
-        self.inputs_text = tk.Text(control_frame, width=30, height=8, wrap=tk.WORD)
+        self.inputs_text = tk.Text(control_frame, width=30, height=8, wrap=tk.WORD, undo=True)
         self.inputs_text.grid(row=7, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         default_input_text = (
             "# Leave empty to auto-detect\n"
