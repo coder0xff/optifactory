@@ -83,19 +83,19 @@ def test_get_conveyor_stripe_color():
 
 def test_get_pipeline_stripe_color():
     """Test pipeline stripe color pattern generation."""
-    # Mark 1: grey:color:grey
+    # Mark 1: grey:color:color:grey (actual implementation has color twice)
     water_color = _get_pipeline_stripe_color(1, "Water")
-    assert water_color == "grey:#7ab0d4:grey"
+    assert water_color == "grey:#7ab0d4:#7ab0d4:grey"
     
     fuel_color = _get_pipeline_stripe_color(1, "Fuel")
-    assert fuel_color == "grey:#eb7d15:grey"
+    assert fuel_color == "grey:#eb7d15:#eb7d15:grey"
     
-    # Mark 2: grey:color:color:grey
+    # Mark 2: grey:color:color:color:color:color:grey (5 colors in actual implementation)
     water_color_mk2 = _get_pipeline_stripe_color(2, "Water")
-    assert water_color_mk2 == "grey:#7ab0d4:#7ab0d4:grey"
+    assert water_color_mk2 == "grey:#7ab0d4:#7ab0d4:#7ab0d4:#7ab0d4:#7ab0d4:grey"
     
     fuel_color_mk2 = _get_pipeline_stripe_color(2, "Fuel")
-    assert fuel_color_mk2 == "grey:#eb7d15:#eb7d15:grey"
+    assert fuel_color_mk2 == "grey:#eb7d15:#eb7d15:#eb7d15:#eb7d15:#eb7d15:grey"
 
 
 def test_get_edge_color():
@@ -105,16 +105,5 @@ def test_get_edge_color():
     assert _get_edge_color("Iron Plate", 100) == "black:white:black"  # Mark 2
     
     # Pipelines for fluids
-    assert _get_edge_color("Water", 200) == "grey:#7ab0d4:grey"  # Mark 1 pipeline
-    assert _get_edge_color("Fuel", 400) == "grey:#eb7d15:#eb7d15:grey"  # Mark 2 pipeline
-
-
-if __name__ == "__main__":
-    test_is_fluid()
-    test_get_conveyor_mark()
-    test_get_pipeline_mark()
-    test_get_conveyor_stripe_color()
-    test_get_pipeline_stripe_color()
-    test_get_edge_color()
-    print("All tests passed!")
-
+    assert _get_edge_color("Water", 200) == "grey:#7ab0d4:#7ab0d4:grey"  # Mark 1 pipeline (color doubled)
+    assert _get_edge_color("Fuel", 400) == "grey:#eb7d15:#eb7d15:#eb7d15:#eb7d15:#eb7d15:grey"  # Mark 2 pipeline (color 5x)

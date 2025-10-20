@@ -443,24 +443,6 @@ def _copy_balancer_edges(
             dot.edge(node_mapping[src], node_mapping[dst], label=f"{material}\n{flow}", color=color, penwidth="2")
 
 
-def _normalize_flows(source_flows: list, sink_flows: list) -> tuple[list, float, float]:
-    """Normalize flows and check balance.
-
-    Returns: (normalized_source_flows, total_source, total_sink)
-    """
-    total_source = sum(source_flows)
-    total_sink = sum(sink_flows)
-
-    if total_source > total_sink:
-        scale = total_sink / total_source
-        source_flows = [flow * scale for flow in source_flows]
-        remainder = total_sink - sum(source_flows)
-        if abs(remainder) > 0.01 and source_flows:
-            source_flows[0] += remainder
-
-    return source_flows, total_source, total_sink
-
-
 def _create_material_balancer(
     dot: graphviz.Digraph,
     material: str,
@@ -495,13 +477,13 @@ def _route_single_material(
     """Route a single material and return updated balancer_counter."""
     sources, sinks = flows["sources"], flows["sinks"]
 
-    if not sources or not sinks:
-        return balancer_counter
+    assert len(sources) > 0 and len(sinks) > 0, f"No sources or sinks for {material}"
 
     source_flows = [flow for _, flow in sources]
     sink_flows = [flow for _, flow in sinks]
 
-    source_flows, total_source, total_sink = _normalize_flows(source_flows, sink_flows)
+    total_source = sum(source_flows)
+    total_sink = sum(sink_flows)
 
     if total_source < total_sink:
         print(f"Warning: Insufficient {material}: {total_source} < {total_sink}")
@@ -632,16 +614,3 @@ def design_factory(
     _route_materials_with_balancers(dot, material_flows)
 
     return Factory(dot, inputs, actual_outputs, mines)
-
-
-def build_graph() -> graphviz.Digraph:
-    """Build a simple factory graph with default styling."""
-    dot = graphviz.Digraph(comment="Factory")
-    dot.attr(rankdir="LR")
-    dot.attr("node", shape="box", style="filled", fillcolor="lightblue")
-    dot.attr("edge", color="gray")
-    return dot
-
-
-if __name__ == "__main__":
-    result_factory = design_factory({"Iron Plate": 100}, {}, {})

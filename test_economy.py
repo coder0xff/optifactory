@@ -6,6 +6,7 @@ import tempfile
 from economy import (
     compute_item_values,
     get_default_economy,
+    get_default_economies,
     save_economy_to_csv,
     load_economy_from_csv,
 )
@@ -18,6 +19,17 @@ def test_get_default_economy():
     assert all(isinstance(v, float) for v in economy.values())
     assert all(v > 0 for v in economy.values())
     print(f"✓ Default economy has {len(economy)} items")
+
+
+def test_get_default_economies():
+    """get_default_economies should return separate economies for disconnected production chains"""
+    economies = get_default_economies()
+    assert len(economies) > 0
+    assert all(len(economy) > 0 for economy in economies)
+    assert all(isinstance(v, float) for economy in economies for v in economy.values())
+    assert all(v > 0 for economy in economies for v in economy.values())
+    total_items = sum(len(e) for e in economies)
+    print(f"✓ Default economies has {len(economies)} separate economies with {total_items} total items")
 
 
 def test_compute_item_values_with_pinning():

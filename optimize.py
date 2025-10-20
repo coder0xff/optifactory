@@ -90,8 +90,7 @@ def optimize_recipes(
             for recipe_name, amount in contibutors_dict.items()
             if part != "MWm" or design_power or amount <= 0  # No power production when power design is disabled
         ]
-        if len(part_recipe_contributions) == 0:
-            continue
+        assert len(part_recipe_contributions) > 0, "It should not be in the matrix if it has no contributors."
         part_count = xsum(part_recipe_contributions) + inputs.get(part, 0)
 
         if part in outputs:
@@ -148,11 +147,12 @@ def optimize_recipes(
 
     if model.status != OptimizationStatus.OPTIMAL:
         model.write("model.lp")
+        message = f"Optimization failed with status {model.status}"
         if model.status == OptimizationStatus.INFEASIBLE:
+            message = "ERROR: Couldn't design the factory. Make sure that recipes are enabled to produce output parts and all intermediate parts from base parts."
             if design_power:
-                raise ValueError("ERROR: Couldn't design the factory. Make sure that recipes are enabled to produce power, output parts, and all intermediate parts from base parts..")
-            raise ValueError("ERROR: Couldn't design the factory. Make sure that recipes are enabled to produce output parts and all intermediate parts from base parts.")
-        raise ValueError(f"Optimization failed with status {model.status}")
+                message = "ERROR: Couldn't design the factory. Make sure that recipes are enabled to produce power, output parts, and all intermediate parts from base parts.."            
+        raise ValueError(message)
 
     return {
         recipe_name: recipe_vars[recipe_name].x

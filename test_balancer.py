@@ -154,26 +154,23 @@ def test_complex_routing():
     print(f"PASS: Complex routing test ({s}S + {m}M)")
 
 
-def run_all_tests():
-    """Run all tests"""
-    print("Running design_balancer tests...\n")
-
-    test_basic_split()
-    test_basic_merge()
-    test_split_and_merge()
-    test_perfect_3way_split()
-    test_direct_connection()
-    test_feasibility_check()
-    test_graph_structure()
-    test_optimal_split_counts()
-    test_optimal_merge_counts()
-    test_complex_routing()
-    test_large_example()
-
-    print("\n" + "=" * 50)
-    print("All tests passed!")
-    print("=" * 50)
+def test_two_way_split():
+    """Test simple 2-way split to cover edge cases"""
+    g = design_balancer([100], [50, 50])
+    s, m = count_devices(g.source)
+    assert s == 1 and m == 0, f"Expected 1S + 0M, got {s}S + {m}M"
+    assert "I0 -> S0" in g.source
+    assert "S0 -> O0" in g.source
+    assert "S0 -> O1" in g.source
+    print("PASS: Two-way split test")
 
 
-if __name__ == "__main__":
-    run_all_tests()
+def test_single_source_output():
+    """Test case with single source to single output (different from direct connection)"""
+    # This is essentially a pass-through but tests single-element collections
+    g = design_balancer([80], [80])
+    s, m = count_devices(g.source)
+    # Should be direct connection
+    assert "I0 -> O0" in g.source
+    print("PASS: Single source to single output test")
+

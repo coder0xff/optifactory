@@ -77,3 +77,66 @@ def test_power_generation():
     actual = optimize_recipes({}, {"MWm": 1}, enablement_set={"Coal Power"})
     expected = {"Coal Power": 1.0}
     assert actual == expected
+
+
+def test_invalid_enablement_set():
+    """Test that invalid recipe names in enablement set raise an error"""
+    with raises(ValueError, match="Enablement set contains invalid recipes"):
+        optimize_recipes({}, {"Iron Plate": 100}, enablement_set={"NonExistentRecipe", "Iron Plate"})
+
+
+def test_zero_input_costs_weight():
+    """Test that input_costs_weight=0 works correctly"""
+    # With zero weight on input costs, optimizer should still work
+    # Need to include smelting recipe for feasible solution
+    actual = optimize_recipes(
+        {},
+        {"Iron Plate": 30},
+        enablement_set={"Iron Ingot", "Iron Plate"},
+        input_costs_weight=0.0,
+        economy={}
+    )
+    expected = {"Iron Ingot": 2.0, "Iron Plate": 2.0}
+    assert actual == expected
+
+
+def test_part_not_in_economy():
+    """Test warning when part not found in provided economy"""
+    # Provide a minimal economy that doesn't include all parts
+    minimal_economy = {"Iron Ore": 1.0}  # Missing many parts like Iron Ingot
+    
+    # This should trigger the warning for missing parts but still work
+    actual = optimize_recipes(
+        {},
+        {"Iron Plate": 30},
+        enablement_set={"Iron Ingot", "Iron Plate"},
+        economy=minimal_economy
+    )
+    
+    # Should still produce valid output despite warnings
+    assert "Iron Plate" in actual
+    assert actual["Iron Plate"] == 2.0
+
+
+def test_infeasible_optimization():
+    """Test that infeasible optimization raises appropriate error"""
+    # Try to produce something with insufficient recipes
+    # Enable only the final recipe but not the intermediate ones
+    with raises(ValueError, match="Couldn't design the factory"):
+        optimize_recipes(
+            {},
+            {"Iron Plate": 100},
+            enablement_set={"Iron Plate"},  # Missing Iron Ingot recipe!
+            economy={}
+        )
+
+
+def test_infeasible_optimization_with_power_design():
+    """Test that infeasible optimization raises appropriate error when power design is enabled"""
+    with raises(ValueError, match="Couldn't design the factory"):
+        optimize_recipes(
+            {},
+            {"MWm": 1},
+            enablement_set={"Power (Biomass)"},
+            design_power=True
+        )

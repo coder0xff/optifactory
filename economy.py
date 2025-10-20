@@ -72,8 +72,6 @@ def _compute_economy_values(recipes: dict[str, Recipe], pinned_values: dict[str,
     recent_errors = []
     recent_changes = []
     temperature_cap = 0.5
-    convergence_count = 0
-    divergence_count = 0
     temperature_cap_rate = 3
     while True:
         # print("\033[H", end="")
@@ -119,24 +117,13 @@ def _compute_economy_values(recipes: dict[str, Recipe], pinned_values: dict[str,
             # Looks like divergence, cool down
             temperature *= 0.999
             temperature_cap_rate = max(temperature_cap_rate + 0.01, 8)
-            # observation = "Divergence"
-            divergence_count += 1
             temperature_cap = min(temperature_cap, temperature)
-        elif error_trend >= 0 and change_trend < 0:
-            # something interesting is happening
-            temperature *= 1.01
-            # observation = "Interesting"
-        elif error_trend < 0 and change_trend >= 0:
-            # I don't know what this means, but it tends to be good
-            # observation = "Unknown" 
-            pass      
-        elif error_trend < 0 and change_trend < 0:
+        elif change_trend < 0:
             # Looks like convergence, heat up
             temperature *= 1.01
             temperature_cap = 1.0 - (1.0 - temperature_cap) * (1 - 10**(-temperature_cap_rate))
             temperature_cap_rate *= 0.999
-            # observation = "Convergence"
-            convergence_count += 1
+        # else do nothing, seems to be hard to reach state anyway
 
         temperature = min(temperature, temperature_cap)
         
@@ -395,23 +382,3 @@ def load_economy_from_csv(filepath: str) -> tuple[dict[str, float], set[str]]:
                 pinned_items.add(item)
     
     return economy, pinned_items
-
-
-def _main():
-    result_economies = get_default_economies()
-
-    # Clear the terminal
-    # print("\033[2J", end="")
-
-    for i, values in enumerate(result_economies):
-        print(f"\n{'='*120}")
-        print(f"Economy {i+1} - Final Values ({len(values)} items)")
-        print(f"{'='*120}")
-        print(f"{'Item':<40} {'Value':>12} {'Rank':>8}")
-        print(f"{'-'*120}")
-        for rank, (item, value) in enumerate(sorted(values.items(), key=lambda x: x[1], reverse=True), 1):
-            print(f"{item:<40} {value:>12.2f} {rank:>8}")
-        print(f"{'='*120}\n")
-
-if __name__ == "__main__":
-    _main()

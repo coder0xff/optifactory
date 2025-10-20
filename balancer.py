@@ -176,11 +176,7 @@ def design_balancer(inputs: list[int], outputs: list[int]) -> Digraph:
         # Return mapping - for each destination, record which node feeds it
         result: dict[int, tuple[str, int]] = {}
         for dest_id, flow in flows_dict.items():
-            if dest_id in dest_sources:
-                result[dest_id] = dest_sources[dest_id]
-            else:
-                # Single root case - the root itself feeds this destination
-                result[dest_id] = (root_id, flow)
+            result[dest_id] = dest_sources[dest_id]
 
         return result
 
@@ -189,8 +185,7 @@ def design_balancer(inputs: list[int], outputs: list[int]) -> Digraph:
         flows_dict: {source_id: flow_amount}
         Returns: node_id of the merged flow
         """
-        if len(flows_dict) == 1:
-            return list(flows_dict.keys())[0]
+        assert len(flows_dict) > 1, "Cannot merge a single source"
 
         # Sort sources for consistent output
         sources = sorted(flows_dict.items(), key=lambda x: (x[1], x[0]), reverse=True)
