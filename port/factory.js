@@ -649,7 +649,8 @@ function _copyBalancerNodes(dot, balancerSrc, material, balancerCounter, nodeMap
  * @param {Digraph} dot - main graphviz digraph
  */
 function _copyBalancerEdges(balancerSrc, material, nodeMapping, dot) {
-    const edgeRegex = /(\w+)\s+->\s+(\w+)\s+\[label=(\d+)\]/g;
+    // Match edges with either quoted or unquoted labels: label="123" or label=123
+    const edgeRegex = /(\w+)\s+->\s+(\w+)\s+\[label="?(\d+)"?\]/g;
     let match;
     while ((match = edgeRegex.exec(balancerSrc)) !== null) {
         const src = match[1];

@@ -223,11 +223,12 @@ const FactoryViewComponent = {
                 oldExpanded.set(machine.tree_id, machine.expanded);
             }
             
-            for (const machine of structure) {
+            // Structure has a .machines property
+            for (const machine of structure.machines) {
                 machine.expanded = oldExpanded.get(machine.tree_id) || false;
             }
             
-            this.treeStructure = structure;
+            this.treeStructure = structure.machines;
         },
         onOutputsChanged() {
             this.controller.set_outputs_text(this.outputsText);
@@ -284,10 +285,10 @@ const FactoryViewComponent = {
         async generateFactory() {
             this.isGenerating = true;
             this.setStatus('Generating factory...', 'info');
+            
             try {
-                const result = this.controller.generate_factory_from_state();
-                this.graphvizSource = result.source;
-                this.controller._current_factory = result;
+                // generate_factory_from_state is async and returns a Promise
+                this.graphvizSource = await this.controller.generate_factory_from_state();
                 
                 this.resetZoom();
                 await this.renderGraphviz(this.graphvizSource);
@@ -295,7 +296,7 @@ const FactoryViewComponent = {
                 this.setStatus('Factory generated successfully', 'info');
             } catch (error) {
                 this.setStatus('Factory generation failed: ' + error.message, 'error');
-                console.error(error);
+                console.error('Factory generation error:', error);
             } finally {
                 this.isGenerating = false;
             }

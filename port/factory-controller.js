@@ -792,14 +792,14 @@ class FactoryController {
      * Postcondition:
      *     this._current_factory is updated with generated Factory
      *     info messages are logged
-     *     returns Graphviz diagram
+     *     returns Graphviz diagram string
      * 
      * @returns {Object} graphviz diagram suitable for display
      * @throws {Error} if configuration is invalid or generation fails
      */
-    generate_factory_from_state() {
+    async generate_factory_from_state() {
         console.log("Generating factory...");
-        
+
         // parse configuration from text state
         const outputs_list = FactoryController.parse_config_text(this._outputs_text);
         const inputs_list = FactoryController.parse_config_text(this._inputs_text);
@@ -816,14 +816,14 @@ class FactoryController {
             this._design_power
         );
         
-        // generate and cache result
-        const factory = this.generate_factory(config);
+        // generate and cache result (design_factory is async)
+        const factory = await this.generate_factory(config);
         this._current_factory = factory;
         
         console.log("Factory generated successfully");
         
         // return graphviz diagram for display
-        return factory.network;
+        return factory.network.source;
     }
     
     /**
@@ -1004,15 +1004,15 @@ class FactoryController {
      * @returns {Factory} generated Factory object
      * @throws {Error} if configuration is invalid or generation fails
      */
-    generate_factory(config) {
+    async generate_factory(config) {
         // validate first
         const validation = this.validate_config(config);
         if (!validation.is_valid) {
             throw new Error(validation.errors.join("; "));
         }
         
-        // generate factory
-        return design_factory(
+        // generate factory (design_factory is async)
+        return await design_factory(
             config.outputs,
             config.inputs,
             config.mines,

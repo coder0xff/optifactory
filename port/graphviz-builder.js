@@ -206,7 +206,9 @@ class Digraph {
      * @returns {string} DOT string representation of the graph
      */
     get source() {
-        let output = `digraph ${this.name} {\n`;
+        // Quote the name if it contains spaces or special characters
+        const quotedName = /[\s"]/.test(this.name) ? `"${this.name.replace(/"/g, '\\"')}"` : this.name;
+        let output = `digraph ${quotedName} {\n`;
         
         // Add graph attributes
         for (const [key, value] of Object.entries(this.graphAttrs)) {
@@ -216,8 +218,9 @@ class Digraph {
         // Add nodes
         for (const node of this.nodes) {
             const attrs = [];
-            // Handle label separately - it can contain special characters
-            if (node.label !== undefined && node.label !== '') {
+            // Handle label - always include it if defined (even if empty string)
+            // Graphviz uses node ID as label if label attribute is missing
+            if (node.label !== undefined) {
                 attrs.push(`label="${node.label}"`);
             }
             if (node.shape) attrs.push(`shape=${node.shape}`);
