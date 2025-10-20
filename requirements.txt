@@ -1,8 +1,0 @@
-frozendict
-graphviz
-git+https://github.com/coin-or/python-mip.git@master
-pillow
-pytest
-pytest-cov
-tarjan
-ttkwidgets
