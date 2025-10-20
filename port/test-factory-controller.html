@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Factory Controller Test</title>
+</head>
+<body>
+    <h1>Factory Controller Test</h1>
+    <div id="results"></div>
+
+    <script type="module">
+        import {
+            FactoryConfig,
+            ValidationResult,
+            RecipeTreeNode,
+            MachineTreeNode,
+            RecipeTreeStructure,
+            FactoryController
+        } from './factory-controller.js';
+        import {
+            TestRunner,
+            injectTestStyles,
+            assertEquals,
+            assertNotNull,
+            assertGreaterThan
+        } from './test-framework.js';
+
+        // Inject common test styles
+        injectTestStyles();
+        
+        // Create test runner
+        const runner = new TestRunner();
+        const test = (name, fn) => runner.test(name, fn);
+
+        // Import additional dependencies for tests
+        import { Recipe, Purity } from './recipes.js';
+
+        // ====================================================================
+        // Tests ported from test_factory_controller.py
+        // ====================================================================
+
+        test('test_controller_init: controller should initialize with economy and default recipes', () => {
+            const economy = {"Iron Ore": 1.0};
+            const controller = new FactoryController(economy);
+            if (controller.economy !== economy) throw new Error('Economy not stored');
+            assertGreaterThan(controller.enabled_recipes.size, 0, 'Should have default recipes');
+            return `Initialized with ${controller.enabled_recipes.size} recipes`;
+        });
+
+        test('test_get_default_enabled_recipes: default enabled recipes should exclude power and packager', () => {
+            const recipes = FactoryController._get_default_enabled_recipes();
+            assertGreaterThan(recipes.size, 0, 'Should have recipes');
+            if (!recipes.has("Iron Plate")) throw new Error('Should include Iron Plate');
+            return `Default recipes: ${recipes.size}`;
+        });
+
+        test('test_parse_config_text_basic: parse_config_text should handle basic input', () => {
+            const text = "Iron Plate:100\nCopper Ingot:50";
+            const result = FactoryController.parse_config_text(text);
+            assertEquals(result.length, 2, 'Should have 2 items');
+            assertEquals(result[0][0], "Iron Plate", 'First material');
+            assertEquals(result[0][1], 100.0, 'First rate');
+            assertEquals(result[1][0], "Copper Ingot", 'Second material');
+            assertEquals(result[1][1], 50.0, 'Second rate');
+            return 'Basic parsing works';
+        });
+
+        test('test_parse_config_text_with_comments: parse_config_text should skip comments', () => {
+            const text = `
+# This is a comment
+Iron Plate:100
+# Another comment
+Copper Ingot:50
+`;
+            const result = FactoryController.parse_config_text(text);
+            assertEquals(result.length, 2, 'Should have 2 items');
+            assertEquals(result[0][0], "Iron Plate", 'First material');
+            assertEquals(result[1][0], "Copper Ingot", 'Second material');
+            return 'Comment parsing works';
+        });
+
+        test('test_parse_config_text_empty_lines: parse_config_text should skip empty lines', () => {
+            const text = "Iron Plate:100\n\nCopper Ingot:50\n\n";
+            const result = FactoryController.parse_config_text(text);
+            assertEquals(result.length, 2, 'Should have 2 items');
+            return 'Empty line parsing works';
+        });
+
+        test('test_parse_config_text_whitespace: parse_config_text should handle extra whitespace', () => {
+            const text = "  Iron Plate:100  \n  Copper Ingot:50  ";
+            const result = FactoryController.parse_config_text(text);
+            assertEquals(result.length, 2, 'Should have 2 items');
+            assertEquals(result[0][0], "Iron Plate", 'First material');
+            assertEquals(result[1][0], "Copper Ingot", 'Second material');
+            return 'Whitespace handling works';
+        });
+
+        test('test_parse_config_text_comment_only: parse_config_text should handle comment-only text', () => {
+            const text = "# Comment 1\n# Comment 2";
+            const result = FactoryController.parse_config_text(text);
+            assertEquals(result.length, 0, 'Should be empty');
+            return 'Comment-only text works';
+        });
+
+        test('test_parse_config_text_empty: parse_config_text should handle empty text', () => {
+            const result = FactoryController.parse_config_text("");
+            assertEquals(result.length, 0, 'Should be empty');
+            return 'Empty text works';
+        });
+
+        test('test_parse_config_text_invalid: parse_config_text should throw on invalid format', () => {
+            try {
+                FactoryController.parse_config_text("Invalid Line Without Colon");
+                throw new Error('Should have thrown');
+            } catch (e) {
+                if (!e.message.includes('Invalid format')) throw e;
+                return 'Invalid format throws error';
+            }
+        });
+
+        test('test_format_recipe_tooltip_with_inputs_and_outputs: format_recipe_tooltip should format recipe with inputs and outputs', () => {
+            const recipe = new Recipe(
+                "Smelter",
+                {"Iron Ore": 30.0},
+                {"Iron Ingot": 30.0}
+            );
+            const result = FactoryController.format_recipe_tooltip(recipe);
+            if (!result.includes("Inputs:")) throw new Error('Should include Inputs');
+            if (!result.includes("Iron Ore: 30.0/min")) throw new Error('Should include input details');
+            if (!result.includes("Outputs:")) throw new Error('Should include Outputs');
+            if (!result.includes("Iron Ingot: 30.0/min")) throw new Error('Should include output details');
+            return 'Tooltip formatting works';
+        });
+
+        test('test_format_recipe_tooltip_outputs_only: format_recipe_tooltip should format recipe with only outputs', () => {
+            const recipe = new Recipe(
+                "Miner",
+                {},
+                {"Iron Ore": 60.0}
+            );
+            const result = FactoryController.format_recipe_tooltip(recipe);
+            if (result.includes("Inputs:")) throw new Error('Should not include Inputs');
+            if (!result.includes("Outputs:")) throw new Error('Should include Outputs');
+            if (!result.includes("Iron Ore: 60.0/min")) throw new Error('Should include output details');
+            return 'Outputs-only tooltip works';
+        });
+
+        test('test_format_recipe_tooltip_multiple_items: format_recipe_tooltip should format recipe with multiple inputs/outputs', () => {
+            const recipe = new Recipe(
+                "Assembler",
+                {"Iron Plate": 20.0, "Copper Wire": 30.0},
+                {"Circuit Board": 10.0}
+            );
+            const result = FactoryController.format_recipe_tooltip(recipe);
+            if (!result.includes("Iron Plate: 20.0/min")) throw new Error('Should include first input');
+            if (!result.includes("Copper Wire: 30.0/min")) throw new Error('Should include second input');
+            if (!result.includes("Circuit Board: 10.0/min")) throw new Error('Should include output');
+            return 'Multiple items tooltip works';
+        });
+
+        test('test_validate_config_valid: validate_config should pass for valid configuration', () => {
+            const controller = new FactoryController({});
+            const config = new FactoryConfig(
+                {"Iron Plate": 100},
+                [],
+                [],
+                new Set(["Iron Plate"])
+            );
+            const result = controller.validate_config(config);
+            if (!result.is_valid) throw new Error('Should be valid');
+            assertEquals(result.errors.length, 0, 'Should have no errors');
+            return 'Valid config passes';
+        });
+
+        test('test_validate_config_empty_outputs: validate_config should error on empty outputs', () => {
+            const controller = new FactoryController({});
+            const config = new FactoryConfig(
+                {},
+                [],
+                [],
+                new Set()
+            );
+            const result = controller.validate_config(config);
+            if (result.is_valid) throw new Error('Should be invalid');
+            assertEquals(result.errors.length, 1, 'Should have 1 error');
+            if (!result.errors[0].includes("No outputs specified")) throw new Error('Wrong error message');
+            return 'Empty outputs error works';
+        });
+
+        test('test_validate_config_power_without_recipes: validate_config should warn about power design without power recipes', () => {
+            const controller = new FactoryController({});
+            const config = new FactoryConfig(
+                {"Iron Plate": 100},
+                [],
+                [],
+                new Set(["Iron Plate"]),
+                1.0,
+                0.0,
+                1.0,
+                true  // design_power
+            );
+            const result = controller.validate_config(config);
+            if (!result.is_valid) throw new Error('Should be valid (warning only)');
+            assertEquals(result.warnings.length, 1, 'Should have 1 warning');
+            if (!result.warnings[0].toLowerCase().includes("power")) throw new Error('Should mention power');
+            return 'Power warning works';
+        });
+
+        test('test_validate_config_power_with_recipes: validate_config should not warn when power design has power recipes', () => {
+            const controller = new FactoryController({});
+            const config = new FactoryConfig(
+                {"Iron Plate": 100},
+                [],
+                [],
+                new Set(["Iron Plate", "Coal Power"]),
+                1.0,
+                0.0,
+                1.0,
+                true
+            );
+            const result = controller.validate_config(config);
+            if (!result.is_valid) throw new Error('Should be valid');
+            assertEquals(result.warnings.length, 0, 'Should have no warnings');
+            return 'Power with recipes works';
+        });
+
+        test('test_validate_config_no_power_design: validate_config should not warn when power design is disabled', () => {
+            const controller = new FactoryController({});
+            const config = new FactoryConfig(
+                {"Iron Plate": 100},
+                [],
+                [],
+                new Set(["Iron Plate"]),
+                1.0,
+                0.0,
+                1.0,
+                false
+            );
+            const result = controller.validate_config(config);
+            if (!result.is_valid) throw new Error('Should be valid');
+            assertEquals(result.warnings.length, 0, 'Should have no warnings');
+            return 'No power design works';
+        });
+
+        test('test_factory_config_defaults: FactoryConfig should have correct default values', () => {
+            const config = new FactoryConfig(
+                {"Iron Plate": 100},
+                [],
+                [],
+                new Set()
+            );
+            assertEquals(config.input_costs_weight, 1.0, 'input_costs_weight');
+            assertEquals(config.machine_counts_weight, 0.0, 'machine_counts_weight');
+            assertEquals(config.power_consumption_weight, 1.0, 'power_consumption_weight');
+            if (config.design_power !== false) throw new Error('design_power should be false');
+            return 'Config defaults correct';
+        });
+
+        test('test_validation_result_structure: ValidationResult should have correct structure', () => {
+            const result = new ValidationResult(
+                true,
+                ["warning1"],
+                []
+            );
+            if (!result.is_valid) throw new Error('Should be valid');
+            assertEquals(result.warnings.length, 1, 'Should have 1 warning');
+            assertEquals(result.errors.length, 0, 'Should have 0 errors');
+            return 'ValidationResult structure correct';
+        });
+
+        // ========== State Management Tests ==========
+
+        test('test_get_set_outputs_text: controller should manage outputs text state', () => {
+            const controller = new FactoryController({});
+            assertEquals(controller.get_outputs_text(), "Concrete:480", 'Default value');
+            
+            controller.set_outputs_text("Iron Plate:100");
+            assertEquals(controller.get_outputs_text(), "Iron Plate:100", 'Updated value');
+            return 'Outputs text management works';
+        });
+
+        test('test_get_set_inputs_text: controller should manage inputs text state', () => {
+            const controller = new FactoryController({});
+            const default_text = controller.get_inputs_text();
+            if (!default_text.includes("# Leave empty")) throw new Error('Should have default comment');
+            
+            controller.set_inputs_text("Iron Ore:200");
+            assertEquals(controller.get_inputs_text(), "Iron Ore:200", 'Updated value');
+            return 'Inputs text management works';
+        });
+
+        test('test_get_set_mines_text: controller should manage mines text state', () => {
+            const controller = new FactoryController({});
+            assertEquals(controller.get_mines_text(), "", 'Default empty');
+            
+            controller.set_mines_text("Iron Ore:PURE");
+            assertEquals(controller.get_mines_text(), "Iron Ore:PURE", 'Updated value');
+            return 'Mines text management works';
+        });
+
+        test('test_get_set_recipe_search_text: controller should manage recipe search text state', () => {
+            const controller = new FactoryController({});
+            assertEquals(controller.get_recipe_search_text(), "", 'Default empty');
+            
+            controller.set_recipe_search_text("iron");
+            assertEquals(controller.get_recipe_search_text(), "iron", 'Updated value');
+            return 'Recipe search text management works';
+        });
+
+        test('test_get_set_optimization_weights: controller should manage optimization weight state', () => {
+            const controller = new FactoryController({});
+            assertEquals(controller.get_input_costs_weight(), 1.0, 'Default input costs');
+            assertEquals(controller.get_machine_counts_weight(), 0.0, 'Default machine counts');
+            assertEquals(controller.get_power_consumption_weight(), 1.0, 'Default power consumption');
+            
+            controller.set_input_costs_weight(0.5);
+            controller.set_machine_counts_weight(0.3);
+            controller.set_power_consumption_weight(0.7);
+            
+            assertEquals(controller.get_input_costs_weight(), 0.5, 'Updated input costs');
+            assertEquals(controller.get_machine_counts_weight(), 0.3, 'Updated machine counts');
+            assertEquals(controller.get_power_consumption_weight(), 0.7, 'Updated power consumption');
+            return 'Optimization weights management works';
+        });
+
+        test('test_get_set_design_power: controller should manage design power flag', () => {
+            const controller = new FactoryController({});
+            if (controller.get_design_power() !== false) throw new Error('Default should be false');
+            
+            controller.set_design_power(true);
+            if (controller.get_design_power() !== true) throw new Error('Should be true');
+            return 'Design power flag management works';
+        });
+
+        test('test_set_recipe_enabled: controller should enable/disable individual recipes', () => {
+            const controller = new FactoryController({});
+            
+            const initial_count = controller.enabled_recipes.size;
+            assertGreaterThan(initial_count, 0, 'Should have initial recipes');
+            
+            controller.set_recipe_enabled("Iron Plate", false);
+            if (controller.enabled_recipes.has("Iron Plate")) throw new Error('Should be disabled');
+            
+            controller.set_recipe_enabled("Iron Plate", true);
+            if (!controller.enabled_recipes.has("Iron Plate")) throw new Error('Should be enabled');
+            return 'Recipe enable/disable works';
+        });
+
+        test('test_set_recipes_enabled: controller should set complete recipe set', () => {
+            const controller = new FactoryController({});
+            
+            const new_set = new Set(["Iron Plate", "Copper Ingot"]);
+            controller.set_recipes_enabled(new_set);
+            
+            const current = controller.get_enabled_recipes();
+            if (current.size !== 2) throw new Error('Wrong size');
+            if (!current.has("Iron Plate")) throw new Error('Missing Iron Plate');
+            if (!current.has("Copper Ingot")) throw new Error('Missing Copper Ingot');
+            return 'Set complete recipe set works';
+        });
+
+        test('test_get_enabled_recipes_returns_copy: get_enabled_recipes should return a copy to prevent external mutation', () => {
+            const controller = new FactoryController({});
+            
+            const recipes1 = controller.get_enabled_recipes();
+            recipes1.add("NewRecipe");
+            
+            const recipes2 = controller.get_enabled_recipes();
+            if (recipes2.has("NewRecipe")) throw new Error('Should not have NewRecipe');
+            return 'Returns copy works';
+        });
+
+        test('test_get_current_factory: controller should track current factory', () => {
+            const controller = new FactoryController({});
+            if (controller.get_current_factory() !== null) throw new Error('Should start null');
+            return 'Current factory tracking works';
+        });
+
+        test('test_should_show_power_warning_disabled: should_show_power_warning should return false when power design disabled', () => {
+            const controller = new FactoryController({});
+            controller.set_design_power(false);
+            
+            if (controller.should_show_power_warning()) throw new Error('Should not show warning');
+            return 'Power warning disabled works';
+        });
+
+        test('test_should_show_power_warning_enabled_without_recipes: should_show_power_warning should return true when power enabled but no power recipes', () => {
+            const controller = new FactoryController({});
+            controller.set_design_power(true);
+            controller.set_recipes_enabled(new Set(["Iron Plate"]));
+            
+            if (!controller.should_show_power_warning()) throw new Error('Should show warning');
+            return 'Power warning without recipes works';
+        });
+
+        test('test_should_show_power_warning_enabled_with_recipes: should_show_power_warning should return false when power enabled with power recipes', () => {
+            const controller = new FactoryController({});
+            controller.set_design_power(true);
+            controller.set_recipes_enabled(new Set(["Coal Power", "Iron Plate"]));
+            
+            if (controller.should_show_power_warning()) throw new Error('Should not show warning');
+            return 'Power warning with recipes works';
+        });
+
+        test('test_get_all_recipes_by_machine: controller should provide access to recipes', () => {
+            const controller = new FactoryController({});
+            const recipes = controller.get_all_recipes_by_machine();
+            
+            assertGreaterThan(Object.keys(recipes).length, 0, 'Should have recipes');
+            if (!("Smelter" in recipes) && !("Constructor" in recipes)) {
+                throw new Error('Should have Smelter or Constructor');
+            }
+            return 'Get all recipes works';
+        });
+
+        test('test_get_recipe_tooltip: controller should provide recipe tooltips', () => {
+            const controller = new FactoryController({});
+            
+            const tooltip = controller.get_recipe_tooltip("Iron Plate");
+            assertNotNull(tooltip, 'Should have tooltip');
+            if (!tooltip.includes("/min")) throw new Error('Should include /min');
+            return 'Recipe tooltip works';
+        });
+
+        test('test_get_recipe_tooltip_not_found: controller should return null for non-existent recipe', () => {
+            const controller = new FactoryController({});
+            
+            const tooltip = controller.get_recipe_tooltip("NonExistentRecipe");
+            if (tooltip !== null) throw new Error('Should be null');
+            return 'Non-existent recipe returns null';
+        });
+
+        // ========== Tree Structure Tests ==========
+
+        test('test_get_recipe_tree_structure: get_recipe_tree_structure should return complete tree', () => {
+            const controller = new FactoryController({});
+            
+            const structure = controller.get_recipe_tree_structure();
+            
+            assertGreaterThan(structure.machines.length, 0, 'Should have machines');
+            for (const machine of structure.machines) {
+                if (!machine.tree_id.startsWith("machine:")) throw new Error('Wrong machine ID format');
+                if (machine.recipes.length === 0) throw new Error('Machine should have recipes');
+            }
+            return 'Tree structure works';
+        });
+
+        test('test_tree_structure_recipe_ids: recipe tree IDs should follow format recipe:{machine}:{recipe}', () => {
+            const controller = new FactoryController({});
+            
+            const structure = controller.get_recipe_tree_structure();
+            
+            for (const machine of structure.machines) {
+                for (const recipe of machine.recipes) {
+                    if (!recipe.tree_id.startsWith("recipe:")) throw new Error('Wrong recipe ID format');
+                    if (!recipe.tree_id.includes(machine.display_name)) throw new Error('Should include machine name');
+                }
+            }
+            return 'Recipe IDs format correct';
+        });
+
+        test('test_tree_structure_with_search: tree structure should filter by search text', () => {
+            const controller = new FactoryController({});
+            controller.set_recipe_search_text("iron");
+            
+            const structure = controller.get_recipe_tree_structure();
+            
+            const all_recipes = structure.machines.flatMap(m => m.recipes);
+            const visible_count = all_recipes.filter(r => r.is_visible).length;
+            const invisible_count = all_recipes.filter(r => !r.is_visible).length;
+            
+            assertGreaterThan(visible_count, 0, 'Should have visible recipes');
+            assertGreaterThan(invisible_count, 0, 'Should have invisible recipes');
+            return 'Search filtering works';
+        });
+
+        test('test_tree_structure_machine_visibility: machines should be hidden if no visible recipes', () => {
+            const controller = new FactoryController({});
+            controller.set_recipe_search_text("zzzznonexistent");
+            
+            const structure = controller.get_recipe_tree_structure();
+            
+            for (const machine of structure.machines) {
+                if (machine.is_visible) throw new Error('All machines should be invisible');
+            }
+            return 'Machine visibility works';
+        });
+
+        test('test_on_recipe_toggled: on_recipe_toggled should update enabled recipes', () => {
+            const controller = new FactoryController({});
+            
+            const recipe_id = "recipe:Smelter:Iron Plate";
+            
+            controller.on_recipe_toggled(recipe_id, false);
+            if (controller.enabled_recipes.has("Iron Plate")) throw new Error('Should be disabled');
+            
+            controller.on_recipe_toggled(recipe_id, true);
+            if (!controller.enabled_recipes.has("Iron Plate")) throw new Error('Should be enabled');
+            return 'Recipe toggling works';
+        });
+
+        test('test_on_recipe_toggled_invalid_id: on_recipe_toggled should handle invalid IDs gracefully', () => {
+            const controller = new FactoryController({});
+            
+            // Should not throw
+            controller.on_recipe_toggled("invalid_id", true);
+            controller.on_recipe_toggled("machine:Smelter", true);
+            return 'Invalid ID handling works';
+        });
+
+        test('test_get_tooltip_for_tree_id_recipe: get_tooltip_for_tree_id should return tooltip for recipe IDs', () => {
+            const controller = new FactoryController({});
+            
+            const recipe_id = "recipe:Smelter:Iron Plate";
+            const tooltip = controller.get_tooltip_for_tree_id(recipe_id);
+            
+            assertNotNull(tooltip, 'Should have tooltip');
+            if (!tooltip.includes("/min")) throw new Error('Should include /min');
+            return 'Tree ID tooltip works';
+        });
+
+        test('test_get_tooltip_for_tree_id_machine: get_tooltip_for_tree_id should return null for machine IDs', () => {
+            const controller = new FactoryController({});
+            
+            const machine_id = "machine:Smelter";
+            const tooltip = controller.get_tooltip_for_tree_id(machine_id);
+            
+            if (tooltip !== null) throw new Error('Should be null');
+            return 'Machine ID returns null';
+        });
+
+        test('test_get_tooltip_for_tree_id_invalid: get_tooltip_for_tree_id should return null for invalid IDs', () => {
+            const controller = new FactoryController({});
+            
+            const tooltip = controller.get_tooltip_for_tree_id("invalid_id");
+            if (tooltip !== null) throw new Error('Should be null');
+            return 'Invalid ID returns null';
+        });
+
+        test('test_parse_recipe_id: _parse_recipe_id should parse recipe IDs correctly', () => {
+            let result = FactoryController._parse_recipe_id("recipe:Smelter:Iron Plate");
+            if (!result || result[0] !== "Smelter" || result[1] !== "Iron Plate") {
+                throw new Error('Wrong parse result');
+            }
+            
+            result = FactoryController._parse_recipe_id("machine:Smelter");
+            if (result !== null) throw new Error('Should be null for machine ID');
+            
+            result = FactoryController._parse_recipe_id("invalid");
+            if (result !== null) throw new Error('Should be null for invalid ID');
+            return 'Recipe ID parsing works';
+        });
+
+        test('test_make_machine_id: _make_machine_id should generate stable IDs', () => {
+            const id1 = FactoryController._make_machine_id("Smelter");
+            const id2 = FactoryController._make_machine_id("Smelter");
+            
+            assertEquals(id1, id2, 'Should be stable');
+            assertEquals(id1, "machine:Smelter", 'Should be correct format');
+            return 'Machine ID generation works';
+        });
+
+        test('test_make_recipe_id: _make_recipe_id should generate stable IDs', () => {
+            const id1 = FactoryController._make_recipe_id("Smelter", "Iron Plate");
+            const id2 = FactoryController._make_recipe_id("Smelter", "Iron Plate");
+            
+            assertEquals(id1, id2, 'Should be stable');
+            assertEquals(id1, "recipe:Smelter:Iron Plate", 'Should be correct format');
+            return 'Recipe ID generation works';
+        });
+
+        // Display results
+        runner.displayResults();
+    </script>
+</body>
+</html>
+
