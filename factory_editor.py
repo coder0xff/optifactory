@@ -17,18 +17,18 @@ _LOGGER = logging.getLogger("satisgraphery")
 class FactoryEditor(ttk.Frame):
     """factory configuration and visualization component"""
     
-    def __init__(self, parent, economy, on_status_change=None):
+    def __init__(self, parent, controller, on_status_change=None):
         """Initialize the factory editor
         
         Args:
             parent: parent widget
-            economy: dict of item names to values (reference that may be updated)
+            controller: FactoryController instance
             on_status_change: optional callback for status updates, called with status text
         """
         super().__init__(parent)
         
         # Initialize controller (MVC pattern) - single source of truth
-        self.controller = FactoryController(economy)
+        self.controller = controller
         
         self.on_status_change = on_status_change
         

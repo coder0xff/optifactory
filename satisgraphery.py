@@ -7,7 +7,9 @@ import sys
 import tkinter as tk
 from tkinter import ttk
 
+from economy_controller import EconomyController
 from economy_editor import EconomyEditor
+from factory_controller import FactoryController
 from factory_editor import FactoryEditor
 
 _LOGGER = logging.getLogger("satisgraphery")
@@ -58,10 +60,9 @@ class MainWindow(tk.Tk):
         super().__init__()
         self.title("Satisgraphery - Factory Planner")
         
-        # Economy state
-        from economy import get_default_economy
-        self.economy = dict(get_default_economy())
-        self.pinned_items = set()
+        # Create controllers
+        self.economy_controller = EconomyController()
+        self.factory_controller = FactoryController(self.economy_controller.economy)
         
         self._setup_ui()
 
@@ -122,7 +123,7 @@ class MainWindow(tk.Tk):
         # Create factory editor component
         self.factory_editor = FactoryEditor(
             parent_frame,
-            self.economy,
+            controller=self.factory_controller,
             on_status_change=self._update_status
         )
         self.factory_editor.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
@@ -139,8 +140,7 @@ class MainWindow(tk.Tk):
         # Create economy editor component
         self.economy_editor = EconomyEditor(
             parent_frame,
-            self.economy,
-            self.pinned_items,
+            controller=self.economy_controller,
             on_change=self._on_economy_change
         )
         self.economy_editor.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))

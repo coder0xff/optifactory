@@ -1,10 +1,11 @@
 """Economy editor component for modifying item values and pinning"""
 
 import logging
-import os
 import tkinter as tk
 from tkinter import ttk, filedialog
 from _tkinter import TclError
+
+from economy_controller import EconomyController
 
 _LOGGER = logging.getLogger("satisgraphery")
 
@@ -12,24 +13,19 @@ _LOGGER = logging.getLogger("satisgraphery")
 class EconomyEditor(ttk.Frame):
     """scrollable economy editor with filter, editable values, and pinning"""
     
-    def __init__(self, parent, economy, pinned_items, on_change=None):
+    def __init__(self, parent, controller, on_change=None):
         """Initialize the economy editor
         
         Args:
             parent: parent widget
-            economy: dict of item names to values
-            pinned_items: set of pinned item names
+            controller: EconomyController instance
             on_change: optional callback when economy changes
         """
         super().__init__(parent)
         
-        self.economy = economy
-        self.pinned_items = pinned_items
+        # Initialize controller
+        self.controller = controller
         self.on_change = on_change
-        
-        # Sort state
-        self.sort_column = None  # 'item', 'value', or 'locked'
-        self.sort_ascending = True
         
         self._setup_ui()
     
@@ -63,8 +59,8 @@ class EconomyEditor(ttk.Frame):
         
         # Filter box
         ttk.Label(controls_frame, text="Filter:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
-        self.filter_var = tk.StringVar()
-        self.filter_var.trace_add('write', lambda *args: self._populate_table())
+        self.filter_var = tk.StringVar(value=self.controller.get_filter_text())
+        self.filter_var.trace_add('write', self._on_filter_changed)
         filter_entry = ttk.Entry(controls_frame, textvariable=self.filter_var, width=30)
         filter_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(0, 10))
         
@@ -157,36 +153,25 @@ class EconomyEditor(ttk.Frame):
         # Populate the table
         self._populate_table()
     
+    def _on_filter_changed(self, *args):
+        """Handle filter text change"""
+        self.controller.set_filter_text(self.filter_var.get())
+        self._populate_table()
+    
     def _on_header_click(self, column):
         """Handle header click for sorting"""
-        if self.sort_column == column:
-            # Toggle sort direction on second click
-            self.sort_ascending = not self.sort_ascending
-        else:
-            # New column, sort ascending
-            self.sort_column = column
-            self.sort_ascending = True
-        
+        self.controller.set_sort(column)
         self._update_header_labels()
         self._populate_table()
     
     def _update_header_labels(self):
-        """Update header labels to show sort indicators"""
-        base_names = {
-            'item': 'Item',
-            'value': 'Value',
-            'locked': 'Locked'
-        }
-        
+        """Update header labels with sort indicators"""
+        header_texts = self.controller.get_header_texts()
         for col, header in self.headers.items():
-            text = base_names[col]
-            if self.sort_column == col:
-                arrow = ' ▲' if self.sort_ascending else ' ▼'
-                text += arrow
-            header.config(text=text)
+            header.config(text=header_texts[col])
     
     def _populate_table(self):
-        """Populate the table with current values"""
+        """Populate table from controller structure"""
         # Clear existing widgets (except headers)
         for child in list(self.grid_frame.winfo_children()):
             if child not in self.headers.values():
@@ -194,34 +179,18 @@ class EconomyEditor(ttk.Frame):
         
         self.widgets.clear()
         
-        # Filter items
-        filter_text = self.filter_var.get().lower()
-        filtered_items = [
-            item_name for item_name in self.economy.keys()
-            if not filter_text or filter_text in item_name.lower()
-        ]
-        
-        # Sort items based on current sort state
-        if self.sort_column == 'item':
-            filtered_items.sort(key=lambda x: x.lower(), reverse=not self.sort_ascending)
-        elif self.sort_column == 'value':
-            filtered_items.sort(key=lambda x: self.economy[x], reverse=not self.sort_ascending)
-        elif self.sort_column == 'locked':
-            filtered_items.sort(key=lambda x: (x in self.pinned_items, x.lower()), reverse=not self.sort_ascending)
-        else:
-            # Default sort by item name
-            filtered_items.sort(key=lambda x: x.lower())
+        # Get structure from controller
+        table_structure = self.controller.get_economy_table_structure()
         
         # Add rows with alternating background colors
         row_bg_even = "#FFFFFF"  # white
         row_bg_odd = "#F5F5F5"   # very light gray
         
-        for idx, item_name in enumerate(filtered_items, start=1):
-            value = self.economy[item_name]
+        for idx, economy_item in enumerate(table_structure.items, start=1):
             row_bg = row_bg_even if idx % 2 == 0 else row_bg_odd
             
             # Item name label
-            label = tk.Label(self.grid_frame, text=item_name, bg=row_bg, 
+            label = tk.Label(self.grid_frame, text=economy_item.display_name, bg=row_bg, 
                            anchor=tk.W, padx=5, pady=5)
             label.grid(row=idx, column=0, sticky=(tk.W, tk.E), padx=1, pady=1)
             self._bind_mousewheel(label)
@@ -230,7 +199,7 @@ class EconomyEditor(ttk.Frame):
             value_frame = tk.Frame(self.grid_frame, bg=row_bg)
             value_frame.grid(row=idx, column=1, sticky=(tk.W, tk.E), padx=1, pady=1)
             
-            value_var = tk.DoubleVar(value=value)
+            value_var = tk.DoubleVar(value=economy_item.value)
             entry = ttk.Spinbox(
                 value_frame, 
                 textvariable=value_var, 
@@ -244,10 +213,10 @@ class EconomyEditor(ttk.Frame):
             self._bind_mousewheel(value_frame)
             
             # Bind Enter to move to next row's spinbox, Escape to canvas
-            def make_enter_handler(current_idx):
+            def make_enter_handler(current_idx, items_list):
                 def on_enter(_event):
-                    if current_idx < len(filtered_items) - 1:
-                        next_item = filtered_items[current_idx + 1]
+                    if current_idx < len(items_list) - 1:
+                        next_item = items_list[current_idx + 1].display_name
                         if next_item in self.widgets:
                             next_entry = self.widgets[next_item]['entry']
                             next_entry.focus_set()
@@ -283,7 +252,7 @@ class EconomyEditor(ttk.Frame):
                 self.canvas.focus_set()
                 return 'break'
             
-            entry.bind('<Return>', make_enter_handler(idx - 1))
+            entry.bind('<Return>', make_enter_handler(idx - 1, table_structure.items))
             entry.bind('<Escape>', on_escape)
             
             # Restore valid value on focus out
@@ -293,11 +262,11 @@ class EconomyEditor(ttk.Frame):
                         value_str = var.get()
                         float(value_str)  # validate
                     except (ValueError, TclError):
-                        # restore original value from economy
-                        var.set(self.economy[name])
+                        # restore original value from controller
+                        var.set(self.controller.economy[name])
                 return on_focus_out
             
-            entry.bind('<FocusOut>', make_focusout_handler(item_name, value_var))
+            entry.bind('<FocusOut>', make_focusout_handler(economy_item.display_name, value_var))
             
             # Bind value changes
             def make_value_callback(name, var):
@@ -307,31 +276,31 @@ class EconomyEditor(ttk.Frame):
                         if value_str == "":
                             return  # empty value, don't assign
                         new_value = float(value_str)
-                        self.economy[name] = new_value
+                        self.controller.set_item_value(name, new_value)
                         if self.on_change:
                             self.on_change()
                     except (ValueError, TclError):
                         pass  # Invalid input, ignore
                 return on_value_change
             
-            value_var.trace_add('write', make_value_callback(item_name, value_var))
+            value_var.trace_add('write', make_value_callback(economy_item.display_name, value_var))
             
             # Pinned checkbox - wrap in frame for background
             checkbox_frame = tk.Frame(self.grid_frame, bg=row_bg)
             checkbox_frame.grid(row=idx, column=2, sticky=(tk.W, tk.E), padx=1, pady=1)
             
-            pinned_var = tk.BooleanVar(value=item_name in self.pinned_items)
+            pinned_var = tk.BooleanVar(value=economy_item.is_pinned)
             checkbox = ttk.Checkbutton(
                 checkbox_frame,
                 variable=pinned_var,
-                command=lambda name=item_name, var=pinned_var: self._on_pinned_toggle(name, var)
+                command=lambda name=economy_item.display_name, var=pinned_var: self._on_pinned_toggle(name, var)
             )
             checkbox.pack(padx=5, pady=5)
             self._bind_mousewheel(checkbox)
             self._bind_mousewheel(checkbox_frame)
             
             # Store widget references
-            self.widgets[item_name] = {
+            self.widgets[economy_item.display_name] = {
                 'label': label,
                 'entry': entry,
                 'checkbox': checkbox,
@@ -341,47 +310,27 @@ class EconomyEditor(ttk.Frame):
     
     def _on_pinned_toggle(self, item_name, pinned_var):
         """Handle pinned checkbox toggle"""
-        if pinned_var.get():
-            self.pinned_items.add(item_name)
-        else:
-            self.pinned_items.discard(item_name)
+        self.controller.set_item_pinned(item_name, pinned_var.get())
         
         if self.on_change:
             self.on_change()
     
     def _reset_economy(self):
         """Reset economy to default values"""
-        from economy import get_default_economy
-        
-        self.economy.clear()
-        self.economy.update(dict(get_default_economy()))
-        self.pinned_items.clear()
+        self.controller.reset_to_default()
         self._populate_table()
         
         if self.on_change:
             self.on_change()
-        
-        _LOGGER.info("Economy reset to default")
     
     def _recompute_economy(self):
-        """Recompute economy values using gradient descent with pinned values"""
+        """Recompute economy values"""
         try:
-            from economy import compute_item_values
-            
-            # Build pinned_values dict from pinned items
-            pinned_values = {item: self.economy[item] for item in self.pinned_items}
-            
-            # Recompute
-            new_economy = compute_item_values(pinned_values=pinned_values)
-            self.economy.clear()
-            self.economy.update(new_economy)
-            
+            self.controller.recompute_values()
             self._populate_table()
             
             if self.on_change:
                 self.on_change()
-            
-            _LOGGER.info("Economy values recomputed successfully")
         except Exception as e:
             _LOGGER.error("Economy recomputation failed: %s", str(e))
             import traceback
@@ -390,8 +339,6 @@ class EconomyEditor(ttk.Frame):
     
     def _load_economy(self):
         """Load economy from CSV file"""
-        from economy import load_economy_from_csv
-        
         filepath = filedialog.askopenfilename(
             title="Load Economy",
             filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
@@ -401,27 +348,17 @@ class EconomyEditor(ttk.Frame):
             return
         
         try:
-            loaded_economy, loaded_pinned = load_economy_from_csv(filepath)
-            self.economy.clear()
-            self.economy.update(loaded_economy)
-            self.pinned_items.clear()
-            self.pinned_items.update(loaded_pinned)
-            
+            self.controller.load_from_csv(filepath)
             self._populate_table()
             
             if self.on_change:
                 self.on_change()
-            
-            filename = os.path.basename(filepath)
-            _LOGGER.info("Economy loaded from %s", filename)
         except Exception as e:
             _LOGGER.error("Economy load failed: %s", str(e))
             raise
     
     def _save_economy(self):
         """Save economy to CSV file"""
-        from economy import save_economy_to_csv
-        
         filepath = filedialog.asksaveasfilename(
             title="Save Economy",
             defaultextension=".csv",
@@ -432,9 +369,7 @@ class EconomyEditor(ttk.Frame):
             return
         
         try:
-            save_economy_to_csv(filepath, self.economy, self.pinned_items)
-            filename = os.path.basename(filepath)
-            _LOGGER.info("Economy saved to %s", filename)
+            self.controller.save_to_csv(filepath)
         except Exception as e:
             _LOGGER.error("Economy save failed: %s", str(e))
             raise

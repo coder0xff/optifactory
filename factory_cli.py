@@ -2,11 +2,12 @@
 """Command-line interface for factory design."""
 
 import argparse
-import io
 import sys
-import traceback
+import logging
 
-from factory import design_factory, Purity
+from factory import Purity
+from factory_controller import FactoryController
+from economy_controller import EconomyController
 from parsing_utils import parse_material_rate
 
 
@@ -47,11 +48,7 @@ def parse_input_list(text):
         return []
 
     result = []
-    for item in text.split(","):
-        item = item.strip()
-        if not item:
-            continue
-
+    for item in [stripped for item in text.split(",") if (stripped := item.strip())]:
         material, rate = parse_material_rate(item)
         result.append((material, rate))
 
@@ -71,10 +68,7 @@ def parse_mine_list(text):
         return []
 
     result = []
-    for item in text.split(","):
-        item = item.strip()
-        if not item:
-            continue
+    for item in [stripped for item in text.split(",") if (stripped := item.strip())]:
         if ":" not in item:
             raise ValueError(f"Invalid format: '{item}'. Expected 'Resource:Purity'")
 
@@ -142,6 +136,9 @@ Examples:
 
     args = parser.parse_args()
 
+    # Setup logging to capture controller messages
+    logging.basicConfig(level=logging.INFO, format='%(message)s')
+    
     try:
         # Parse arguments
         outputs = parse_material_list(args.outputs)
@@ -152,38 +149,43 @@ Examples:
             print("Error: No outputs specified", file=sys.stderr)
             return 1
 
-        # Design factory
+        # Format back to text for controller
+        outputs_text = ", ".join(f"{name}:{rate}" for name, rate in outputs.items())
+        inputs_text = ", ".join(f"{name}:{rate}" for name, rate in inputs)
+        mines_text = ", ".join(f"{name}:{purity.name}" for name, purity in mines)
+
+        # Create controllers
+        economy_controller = EconomyController()
+        factory_controller = FactoryController(economy_controller.economy)
+        
+        # Set factory state
+        factory_controller.set_outputs_text(outputs_text)
+        factory_controller.set_inputs_text(inputs_text)
+        factory_controller.set_mines_text(mines_text)
+
+        # Generate factory
         print(f"Designing factory for outputs: {outputs}", file=sys.stderr)
         if inputs:
             print(f"With inputs: {inputs}", file=sys.stderr)
         if mines:
             print(f"With mines: {mines}", file=sys.stderr)
 
-        factory = design_factory(outputs, inputs, mines)
-
-        print(f"\nActual outputs produced: {factory.outputs}", file=sys.stderr)
+        graphviz_diagram = factory_controller.generate_factory_from_state()
+        graphviz_source = graphviz_diagram.source
 
         # Output graphviz
-        graphviz_source = factory.network.source
-
         if args.output_file:
             with open(args.output_file, "w", encoding="utf-8") as f:
                 f.write(graphviz_source)
             print(f"\nGraphviz written to {args.output_file}", file=sys.stderr)
         else:
             print("\n" + "=" * 60, file=sys.stderr)
-            # Use UTF-8 encoding for stdout on Windows
-            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
             print(graphviz_source)
 
         return 0
 
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
-        return 1
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        print(f"Error: {e}", file=sys.stderr)
-        traceback.print_exc()
         return 1
 
 
