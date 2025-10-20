@@ -15,9 +15,10 @@
         />
     </div>
 
-    <script src="controllers.js"></script>
-    <script src="economy-view-component.js"></script>
-    <script>
+    <script type="module">
+        import { EconomyController } from './economy-controller.js';
+        import { EconomyViewComponent } from './economy-view-component.js';
+
         const { createApp } = Vue;
 
         createApp({
@@ -26,8 +27,12 @@
             },
             data() {
                 return {
-                    controller: new EconomyController()
+                    controller: null
                 };
+            },
+            created() {
+                // Initialize controller
+                this.controller = new EconomyController();
             },
             methods: {
                 handleStatusChange(event) {

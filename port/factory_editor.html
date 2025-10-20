@@ -6,7 +6,6 @@
     <title>Factory View</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
-    <script src="https://unpkg.com/@hpcc-js/wasm/dist/graphviz.umd.js"></script>
 </head>
 <body class="standalone">
     <div id="app">
@@ -17,10 +16,10 @@
         />
     </div>
 
-    <script src="controllers.js"></script>
-    <script src="graphviz-viewer.js"></script>
-    <script src="factory-view-component.js"></script>
-    <script>
+    <script type="module">
+        import { FactoryController } from './factory-controller.js';
+        import { FactoryViewComponent } from './factory-view-component.js';
+
         const { createApp } = Vue;
 
         createApp({
@@ -29,8 +28,12 @@
             },
             data() {
                 return {
-                    controller: new FactoryController({ 'Iron Ore': 1.0 })
+                    controller: null
                 };
+            },
+            created() {
+                // Initialize controller with mock economy
+                this.controller = new FactoryController({ 'Iron Ore': 1.0 });
             },
             methods: {
                 handleStatusChange(event) {
