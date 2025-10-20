@@ -49,21 +49,21 @@ const FactoryViewComponent = {
                                     <span>{{ machine.display_name }}</span>
                                 </div>
                                 <template v-if="machine.expanded">
-                                    <div 
-                                        v-for="recipe in machine.recipes" 
-                                        :key="recipe.tree_id"
-                                        v-if="recipe.is_visible"
-                                        class="tree-node tree-recipe"
-                                        :title="getRecipeTooltip(recipe.tree_id)"
-                                    >
-                                        <input 
-                                            type="checkbox" 
-                                            class="tree-checkbox"
-                                            :checked="recipe.is_enabled"
-                                            @change="toggleRecipe(recipe.tree_id)"
+                                    <template v-for="recipe in machine.recipes" :key="recipe ? recipe.tree_id : Math.random()">
+                                        <div 
+                                            v-if="recipe && recipe.is_visible"
+                                            class="tree-node tree-recipe"
+                                            :title="getRecipeTooltip(recipe.tree_id)"
                                         >
-                                        <span>{{ recipe.display_name }}</span>
-                                    </div>
+                                            <input 
+                                                type="checkbox" 
+                                                class="tree-checkbox"
+                                                :checked="recipe.is_enabled"
+                                                @change="toggleRecipe(recipe.tree_id)"
+                                            >
+                                            <span>{{ recipe.display_name }}</span>
+                                        </div>
+                                    </template>
                                 </template>
                             </div>
                         </template>
