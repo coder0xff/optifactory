@@ -121,7 +121,7 @@ class FactoryEditor(ttk.Frame):
         tree_frame.grid(row=10, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         tree_frame.columnconfigure(0, weight=1)
         
-        self.recipe_tree = CheckboxTreeview(tree_frame, height=10)
+        self.recipe_tree = CheckboxTreeview(tree_frame, height=10, show='tree')
         self.recipe_tree.grid(row=0, column=0, sticky=(tk.W, tk.E))
         
         tree_scrollbar = ttk.Scrollbar(
