@@ -28,8 +28,9 @@
         // Inject common test styles
         injectTestStyles();
         
-        // Create test runner
+        // Create test runner and initialize graphviz
         const runner = new TestRunner();
+        await runner.initGraphviz();
         const test = (name, fn) => runner.test(name, fn);
 
         // Initialize HiGHS and run tests
@@ -80,7 +81,7 @@
             const source = factory.network.source;
             assertTrue(source.includes('Machine_') || source.includes('Smelter'), 'Should create machine nodes');
             
-            return `Factory designed with input (network has ${source.length} chars)`;
+            return { message: `Factory designed with input (network has ${source.length} chars)`, graph: factory.network };
         });
 
         // Test factory design with mine
@@ -99,7 +100,7 @@
             const hasMine = source.includes('Mine_') || source.includes('Miner');
             assertTrue(hasMine, 'Should create mine node');
 
-            return 'Factory designed with mine';
+            return { message: 'Factory designed with mine', graph: factory.network };
         });
 
         // Test auto-generation of missing raw materials
@@ -115,7 +116,7 @@
             assertTrue(source.includes('Iron Ore'), 'Should include Iron Ore');
             assertTrue(source.toLowerCase().includes('auto'), 'Should have auto-generated input');
 
-            return 'Auto-generates missing raw materials';
+            return { message: 'Auto-generates missing raw materials', graph: factory.network };
         });
 
         // Test Factory dataclass properties
@@ -160,7 +161,7 @@
             // Should have constructor machines
             assertTrue(source.includes('Constructor'), 'Should have Constructor');
 
-            return 'Auto raw materials detection works';
+            return { message: 'Auto raw materials detection works', graph: factory.network };
         });
 
         // Test complex production chain
@@ -180,7 +181,7 @@
             // Should have multiple machines
             assertTrue(source.includes('Smelter') || source.includes('Machine'), 'Should have machines');
 
-            return 'Complex production chain works';
+            return { message: 'Complex production chain works', graph: factory.network };
         });
 
         // Test simple single machine
@@ -194,7 +195,7 @@
             assertNotNull(factory.network, 'Network created');
             assertTrue(factory.network.source.length > 0, 'Network has content');
 
-            return 'Simple single machine case works';
+            return { message: 'Simple single machine case works', graph: factory.network };
         });
 
         // Test byproduct handling
@@ -211,7 +212,7 @@
             // Should create a valid graph with the primary output
             assertTrue(source.includes('Fuel'), 'Should include Fuel');
 
-            return 'Byproduct handling works';
+            return { message: 'Byproduct handling works', graph: factory.network };
         });
 
         // Test intermediate and final output
@@ -229,7 +230,50 @@
             assertTrue(source.includes('Iron Ingot'), 'Should include Iron Ingot');
             assertTrue(source.includes('Iron Plate'), 'Should include Iron Plate');
             
-            return 'Intermediate and final output works';
+            return { message: 'Intermediate and final output works', graph: factory.network };
+        });
+
+        // Test Computer factory graph properties
+        await test('Computer factory graph properties', async () => {
+            const factory = await design_factory(
+                { 'Computer': 1 },
+                [],
+                []
+            );
+
+            assertNotNull(factory.network, 'Network created');
+            assertNotNull(factory.network.nodes, 'Network has nodes');
+            
+            const nodes = factory.network.nodes;
+            const circularShapes = ['circle', 'oval', 'ellipse', 'doublecircle', 'point'];
+            
+            // Check all nodes
+            for (const node of nodes) {
+                // Check node is not circular (shape must be set and not circular, since default is oval)
+                assertTrue(node.shape, `Node ${node.id} must have shape set (default is oval which is circular)`);
+                const isCircular = circularShapes.includes(node.shape.toLowerCase());
+                assertTrue(!isCircular, `Node ${node.id} should not have circular shape, got ${node.shape}`)
+                
+                // Check node has a border (peripheries != 0 and style != invisible)
+                if (node.peripheries !== undefined) {
+                    assertTrue(node.peripheries !== 0 && node.peripheries !== '0', 
+                        `Node ${node.id} should have a border (peripheries=${node.peripheries})`);
+                }
+                if (node.style) {
+                    const hasNoBorder = node.style === 'invis' || node.style === 'invisible' || 
+                                       node.style.includes('invis');
+                    assertTrue(!hasNoBorder, `Node ${node.id} should have a border (style=${node.style})`);
+                }
+                
+                // Check diamond nodes have empty label
+                if (node.shape && node.shape.toLowerCase() === 'diamond') {
+                    const hasEmptyLabel = !node.label || node.label === '' || node.label === '""';
+                    assertTrue(hasEmptyLabel, 
+                        `Node ${node.id} with diamond shape should have empty label, got "${node.label}"`);
+                }
+            }
+            
+            return { message: `Checked ${nodes.length} nodes for proper graph properties`, graph: factory.network };
         });
 
                 // Display results

@@ -74,9 +74,10 @@ class Subgraph {
         const innerIndent = indent + '  ';
         
         // Add subgraph attributes
+        const escapeFunc = this._getEscapeFunc();
         for (const [key, value] of Object.entries(this.graphAttrs)) {
-            // Quote string values
-            const formattedValue = typeof value === 'string' ? `"${value}"` : value;
+            // Escape and quote string values
+            const formattedValue = typeof value === 'string' ? `"${escapeFunc(value)}"` : value;
             output += `${innerIndent}${key}=${formattedValue}\n`;
         }
         
@@ -101,8 +102,9 @@ class Subgraph {
 
     _formatNode(node, indent) {
         const attrs = [];
+        const escapeFunc = this._getEscapeFunc();
         if (node.label !== undefined) {
-            attrs.push(`label="${node.label}"`);
+            attrs.push(`label="${escapeFunc(node.label)}"`);
         }
         if (node.shape) attrs.push(`shape=${node.shape}`);
         if (node.style) attrs.push(`style=${node.style}`);
@@ -110,14 +112,16 @@ class Subgraph {
         if (node.color) attrs.push(`color=${node.color}`);
         
         const attrStr = attrs.length > 0 ? ` [${attrs.join(', ')}]` : '';
-        return `${indent}${node.id}${attrStr}\n`;
+        const quotedId = this._getQuoteIdFunc()(node.id);
+        return `${indent}${quotedId}${attrStr}\n`;
     }
 
     _formatEdge(edge, indent) {
         const attrs = [];
+        const escapeFunc = this._getEscapeFunc();
         if (edge.label !== undefined) {
-            // Quote string labels
-            const formattedLabel = typeof edge.label === 'string' ? `"${edge.label}"` : edge.label;
+            // Escape and quote string labels
+            const formattedLabel = typeof edge.label === 'string' ? `"${escapeFunc(edge.label)}"` : edge.label;
             attrs.push(`label=${formattedLabel}`);
         }
         if (edge.color) attrs.push(`color="${edge.color}"`);
@@ -125,7 +129,32 @@ class Subgraph {
         if (edge.penwidth) attrs.push(`penwidth="${edge.penwidth}"`);
         
         const attrStr = attrs.length > 0 ? ` [${attrs.join(', ')}]` : '';
-        return `${indent}${edge.from} -> ${edge.to}${attrStr}\n`;
+        const quoteFunc = this._getQuoteIdFunc();
+        return `${indent}${quoteFunc(edge.from)} -> ${quoteFunc(edge.to)}${attrStr}\n`;
+    }
+
+    /**
+     * Get the quoting function from root Digraph.
+     * Traverse up parent chain to find the root Digraph's _quoteId method.
+     */
+    _getQuoteIdFunc() {
+        let current = this;
+        while (current.parent) {
+            current = current.parent;
+        }
+        return current._quoteId.bind(current);
+    }
+
+    /**
+     * Get the escape function from root Digraph.
+     * Traverse up parent chain to find the root Digraph's _escapeString method.
+     */
+    _getEscapeFunc() {
+        let current = this;
+        while (current.parent) {
+            current = current.parent;
+        }
+        return current._escapeString.bind(current);
     }
 }
 
@@ -139,6 +168,32 @@ class Digraph {
         this.edges = [];
         this.subgraphs = [];
         this.graphAttrs = {};
+    }
+
+    /**
+     * Quote a node ID if it contains spaces or special characters.
+     * @param {string} id - node identifier
+     * @returns {string} quoted ID if needed, otherwise original ID
+     */
+    _quoteId(id) {
+        // Quote if ID contains spaces, special chars, or starts with a digit
+        if (/[\s\-:]/.test(id) || /^\d/.test(id)) {
+            return `"${id.replace(/"/g, '\\"')}"`;
+        }
+        return id;
+    }
+
+    /**
+     * Escape special characters in string values for DOT output.
+     * @param {string} str - string to escape
+     * @returns {string} escaped string
+     */
+    _escapeString(str) {
+        return str.replace(/\\/g, '\\\\')
+                  .replace(/"/g, '\\"')
+                  .replace(/\n/g, '\\n')
+                  .replace(/\r/g, '\\r')
+                  .replace(/\t/g, '\\t');
     }
 
     /**
@@ -221,7 +276,7 @@ class Digraph {
             // Handle label - always include it if defined (even if empty string)
             // Graphviz uses node ID as label if label attribute is missing
             if (node.label !== undefined) {
-                attrs.push(`label="${node.label}"`);
+                attrs.push(`label="${this._escapeString(node.label)}"`);
             }
             if (node.shape) attrs.push(`shape=${node.shape}`);
             if (node.style) attrs.push(`style=${node.style}`);
@@ -229,7 +284,7 @@ class Digraph {
             if (node.color) attrs.push(`color=${node.color}`);
             
             const attrStr = attrs.length > 0 ? ` [${attrs.join(', ')}]` : '';
-            output += `  ${node.id}${attrStr}\n`;
+            output += `  ${this._quoteId(node.id)}${attrStr}\n`;
         }
         
         // Add subgraphs
@@ -241,8 +296,8 @@ class Digraph {
         for (const edge of this.edges) {
             const attrs = [];
             if (edge.label !== undefined) {
-                // Quote string labels
-                const formattedLabel = typeof edge.label === 'string' ? `"${edge.label}"` : edge.label;
+                // Escape and quote string labels
+                const formattedLabel = typeof edge.label === 'string' ? `"${this._escapeString(edge.label)}"` : edge.label;
                 attrs.push(`label=${formattedLabel}`);
             }
             if (edge.color) attrs.push(`color="${edge.color}"`);
@@ -250,7 +305,7 @@ class Digraph {
             if (edge.penwidth) attrs.push(`penwidth="${edge.penwidth}"`);
             
             const attrStr = attrs.length > 0 ? ` [${attrs.join(', ')}]` : '';
-            output += `  ${edge.from} -> ${edge.to}${attrStr}\n`;
+            output += `  ${this._quoteId(edge.from)} -> ${this._quoteId(edge.to)}${attrStr}\n`;
         }
         
         output += "}\n";
