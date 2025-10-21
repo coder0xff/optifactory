@@ -101,7 +101,7 @@ class Subgraph {
 
     _formatNode(node, indent) {
         const attrs = [];
-        if (node.label !== undefined && node.label !== '') {
+        if (node.label !== undefined) {
             attrs.push(`label="${node.label}"`);
         }
         if (node.shape) attrs.push(`shape=${node.shape}`);

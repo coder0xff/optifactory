@@ -85,8 +85,17 @@
             g.node('A', '');
             const source = g.source;
             assertContains(source, 'A', 'Node ID present');
-            assertNotContains(source, 'label=""', 'No empty label attribute');
+            assertContains(source, 'label=""', 'Empty label attribute present');
             return 'Node with empty label works';
+        });
+
+        test('Node with no label parameter', () => {
+            const g = new Digraph();
+            g.node('A');
+            const source = g.source;
+            assertContains(source, 'A', 'Node ID present');
+            assertNotContains(source, 'label=', 'No label attribute when not specified');
+            return 'Node with no label works';
         });
 
         test('Node with shape attribute', () => {
