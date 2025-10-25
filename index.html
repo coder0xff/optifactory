@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Satisgraphery - Factory Planner</title>
+    <title>Optifactory - Factory Planner</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
     <script src="highs.js"></script>
 </head>
 <body>
     <div id="app">
-        <div class="app-title">Satisgraphery - Factory Planner</div>
+        <div class="app-title">Optifactory - Factory Planner</div>
 
         <div class="tabs">
             <div 
@@ -83,11 +83,11 @@
                     const factoryView = this.$refs.factoryView;
                     if (factoryView) {
                         factoryView.generateFactory().then(() => {
-                            this.setStatus('Welcome to Satisgraphery!');
+                            this.setStatus('Welcome to Optifactory!');
                         });
                     } else {
                         console.error('Factory view ref not found');
-                        this.setStatus('Welcome to Satisgraphery!');
+                        this.setStatus('Welcome to Optifactory!');
                     }
                 });
             },
