@@ -450,8 +450,6 @@ tbody tr:hover {
 .viewer-svg {
     display: block;
     margin: 20px;
-    transform-origin: 0 0;
-    transition: transform 0.1s ease-out;
 }
 
 .viewer-placeholder {

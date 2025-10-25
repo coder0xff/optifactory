@@ -21,8 +21,15 @@ const GraphvizViewerMixin = {
             panStartX: 0,
             panStartY: 0,
             scrollStartX: 0,
-            scrollStartY: 0
+            scrollStartY: 0,
+            svgNaturalWidth: 0,
+            svgNaturalHeight: 0
         };
+    },
+    watch: {
+        zoomFactor() {
+            this.applySvgZoom();
+        }
     },
     methods: {
         /**
@@ -47,6 +54,9 @@ const GraphvizViewerMixin = {
                 const graphviz = await getGraphviz();
                 const svg = await graphviz.layout(dotSource, 'svg', 'dot');
                 container.innerHTML = svg;
+                
+                // Update SVG dimensions for zoom calculations
+                this.updateSvgDimensions();
                 
                 // Notify status if available
                 if (this.setStatus) {
@@ -90,15 +100,17 @@ const GraphvizViewerMixin = {
             // Clamp zoom between 0.35x and 2.0x (matching Python's -10 to 7 range)
             this.zoomFactor = Math.max(0.35, Math.min(2.0, this.zoomFactor * zoomChange));
             
-            // Adjust scroll position to keep mouse point stable
-            const zoomRatio = this.zoomFactor / oldZoom;
-            container.scrollLeft = scrollX * zoomRatio + (mouseX * (zoomRatio - 1));
-            container.scrollTop = scrollY * zoomRatio + (mouseY * (zoomRatio - 1));
-            
-            // Update status if available
-            if (this.setStatus) {
-                this.setStatus(`Zoom: ${(this.zoomFactor * 100).toFixed(0)}%`, 'info');
-            }
+            // Wait for size changes to apply, then adjust scroll position
+            this.$nextTick(() => {
+                const zoomRatio = this.zoomFactor / oldZoom;
+                container.scrollLeft = scrollX * zoomRatio + (mouseX * (zoomRatio - 1));
+                container.scrollTop = scrollY * zoomRatio + (mouseY * (zoomRatio - 1));
+                
+                // Update status if available
+                if (this.setStatus) {
+                    this.setStatus(`Zoom: ${(this.zoomFactor * 100).toFixed(0)}%`, 'info');
+                }
+            });
         },
         
         /**
@@ -143,6 +155,90 @@ const GraphvizViewerMixin = {
          */
         resetZoom() {
             this.zoomFactor = 1.0;
+        },
+        
+        /**
+         * Update stored SVG natural dimensions
+         */
+        updateSvgDimensions() {
+            const svgContainer = this.$refs.svgContainer;
+            if (!svgContainer) return;
+            
+            const svg = svgContainer.querySelector('svg');
+            if (!svg) return;
+            
+            const viewBox = svg.viewBox.baseVal;
+            this.svgNaturalWidth = viewBox.width || svg.width.baseVal.value;
+            this.svgNaturalHeight = viewBox.height || svg.height.baseVal.value;
+            
+            this.applySvgZoom();
+        },
+        
+        /**
+         * Apply current zoom factor to SVG element
+         */
+        applySvgZoom() {
+            const svgContainer = this.$refs.svgContainer;
+            if (!svgContainer) return;
+            
+            const svg = svgContainer.querySelector('svg');
+            if (!svg || !this.svgNaturalWidth || !this.svgNaturalHeight) return;
+            
+            // Set the SVG size directly (this affects both layout and visual)
+            svg.setAttribute('width', this.svgNaturalWidth * this.zoomFactor);
+            svg.setAttribute('height', this.svgNaturalHeight * this.zoomFactor);
+        },
+        
+        /**
+         * Zoom to fit the entire diagram in the viewport
+         */
+        zoomToFit() {
+            const container = this.$refs.viewerContainer;
+            const svgContainer = this.$refs.svgContainer;
+            if (!container || !svgContainer) return;
+            
+            const svg = svgContainer.querySelector('svg');
+            if (!svg) return;
+            
+            // Get viewport dimensions
+            const viewportWidth = container.clientWidth;
+            const viewportHeight = container.clientHeight;
+            
+            // Get SVG's natural dimensions
+            const viewBox = svg.viewBox.baseVal;
+            const svgWidth = viewBox.width || svg.width.baseVal.value;
+            const svgHeight = viewBox.height || svg.height.baseVal.value;
+            
+            // Account for the margin (20px on each side = 40px total)
+            const margin = 20;
+            const totalMargin = margin * 2;
+            
+            // Calculate zoom to fit with some padding
+            const padding = 20;
+            const availableWidth = viewportWidth - padding * 2;
+            const availableHeight = viewportHeight - padding * 2;
+            
+            const zoomX = availableWidth / (svgWidth + totalMargin);
+            const zoomY = availableHeight / (svgHeight + totalMargin);
+            const newZoom = Math.min(zoomX, zoomY);
+            
+            // Clamp to zoom limits
+            this.zoomFactor = Math.max(0.35, Math.min(2.0, newZoom));
+            
+            // Wait for Vue to update the size, then center
+            this.$nextTick(() => {
+                // The scrollable content size is now svgWidth * zoom + margins
+                const scaledWidth = svgWidth * this.zoomFactor + totalMargin;
+                const scaledHeight = svgHeight * this.zoomFactor + totalMargin;
+                
+                container.scrollLeft = Math.max(0, (scaledWidth - viewportWidth) / 2);
+                container.scrollTop = Math.max(0, (scaledHeight - viewportHeight) / 2);
+                
+                // Update status if available
+                if (this.setStatus) {
+                    this.setStatus(`Zoom: ${(this.zoomFactor * 100).toFixed(0)}%`, 'info');
+                }
+            });
         }
     }
 };

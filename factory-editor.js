@@ -163,7 +163,6 @@ const FactoryViewComponent = {
                         <div 
                             ref="svgContainer" 
                             class="viewer-svg"
-                            :style="{ transform: \`scale(\${zoomFactor})\` }"
                         ></div>
                     </div>
                 </div>
