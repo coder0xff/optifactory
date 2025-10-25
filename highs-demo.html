@@ -36,7 +36,7 @@
     <h1>HiGHS Linear Programming Solver Test</h1>
     <div id="output"></div>
 
-    <script src="https://lovasoa.github.io/highs-js/highs.js"></script>
+    <script src="highs.js"></script>
     <script>
         const PROBLEM = `Maximize
  obj:
@@ -165,7 +165,7 @@ End`;
             
             try {
                 const highs_instance = await Module({
-                    locateFile: (file) => `https://lovasoa.github.io/highs-js/${file}`
+                    locateFile: (file) => `${file}`
                 });
                 log('<div class="pass">✓ HiGHS loaded successfully</div>', 'test-result');
                 

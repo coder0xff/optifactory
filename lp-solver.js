@@ -43,7 +43,7 @@ export async function init_highs() {
     
     // Load HiGHS module from CDN
     _highs_instance = await Module({
-        locateFile: (file) => `https://lovasoa.github.io/highs-js/${file}`
+        locateFile: (file) => `${file}`
     });
     
     return _highs_instance;
