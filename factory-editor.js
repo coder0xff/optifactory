@@ -259,11 +259,7 @@ const FactoryViewComponent = {
         },
         toggleMachineCheck(machine) {
             const newState = machine.check_state !== 'checked';
-            for (const recipe of machine.recipes) {
-                if (recipe.is_visible) {
-                    this.controller.on_recipe_toggled(recipe.tree_id, newState);
-                }
-            }
+            this.controller.on_machine_toggled(machine.tree_id, newState);
             this.refreshTreeView();
             this.updatePowerWarning();
         },

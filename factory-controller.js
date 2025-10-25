@@ -400,6 +400,18 @@ class FactoryController {
     }
     
     /**
+     * Parse machine tree ID into machine_name.
+     * @param {string} tree_id - tree ID in format "machine:{machine}"
+     * @returns {string|null} machine_name or null if not a machine ID
+     */
+    static _parse_machine_id(tree_id) {
+        if (tree_id.startsWith("machine:")) {
+            return tree_id.substring(8);
+        }
+        return null;
+    }
+    
+    /**
      * Parse recipe tree ID into [machine_name, recipe_name].
      * @param {string} tree_id - tree ID in format "recipe:{machine}:{recipe}"
      * @returns {Array<string>|null} array of [machine_name, recipe_name] or null if not a recipe ID
@@ -487,6 +499,33 @@ class FactoryController {
         }
         
         return new RecipeTreeStructure(machines);
+    }
+    
+    /**
+     * Handle machine toggle event - toggles all visible child recipes.
+     * @param {string} machine_tree_id - tree ID in format "machine:{machine}"
+     * @param {boolean} is_checked - new checked state
+     */
+    on_machine_toggled(machine_tree_id, is_checked) {
+        const machine_name = FactoryController._parse_machine_id(machine_tree_id);
+        if (!machine_name) {
+            return;
+        }
+        
+        const all_recipes = get_all_recipes_by_machine();
+        const recipes_dict = all_recipes[machine_name];
+        if (!recipes_dict) {
+            return;
+        }
+        
+        const search_text = this._recipe_search_text.toLowerCase();
+        
+        // toggle all visible recipes for this machine
+        for (const [recipe_name, recipe] of Object.entries(recipes_dict)) {
+            if (this._recipe_matches_search(recipe_name, recipe, search_text)) {
+                this.set_recipe_enabled(recipe_name, is_checked);
+            }
+        }
     }
     
     /**
