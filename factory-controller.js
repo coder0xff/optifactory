@@ -418,9 +418,12 @@ class FactoryController {
      */
     static _parse_recipe_id(tree_id) {
         if (tree_id.startsWith("recipe:")) {
-            const parts = tree_id.substring(7).split(":", 2);
-            if (parts.length === 2) {
-                return parts;
+            const remainder = tree_id.substring(7);
+            const colon_index = remainder.indexOf(":");
+            if (colon_index !== -1) {
+                const machine_name = remainder.substring(0, colon_index);
+                const recipe_name = remainder.substring(colon_index + 1);
+                return [machine_name, recipe_name];
             }
         }
         return null;

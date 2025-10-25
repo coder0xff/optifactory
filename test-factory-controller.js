@@ -469,6 +469,13 @@ Copper Ingot:50
         if (tooltip !== null) throw new Error('Should be null');
     });
 
+    it('test_get_tooltip_for_tree_id_alternate_charcoal: get_tooltip_for_tree_id should return string for Alternate: Charcoal', () => {
+        const controller = new FactoryController({});
+        
+        const tooltip = controller.get_tooltip_for_tree_id("recipe:Constructor:Alternate: Charcoal");
+        assert.strictEqual(typeof tooltip, 'string');
+    });
+
     it('test_parse_recipe_id: _parse_recipe_id should parse recipe IDs correctly', () => {
         let result = FactoryController._parse_recipe_id("recipe:Smelter:Iron Plate");
         if (!result || result[0] !== "Smelter" || result[1] !== "Iron Plate") {
