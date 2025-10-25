@@ -522,4 +522,18 @@ Copper Ingot:50
         // Verify that the Converter is in tristate (some but not all recipes enabled)
         assert.strictEqual(converter.check_state, "tristate");
     });
+
+    it('test_should_show_converter_warning_no_recipes: should_show_converter_warning should return false when no converter recipes enabled', () => {
+        const controller = new FactoryController({});
+        controller.set_recipes_enabled(new Set(["Iron Plate"]));
+        
+        if (controller.should_show_converter_warning()) throw new Error('Should not show warning');
+    });
+
+    it('test_should_show_converter_warning_with_recipes: should_show_converter_warning should return true when converter recipes enabled', () => {
+        const controller = new FactoryController({});
+        controller.set_recipes_enabled(new Set(["Dark Matter Residue", "Iron Plate"]));
+        
+        if (!controller.should_show_converter_warning()) throw new Error('Should show warning');
+    });
 });

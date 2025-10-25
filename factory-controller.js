@@ -378,6 +378,25 @@ class FactoryController {
         return Object.keys(power_recipes).length === 0;
     }
     
+    /**
+     * Check if converter warning should be displayed.
+     * @returns {boolean} true if any Converter recipes are enabled
+     */
+    should_show_converter_warning() {
+        const all_recipes_by_machine = get_all_recipes_by_machine();
+        if (!all_recipes_by_machine["Converter"]) {
+            return false;
+        }
+        
+        const converter_recipes = all_recipes_by_machine["Converter"];
+        for (const recipe_name in converter_recipes) {
+            if (this.enabled_recipes.has(recipe_name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
     // ========== Tree ID Management ==========
     
     /**

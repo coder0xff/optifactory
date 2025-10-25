@@ -383,7 +383,7 @@ tbody tr:hover {
     padding: 6px;
     background-color: #ffebee;
     border-radius: 4px;
-    margin-top: -8px;
+    margin-top: 8px;
 }
 
 /* Tooltips */

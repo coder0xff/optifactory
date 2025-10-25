@@ -137,6 +137,9 @@ const FactoryViewComponent = {
                     <div v-if="showPowerWarning" class="warning">
                         Warning: No power-generating recipes are enabled
                     </div>
+                    <div v-if="showConverterWarning" class="warning">
+                        Warning: Disable converter recipes if factory design is too slow
+                    </div>
                 </div>
 
                 <!-- Action Buttons -->
@@ -199,6 +202,7 @@ const FactoryViewComponent = {
             powerConsumptionWeight: 1.0,
             designPower: false,
             showPowerWarning: false,
+            showConverterWarning: false,
             isGenerating: false,
             graphvizSource: null
         };
@@ -213,6 +217,7 @@ const FactoryViewComponent = {
         this.designPower = this.controller.get_design_power();
         this.refreshTreeView();
         this.updatePowerWarning();
+        this.updateConverterWarning();
     },
     methods: {
         setStatus(text, level = 'info') {
@@ -262,6 +267,7 @@ const FactoryViewComponent = {
             this.controller.on_machine_toggled(machine.tree_id, newState);
             this.refreshTreeView();
             this.updatePowerWarning();
+            this.updateConverterWarning();
         },
         toggleRecipe(recipeId) {
             const machine = this.treeStructure.find(m => 
@@ -272,6 +278,7 @@ const FactoryViewComponent = {
                 this.controller.on_recipe_toggled(recipeId, !recipe.is_enabled);
                 this.refreshTreeView();
                 this.updatePowerWarning();
+                this.updateConverterWarning();
             }
         },
         getRecipeTooltip(treeId) {
@@ -279,6 +286,9 @@ const FactoryViewComponent = {
         },
         updatePowerWarning() {
             this.showPowerWarning = this.controller.should_show_power_warning();
+        },
+        updateConverterWarning() {
+            this.showConverterWarning = this.controller.should_show_converter_warning();
         },
         async generateFactory() {
             this.isGenerating = true;
