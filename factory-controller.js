@@ -620,7 +620,7 @@ class FactoryController {
         const enabled = new Set();
         for (const [machine_name, recipes] of Object.entries(get_all_recipes_by_machine())) {
             for (const [recipe_name, recipe] of Object.entries(recipes)) {
-                if (!("MWm" in recipe.outputs) && machine_name !== "Packager") {
+                if (!("MWm" in recipe.outputs) && machine_name !== "Packager" && machine_name !== "Converter") {
                     enabled.add(recipe_name);
                 }
             }
