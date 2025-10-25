@@ -27,6 +27,13 @@
             >
                 Economy
             </div>
+            <div 
+                class="tab" 
+                :class="{ active: activeTab === 'docs' }"
+                @click="activeTab = 'docs'"
+            >
+                Documentation
+            </div>
         </div>
 
         <!-- Factory Tab -->
@@ -47,6 +54,11 @@
             />
         </div>
 
+        <!-- Documentation Tab -->
+        <div class="tab-content" :class="{ active: activeTab === 'docs' }">
+            <docs-view @status-change="handleStatusChange" />
+        </div>
+
         <div class="status-bar" :class="statusClass">{{ statusText }}</div>
     </div>
 
@@ -55,13 +67,15 @@
         import { FactoryController } from './factory-controller.js';
         import { FactoryViewComponent } from './factory-editor.js';
         import { EconomyViewComponent } from './economy-editor.js';
+        import { DocsViewerComponent } from './docs-viewer.js';
 
         const { createApp } = Vue;
 
         createApp({
             components: {
                 'factory-view': FactoryViewComponent,
-                'economy-view': EconomyViewComponent
+                'economy-view': EconomyViewComponent,
+                'docs-view': DocsViewerComponent
             },
             data() {
                 return {
