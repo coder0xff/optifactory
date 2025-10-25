@@ -1,3 +1,5 @@
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 import {
     Purity,
     Recipe,
@@ -17,192 +19,162 @@ import {
     get_fluids,
     get_fluid_color
 } from './recipes.js';
-import {
-    TestRunner,
-    assertEquals,
-    assertNotNull,
-    assertGreaterThan
-} from './test-framework.js';
 
-export async function runTests() {
-    const runner = new TestRunner();
-    const test = (name, fn) => runner.test(name, fn);
-
-    // Run tests
-    test('get_conveyor_rate(0) returns 60', () => {
-        return assertEquals(get_conveyor_rate(0), 60, 'Mk.1 conveyor');
+describe('Recipes', () => {
+    it('get_conveyor_rate(0) returns 60', () => {
+        assert.strictEqual(get_conveyor_rate(0), 60);
     });
     
-    test('get_conveyor_rate(3) returns 480', () => {
-        return assertEquals(get_conveyor_rate(3), 480, 'Mk.4 conveyor');
+    it('get_conveyor_rate(3) returns 480', () => {
+        assert.strictEqual(get_conveyor_rate(3), 480);
     });
     
-    test('get_mining_rate(0, Purity.IMPURE) returns 30', () => {
-        return assertEquals(get_mining_rate(0, Purity.IMPURE), 30, 'Mk.1 miner on impure node');
+    it('get_mining_rate(0, Purity.IMPURE) returns 30', () => {
+        assert.strictEqual(get_mining_rate(0, Purity.IMPURE), 30);
     });
     
-    test('get_mining_rate(2, Purity.PURE) returns 480', () => {
-        return assertEquals(get_mining_rate(2, Purity.PURE), 480, 'Mk.3 miner on pure node');
+    it('get_mining_rate(2, Purity.PURE) returns 480', () => {
+        assert.strictEqual(get_mining_rate(2, Purity.PURE), 480);
     });
     
-    test('get_water_extraction_rate() returns 120', () => {
-        return assertEquals(get_water_extraction_rate(), 120, 'Water extractor rate');
+    it('get_water_extraction_rate() returns 120', () => {
+        assert.strictEqual(get_water_extraction_rate(), 120);
     });
     
-    test('get_oil_extraction_rate(Purity.NORMAL) returns 120', () => {
-        return assertEquals(get_oil_extraction_rate(Purity.NORMAL), 120, 'Oil extractor on normal node');
+    it('get_oil_extraction_rate(Purity.NORMAL) returns 120', () => {
+        assert.strictEqual(get_oil_extraction_rate(Purity.NORMAL), 120);
     });
     
-    test('get_load("Constructor") returns 4', () => {
-        return assertEquals(get_load("Constructor"), 4, 'Constructor power consumption');
+    it('get_load("Constructor") returns 4', () => {
+        assert.strictEqual(get_load("Constructor"), 4);
     });
     
-    test('get_all_recipes() returns object with recipes', () => {
+    it('get_all_recipes() returns object with recipes', () => {
         const recipes = get_all_recipes();
-        assertNotNull(recipes, 'Recipes object exists');
-        assertGreaterThan(Object.keys(recipes).length, 50, 'Has many recipes');
-        return 'Recipe count: ' + Object.keys(recipes).length;
+        assert.ok(recipes != null);
+        assert.ok(Object.keys(recipes).length > 50);
     });
     
-    test('get_all_recipes_by_machine() groups recipes by machine', () => {
+    it('get_all_recipes_by_machine() groups recipes by machine', () => {
         const by_machine = get_all_recipes_by_machine();
-        assertNotNull(by_machine, 'By machine object exists');
-        assertNotNull(by_machine['Smelter'], 'Smelter recipes exist');
-        assertNotNull(by_machine['Constructor'], 'Constructor recipes exist');
-        return 'Machine types: ' + Object.keys(by_machine).length;
+        assert.ok(by_machine != null);
+        assert.ok(by_machine['Smelter'] != null);
+        assert.ok(by_machine['Constructor'] != null);
     });
     
-    test('get_base_parts() includes raw materials', () => {
+    it('get_base_parts() includes raw materials', () => {
         const base_parts = get_base_parts();
         if (!base_parts.has('Iron Ore')) throw new Error('Missing Iron Ore');
         if (!base_parts.has('Copper Ore')) throw new Error('Missing Copper Ore');
         if (!base_parts.has('Water')) throw new Error('Missing Water');
-        return 'Base parts count: ' + base_parts.size;
     });
     
-    test('get_terminal_parts() includes end products', () => {
+    it('get_terminal_parts() includes end products', () => {
         const terminal_parts = get_terminal_parts();
-        assertGreaterThan(terminal_parts.size, 0, 'Has terminal parts');
-        return 'Terminal parts count: ' + terminal_parts.size;
+        assert.ok(terminal_parts.size > 0);
     });
     
-    test('get_default_enablement_set() returns recipe names', () => {
+    it('get_default_enablement_set() returns recipe names', () => {
         const enabled = get_default_enablement_set();
-        assertGreaterThan(enabled.size, 50, 'Has many enabled recipes');
-        return 'Default enabled recipes: ' + enabled.size;
+        assert.ok(enabled.size > 50);
     });
     
-    test('get_recipes_for("Iron Plate") returns recipes', () => {
+    it('get_recipes_for("Iron Plate") returns recipes', () => {
         const recipes = get_recipes_for("Iron Plate");
-        assertNotNull(recipes, 'Iron Plate recipes exist');
+        assert.ok(recipes != null);
         const amounts = Object.keys(recipes);
-        assertGreaterThan(amounts.length, 0, 'Has at least one recipe');
-        return 'Iron Plate recipe variants: ' + amounts.length;
+        assert.ok(amounts.length > 0);
     });
     
-    test('get_recipe_for("Iron Ingot") returns highest rate recipe', () => {
+    it('get_recipe_for("Iron Ingot") returns highest rate recipe', () => {
         const [amount, name, recipe] = get_recipe_for("Iron Ingot");
-        assertNotNull(amount, 'Amount exists');
-        assertNotNull(name, 'Recipe name exists');
-        assertNotNull(recipe, 'Recipe object exists');
-        return `Best Iron Ingot recipe: ${name} (${amount}/min)`;
+        assert.ok(amount != null);
+        assert.ok(name != null);
+        assert.ok(recipe != null);
     });
     
-    test('Recipe object has correct structure', () => {
+    it('Recipe object has correct structure', () => {
         const [amount, name, recipe] = get_recipe_for("Iron Ingot");
-        assertNotNull(recipe.machine, 'Recipe has machine');
-        assertNotNull(recipe.inputs, 'Recipe has inputs');
-        assertNotNull(recipe.outputs, 'Recipe has outputs');
-        return `Recipe structure: machine=${recipe.machine}`;
+        assert.ok(recipe.machine != null);
+        assert.ok(recipe.inputs != null);
+        assert.ok(recipe.outputs != null);
     });
     
-    test('get_fluids() returns fluid list', () => {
+    it('get_fluids() returns fluid list', () => {
         const fluids = get_fluids();
-        assertGreaterThan(fluids.length, 5, 'Has multiple fluids');
+        assert.ok(fluids.length > 5);
         if (!fluids.includes('Water')) throw new Error('Missing Water in fluids');
         if (!fluids.includes('Crude Oil')) throw new Error('Missing Crude Oil in fluids');
-        return 'Fluid count: ' + fluids.length;
     });
     
-    test('get_fluid_color("Water") returns hex color', () => {
+    it('get_fluid_color("Water") returns hex color', () => {
         const color = get_fluid_color("Water");
         if (!color.startsWith('#')) throw new Error('Color does not start with #');
-        return `Water color: ${color}`;
     });
     
-    test('Purity enum has correct values', () => {
-        assertEquals(Purity.IMPURE, 0, 'IMPURE = 0');
-        assertEquals(Purity.NORMAL, 1, 'NORMAL = 1');
-        assertEquals(Purity.PURE, 2, 'PURE = 2');
-        return 'Purity enum correct';
+    it('Purity enum has correct values', () => {
+        assert.strictEqual(Purity.IMPURE, 0);
+        assert.strictEqual(Purity.NORMAL, 1);
+        assert.strictEqual(Purity.PURE, 2);
     });
 
     // ====================================================================
     // Tests ported from test_recipes.py
     // ====================================================================
 
-    test('test_get_conveyor_rate: conveyor rate lookup should return valid rates', () => {
+    it('test_get_conveyor_rate: conveyor rate lookup should return valid rates', () => {
         // Conveyor marks are 0-indexed: 0=Mk1, 1=Mk2, etc.
         const rate_mk1 = get_conveyor_rate(0);
-        assertEquals(rate_mk1, 60.0, 'Mk1 rate');
+        assert.strictEqual(rate_mk1, 60.0);
         
         const rate_mk2 = get_conveyor_rate(1);
-        assertEquals(rate_mk2, 120.0, 'Mk2 rate');
+        assert.strictEqual(rate_mk2, 120.0);
         
         const rate_mk3 = get_conveyor_rate(2);
-        assertEquals(rate_mk3, 270.0, 'Mk3 rate');
+        assert.strictEqual(rate_mk3, 270.0);
         
         const rate_mk4 = get_conveyor_rate(3);
-        assertEquals(rate_mk4, 480.0, 'Mk4 rate');
-        
-        return `Conveyor rates: Mk1=${rate_mk1}, Mk2=${rate_mk2}, Mk3=${rate_mk3}, Mk4=${rate_mk4}`;
+        assert.strictEqual(rate_mk4, 480.0);
     });
 
-    test('test_get_water_extraction_rate: water extraction rate should be valid', () => {
+    it('test_get_water_extraction_rate: water extraction rate should be valid', () => {
         const rate = get_water_extraction_rate();
-        assertGreaterThan(rate, 0, 'Water rate > 0');
+        assert.ok(rate > 0);
         if (typeof rate !== 'number') throw new Error('Rate is not a number');
-        return `Water extraction rate: ${rate}/min`;
     });
 
-    test('test_get_oil_extraction_rate: oil extraction rates should vary by purity', () => {
+    it('test_get_oil_extraction_rate: oil extraction rates should vary by purity', () => {
         const impure_rate = get_oil_extraction_rate(Purity.IMPURE);
         const normal_rate = get_oil_extraction_rate(Purity.NORMAL);
         const pure_rate = get_oil_extraction_rate(Purity.PURE);
         
-        assertGreaterThan(impure_rate, 0, 'Impure rate > 0');
-        assertGreaterThan(normal_rate, impure_rate, 'Normal > Impure');
-        assertGreaterThan(pure_rate, normal_rate, 'Pure > Normal');
-        
-        return `Oil extraction rates: Impure=${impure_rate}, Normal=${normal_rate}, Pure=${pure_rate}`;
+        assert.ok(impure_rate > 0);
+        assert.ok(normal_rate > impure_rate);
+        assert.ok(pure_rate > normal_rate);
     });
 
-    test('test_get_load: machine load lookup should return valid power values', () => {
+    it('test_get_load: machine load lookup should return valid power values', () => {
         // Test some known machines
         const smelter_load = get_load("Smelter");
-        assertGreaterThan(smelter_load, 0, 'Smelter load > 0');
+        assert.ok(smelter_load > 0);
         
         const constructor_load = get_load("Constructor");
-        assertGreaterThan(constructor_load, 0, 'Constructor load > 0');
-        
-        return `Machine loads: Smelter=${smelter_load}MW, Constructor=${constructor_load}MW`;
+        assert.ok(constructor_load > 0);
     });
 
-    test('test_get_recipe_for: should return the highest rate recipe', () => {
+    it('test_get_recipe_for: should return the highest rate recipe', () => {
         const [amount, recipe_name, recipe] = get_recipe_for("Iron Plate");
         
-        assertGreaterThan(amount, 0, 'Amount > 0');
+        assert.ok(amount > 0);
         if (typeof recipe_name !== 'string') throw new Error('Recipe name is not a string');
         if (!(recipe instanceof Recipe)) throw new Error('Recipe is not a Recipe instance');
         if (!("Iron Ore" in recipe.inputs || "Iron Ingot" in recipe.inputs)) {
             throw new Error('Recipe should have Iron Ore or Iron Ingot as input');
         }
         if (!("Iron Plate" in recipe.outputs)) throw new Error('Recipe should output Iron Plate');
-        
-        return `Best recipe for Iron Plate: ${recipe_name} at ${amount}/min`;
     });
 
-    test('test_get_recipe_for_with_enablement: should respect enablement set', () => {
+    it('test_get_recipe_for_with_enablement: should respect enablement set', () => {
         // Get all recipes for Iron Plate
         const all_recipes = get_recipes_for("Iron Plate");
         
@@ -219,11 +191,10 @@ export async function runTests() {
         
         // Get recipe with limited enablement set
         const [amount, recipe_name, recipe] = get_recipe_for("Iron Plate", new Set([sample_recipe_name]));
-        assertEquals(recipe_name, sample_recipe_name, 'Recipe name matches enablement');
-        return `Recipe with enablement: ${recipe_name}`;
+        assert.strictEqual(recipe_name, sample_recipe_name);
     });
 
-    test('test_find_recipe_name: should locate recipe by its Recipe object', () => {
+    it('test_find_recipe_name: should locate recipe by its Recipe object', () => {
         // find_recipe_name requires Recipe objects created from the internal lookups
         const all_recipes = get_all_recipes();
         
@@ -239,68 +210,58 @@ export async function runTests() {
         }
         
         const found_name = find_recipe_name(recipe);
-        assertEquals(found_name, recipe_name, 'Found name matches');
-        return `Found recipe name: ${found_name}`;
+        assert.strictEqual(found_name, recipe_name);
     });
 
-    test('test_get_terminal_parts: terminal parts should be products with no consumers', () => {
+    it('test_get_terminal_parts: terminal parts should be products with no consumers', () => {
         const terminal_parts = get_terminal_parts();
         
-        assertGreaterThan(terminal_parts.size, 0, 'Has terminal parts');
+        assert.ok(terminal_parts.size > 0);
         if (!(terminal_parts instanceof Set)) throw new Error('Terminal parts is not a Set');
-        
-        // Terminal parts should include end products
-        // (exact contents depend on recipe data)
-        
-        return `Found ${terminal_parts.size} terminal parts`;
     });
 
-    test('test_get_base_parts: base parts should be raw materials', () => {
+    it('test_get_base_parts: base parts should be raw materials', () => {
         const base_parts = get_base_parts();
         
-        assertGreaterThan(base_parts.size, 0, 'Has base parts');
+        assert.ok(base_parts.size > 0);
         if (!(base_parts instanceof Set)) throw new Error('Base parts is not a Set');
         
         // Should include raw ores
         if (!base_parts.has("Iron Ore")) throw new Error('Missing Iron Ore');
         if (!base_parts.has("Copper Ore")) throw new Error('Missing Copper Ore');
-        
-        return `Found ${base_parts.size} base parts`;
     });
 
-    test('test_recipe_lookups_consistency: recipe lookups should be internally consistent', () => {
+    it('test_recipe_lookups_consistency: recipe lookups should be internally consistent', () => {
         // Get all recipes
         const all_recipes = get_all_recipes();
-        assertGreaterThan(Object.keys(all_recipes).length, 0, 'Has recipes');
+        assert.ok(Object.keys(all_recipes).length > 0);
         
         // Check that recipes_for works for some outputs
         const iron_plate_recipes = get_recipes_for("Iron Plate");
-        assertGreaterThan(Object.keys(iron_plate_recipes).length, 0, 'Has Iron Plate recipes');
+        assert.ok(Object.keys(iron_plate_recipes).length > 0);
         
         // Check that get_recipe_for returns valid data
         const [amount, recipe_name, recipe] = get_recipe_for("Iron Plate");
-        assertGreaterThan(amount, 0, 'Amount > 0');
+        assert.ok(amount > 0);
         if (typeof recipe_name !== 'string') throw new Error('Recipe name is not a string');
         if (!(recipe instanceof Recipe)) throw new Error('Recipe is not a Recipe instance');
-        
-        return `Recipe lookups are consistent (${Object.keys(all_recipes).length} total recipes)`;
     });
 
-    test('test_power_recipes: power recipes should produce MWm', () => {
+    it('test_power_recipes: power recipes should produce MWm', () => {
         // Get all recipes that produce MWm (power)
         const power_recipes = get_recipes_for("MWm");
-        assertGreaterThan(Object.keys(power_recipes).length, 0, 'Has power-producing recipes');
+        assert.ok(Object.keys(power_recipes).length > 0);
         
         // Get the best recipe for MWm
         const [amount, recipe_name, recipe] = get_recipe_for("MWm");
-        assertNotNull(recipe, 'Power recipe exists');
-        assertGreaterThan(amount, 0, 'Power output > 0');
+        assert.ok(recipe != null);
+        assert.ok(amount > 0);
         
         // Verify the recipe outputs MWm
         if (!("MWm" in recipe.outputs)) {
             throw new Error('Power recipe should output MWm');
         }
-        assertGreaterThan(recipe.outputs.MWm, 0, 'MWm output > 0');
+        assert.ok(recipe.outputs.MWm > 0);
         
         // Verify it's from a known power generator
         const powerMachines = ['Biomass Burner', 'Coal-Powered Generator', 'Fuel-Powered Generator'];
@@ -313,10 +274,5 @@ export async function runTests() {
         for (const recipes_list of Object.values(power_recipes)) {
             totalPowerRecipes += recipes_list.length;
         }
-        
-        return `Found ${totalPowerRecipes} power recipes, best: ${recipe_name} (${amount} MWm)`;
     });
-
-    return runner;
-}
-
+});

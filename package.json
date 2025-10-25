@@ -4,7 +4,8 @@
   "type": "module",
   "description": "Factory optimization tools",
   "scripts": {
-    "test": "node run-tests.js"
+    "test": "node --test test-*.js",
+    "test:watch": "node --test --watch test-*.js"
   }
 }
 

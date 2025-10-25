@@ -1,12 +1,6 @@
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 import { design_balancer } from './balancer.js';
-import { 
-    TestRunner,
-    assertEquals,
-    assertNotNull,
-    assertGreaterThan,
-    assertInstanceOf,
-    assertThrows
-} from './test-framework.js';
 
 /**
  * Count splitters and mergers in a graph
@@ -21,42 +15,36 @@ function count_devices(graph_source) {
     return [splitters, mergers];
 }
 
-export async function runTests() {
-    const runner = new TestRunner();
-    const test = (name, fn) => runner.test(name, fn);
-
+describe('Balancer', () => {
     // ====================================================================
     // Tests ported from test_balancer.py
     // ====================================================================
 
-    test('test_basic_split: basic 3-way split', () => {
+    it('test_basic_split: basic 3-way split', () => {
         const g = design_balancer([100], [40, 30, 30]);
         const [s, m] = count_devices(g.source);
         if (s !== 1 || m !== 0) {
             throw new Error(`Expected 1S + 0M, got ${s}S + ${m}M`);
         }
-        return { message: 'Basic split test: 1 splitter, 0 mergers', graph: g };
     });
 
-    test('test_basic_merge: basic 3-way merge', () => {
+    it('test_basic_merge: basic 3-way merge', () => {
         const g = design_balancer([50, 30, 20], [100]);
         const [s, m] = count_devices(g.source);
         if (s !== 0 || m !== 1) {
             throw new Error(`Expected 0S + 1M, got ${s}S + ${m}M`);
         }
-        return { message: 'Basic merge test: 0 splitters, 1 merger', graph: g };
     });
 
-    test('test_split_and_merge: combined split and merge', () => {
+    it('test_split_and_merge: combined split and merge', () => {
         const g = design_balancer([120, 60], [90, 90]);
         const [s, m] = count_devices(g.source);
         if (s !== 1 || m !== 1) {
             throw new Error(`Expected 1S + 1M, got ${s}S + ${m}M`);
         }
-        return { message: 'Split and merge test: 1 splitter, 1 merger', graph: g };
     });
 
-    test('test_perfect_3way_split: perfect 3-way split with equal outputs', () => {
+    it('test_perfect_3way_split: perfect 3-way split with equal outputs', () => {
         const g = design_balancer([90], [30, 30, 30]);
         const [s, m] = count_devices(g.source);
         if (s !== 1 || m !== 0) {
@@ -67,11 +55,9 @@ export async function runTests() {
         if (!g.source.includes("S0 -> O0")) throw new Error("Missing S0 -> O0");
         if (!g.source.includes("S0 -> O1")) throw new Error("Missing S0 -> O1");
         if (!g.source.includes("S0 -> O2")) throw new Error("Missing S0 -> O2");
-        
-        return { message: 'Perfect 3-way split: verified connections', graph: g };
     });
 
-    test('test_large_example: [480]*3 -> [45]*32', () => {
+    it('test_large_example: [480]*3 -> [45]*32', () => {
         const inputs = Array(3).fill(480);
         const outputs = Array(32).fill(45);
         const g = design_balancer(inputs, outputs);
@@ -84,11 +70,9 @@ export async function runTests() {
         if (s !== 16 || m !== 2) {
             throw new Error(`Expected 16S + 2M, got ${s}S + ${m}M`);
         }
-        return { message: 'Large example: 16 splitters, 2 mergers', graph: g };
     });
 
-    test('test_optimal_split_counts: split counts are optimal for various output counts', () => {
-        let results = [];
+    it('test_optimal_split_counts: split counts are optimal for various output counts', () => {
         for (let n = 2; n < 12; n++) {
             const g = design_balancer([n * 30], Array(n).fill(30));
             const [s, m] = count_devices(g.source);
@@ -97,13 +81,10 @@ export async function runTests() {
             if (s !== optimal || m !== 0) {
                 throw new Error(`N=${n}: Expected ${optimal}S + 0M, got ${s}S + ${m}M`);
             }
-            results.push(`N=${n}: ${s} splitters (optimal)`);
         }
-        return results.join(', ');
     });
 
-    test('test_optimal_merge_counts: merge counts are optimal for various input counts', () => {
-        let results = [];
+    it('test_optimal_merge_counts: merge counts are optimal for various input counts', () => {
         for (let n = 2; n < 12; n++) {
             const g = design_balancer(Array(n).fill(30), [n * 30]);
             const [s, m] = count_devices(g.source);
@@ -112,12 +93,10 @@ export async function runTests() {
             if (s !== 0 || m !== optimal) {
                 throw new Error(`N=${n}: Expected 0S + ${optimal}M, got ${s}S + ${m}M`);
             }
-            results.push(`N=${n}: ${m} mergers (optimal)`);
         }
-        return results.join(', ');
     });
 
-    test('test_feasibility_check: mismatched flows are rejected', () => {
+    it('test_feasibility_check: mismatched flows are rejected', () => {
         try {
             design_balancer([100], [90]);
             throw new Error('Should have raised error for mismatched flows');
@@ -126,10 +105,9 @@ export async function runTests() {
                 throw new Error('Wrong error message: ' + e.message);
             }
         }
-        return 'Feasibility check: correctly rejects mismatched flows';
     });
 
-    test('test_direct_connection: direct connection when possible', () => {
+    it('test_direct_connection: direct connection when possible', () => {
         const g = design_balancer([100], [100]);
         const [s, m] = count_devices(g.source);
         if (s !== 0 || m !== 0) {
@@ -138,10 +116,9 @@ export async function runTests() {
         if (!g.source.includes("I0 -> O0")) {
             throw new Error("Missing direct I0 -> O0 connection");
         }
-        return { message: 'Direct connection: 0 devices, I0 -> O0', graph: g };
     });
 
-    test('test_graph_structure: graph has proper structure with colored nodes', () => {
+    it('test_graph_structure: graph has proper structure with colored nodes', () => {
         const g = design_balancer([120, 60], [90, 90]);
         const source = g.source;
         
@@ -160,11 +137,9 @@ export async function runTests() {
         if (!source.includes("rankdir=LR")) {
             throw new Error("Missing LR layout");
         }
-        
-        return { message: 'Graph structure: all node colors and layout verified', graph: g };
     });
 
-    test('test_complex_routing: complex routing scenario', () => {
+    it('test_complex_routing: complex routing scenario', () => {
         // 2 inputs to 5 outputs requires splits and merges
         const g = design_balancer([150, 150], [60, 60, 60, 60, 60]);
         const [s, m] = count_devices(g.source);
@@ -177,10 +152,9 @@ export async function runTests() {
         if (s + m > 5) {
             throw new Error(`Expected <= 5 total devices, got ${s}S + ${m}M = ${s+m}`);
         }
-        return { message: `Complex routing: ${s} splitters + ${m} mergers = ${s+m} devices`, graph: g };
     });
 
-    test('test_two_way_split: simple 2-way split to cover edge cases', () => {
+    it('test_two_way_split: simple 2-way split to cover edge cases', () => {
         const g = design_balancer([100], [50, 50]);
         const [s, m] = count_devices(g.source);
         if (s !== 1 || m !== 0) {
@@ -195,18 +169,13 @@ export async function runTests() {
         if (!g.source.includes("S0 -> O1")) {
             throw new Error("Missing S0 -> O1 connection");
         }
-        return { message: 'Two-way split: verified all connections', graph: g };
     });
 
-    test('test_single_source_output: single source to single output', () => {
+    it('test_single_source_output: single source to single output', () => {
         const g = design_balancer([80], [80]);
         const [s, m] = count_devices(g.source);
         if (!g.source.includes("I0 -> O0")) {
             throw new Error("Missing direct I0 -> O0 connection");
         }
-        return { message: 'Single source to output: direct connection verified', graph: g };
     });
-
-    return runner;
-}
-
+});

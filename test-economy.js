@@ -1,3 +1,5 @@
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 import { Recipe } from './recipes.js';
 import { 
     tarjan, 
@@ -10,45 +12,30 @@ import {
     economy_from_csv 
 } from './economy.js';
 import { get_all_recipes } from './recipes.js';
-import {
-    TestRunner,
-    assertEquals,
-    assertNotNull,
-    assertGreaterThan,
-    assertLessThan,
-    assertAlmostEqual,
-    assertTrue
-} from './test-framework.js';
 
-export async function runTests() {
-    const runner = new TestRunner();
-    const test = (name, fn) => runner.test(name, fn);
-    
+describe('Economy', () => {
     // Test Tarjan's strongly connected components algorithm
-    test('Tarjan: single node', () => {
+    it('Tarjan: single node', () => {
         const graph = { 'A': [] };
         const sccs = tarjan(graph);
-        assertEquals(sccs.length, 1, 'Should have 1 SCC');
-        assertTrue(sccs[0].has('A'), 'SCC should contain A');
-        return 'Tarjan single node works';
+        assert.strictEqual(sccs.length, 1);
+        assert.ok(sccs[0].has('A'));
     });
     
-    test('Tarjan: two disconnected nodes', () => {
+    it('Tarjan: two disconnected nodes', () => {
         const graph = { 'A': [], 'B': [] };
         const sccs = tarjan(graph);
-        assertEquals(sccs.length, 2, 'Should have 2 SCCs');
-        return 'Tarjan two disconnected nodes works';
+        assert.strictEqual(sccs.length, 2);
     });
     
-    test('Tarjan: simple cycle', () => {
+    it('Tarjan: simple cycle', () => {
         const graph = { 'A': ['B'], 'B': ['C'], 'C': ['A'] };
         const sccs = tarjan(graph);
-        assertEquals(sccs.length, 1, 'Should have 1 SCC');
-        assertTrue(sccs[0].has('A') && sccs[0].has('B') && sccs[0].has('C'), 'SCC should contain A, B, C');
-        return 'Tarjan simple cycle works';
+        assert.strictEqual(sccs.length, 1);
+        assert.ok(sccs[0].has('A') && sccs[0].has('B') && sccs[0].has('C'));
     });
     
-    test('Tarjan: complex graph', () => {
+    it('Tarjan: complex graph', () => {
         const graph = {
             'A': ['B'],
             'B': ['C'],
@@ -58,30 +45,28 @@ export async function runTests() {
             'F': ['D']
         };
         const sccs = tarjan(graph);
-        assertEquals(sccs.length, 2, 'Should have 2 SCCs');
-        return 'Tarjan complex graph works';
+        assert.strictEqual(sccs.length, 2);
     });
     
     // Test simple economy with a few recipes
-    test('Simple economy computation', () => {
+    it('Simple economy computation', () => {
         const simpleRecipes = {
             'IronOre': new Recipe('IronOre', {}, { 'Iron Ore': 30 }),
             'IronIngot': new Recipe('IronIngot', { 'Iron Ore': 30 }, { 'Iron Ingot': 30 }),
             'IronPlate': new Recipe('IronPlate', { 'Iron Ingot': 30 }, { 'Iron Plate': 20 })
         };
         const economy = compute_item_values(simpleRecipes);
-        assertNotNull(economy['Iron Ore'], 'Iron Ore value exists');
-        assertNotNull(economy['Iron Ingot'], 'Iron Ingot value exists');
-        assertNotNull(economy['Iron Plate'], 'Iron Plate value exists');
+        assert.ok(economy['Iron Ore'] != null);
+        assert.ok(economy['Iron Ingot'] != null);
+        assert.ok(economy['Iron Plate'] != null);
         // Iron Ingot should be at least as valuable as ore (equal due to 1:1 ratio)
-        assertTrue(economy['Iron Ingot'] >= economy['Iron Ore'], 'Iron Ingot at least as valuable as ore');
+        assert.ok(economy['Iron Ingot'] >= economy['Iron Ore']);
         // Iron Plate should be more valuable (30 ingots -> 20 plates)
-        assertGreaterThan(economy['Iron Plate'], economy['Iron Ingot'], 'Iron Plate more valuable than ingot');
-        return 'Simple economy computed successfully';
+        assert.ok(economy['Iron Plate'] > economy['Iron Ingot']);
     });
     
     // Test economy with pinned values
-    test('Economy with pinned values', () => {
+    it('Economy with pinned values', () => {
         const simpleRecipes = {
             'IronOre': new Recipe('IronOre', {}, { 'Iron Ore': 30 }),
             'IronIngot': new Recipe('IronIngot', { 'Iron Ore': 30 }, { 'Iron Ingot': 30 }),
@@ -96,21 +81,19 @@ export async function runTests() {
         const economy = compute_item_values(simpleRecipes, pinnedValues);
         
         // Verify the pinned value is maintained
-        assertEquals(economy['Iron Ore'], 1.0, 'Iron Ore pinned to 1.0');
+        assert.strictEqual(economy['Iron Ore'], 1.0);
         
         // All values should still be positive
         for (const value of Object.values(economy)) {
-            assertGreaterThan(value, 0, 'All values are positive');
+            assert.ok(value > 0);
         }
         
         // The relative ordering should be maintained
-        assertGreaterThan(economy['Iron Plate'], economy['Iron Ingot'], 'Iron Plate more valuable than ingot');
-        
-        return 'Pinned values work correctly';
+        assert.ok(economy['Iron Plate'] > economy['Iron Ingot']);
     });
     
     // Test separate economies
-    test('Separate economies detection', () => {
+    it('Separate economies detection', () => {
         const multiEconomyRecipes = {
             'IronOre': new Recipe('IronOre', {}, { 'Iron Ore': 30 }),
             'IronIngot': new Recipe('IronIngot', { 'Iron Ore': 30 }, { 'Iron Ingot': 30 }),
@@ -118,29 +101,27 @@ export async function runTests() {
             'CopperIngot': new Recipe('CopperIngot', { 'Copper Ore': 30 }, { 'Copper Ingot': 30 })
         };
         const economies = separate_economies(multiEconomyRecipes);
-        assertEquals(economies.length, 2, 'Should find 2 separate economies');
-        return 'Separate economies detected correctly';
+        assert.strictEqual(economies.length, 2);
     });
     
     // Test CSV export/import
-    test('CSV export and import', () => {
+    it('CSV export and import', () => {
         const economy = { 'Iron Ore': 1.0, 'Iron Ingot': 1.5 };
         const pinnedItems = new Set(['Iron Ore']);
         const csvString = economy_to_csv(economy, pinnedItems);
-        assertTrue(csvString.includes('Item,Value,Pinned'), 'CSV has header');
-        assertTrue(csvString.includes('Iron Ore,1,true'), 'Iron Ore is pinned');
-        assertTrue(csvString.includes('Iron Ingot,1.5,false'), 'Iron Ingot is not pinned');
+        assert.ok(csvString.includes('Item,Value,Pinned'));
+        assert.ok(csvString.includes('Iron Ore,1,true'));
+        assert.ok(csvString.includes('Iron Ingot,1.5,false'));
         
         const [parsedEconomy, parsedPinned] = economy_from_csv(csvString);
-        assertEquals(parsedEconomy['Iron Ore'], 1.0, 'Parsed Iron Ore value');
-        assertEquals(parsedEconomy['Iron Ingot'], 1.5, 'Parsed Iron Ingot value');
-        assertTrue(parsedPinned.has('Iron Ore'), 'Iron Ore is pinned');
-        assertTrue(!parsedPinned.has('Iron Ingot'), 'Iron Ingot is not pinned');
-        return 'CSV export/import works';
+        assert.strictEqual(parsedEconomy['Iron Ore'], 1.0);
+        assert.strictEqual(parsedEconomy['Iron Ingot'], 1.5);
+        assert.ok(parsedPinned.has('Iron Ore'));
+        assert.ok(!parsedPinned.has('Iron Ingot'));
     });
     
     // Test cost_of_recipes
-    test('Recipe cost calculation', () => {
+    it('Recipe cost calculation', () => {
         // Use real game recipes
         const allRecipes = get_all_recipes();
         const economy = get_default_economy();
@@ -150,56 +131,50 @@ export async function runTests() {
         const recipeSelection = { 'Iron Ingot': 1 };
         const cost = cost_of_recipes(recipeSelection, economy);
         
-        assertGreaterThan(cost, 0, 'Cost should be positive');
-        assertTrue(typeof cost === 'number', 'Cost should be a number');
-        assertTrue(isFinite(cost), 'Cost should be finite');
-        
-        return `Recipe cost calculation works (cost=${cost.toFixed(2)})`;
+        assert.ok(cost > 0);
+        assert.ok(typeof cost === 'number');
+        assert.ok(isFinite(cost));
     });
     
     // Test with actual game data (smaller subset for performance)
-    test('Real game data computation', () => {
+    it('Real game data computation', () => {
         // This will use get_all_recipes() from recipes.js
         const economy = get_default_economy();
-        assertNotNull(economy, 'Economy computed');
-        assertGreaterThan(Object.keys(economy).length, 10, 'Economy has many items');
+        assert.ok(economy != null);
+        assert.ok(Object.keys(economy).length > 10);
         
         // Check some basic constraints
         for (const [item, value] of Object.entries(economy)) {
-            assertGreaterThan(value, 0, `${item} has positive value`);
+            assert.ok(value > 0, `${item} has positive value`);
         }
-        
-        return `Economy computed with ${Object.keys(economy).length} items`;
     });
     
     // Test from test_economy.py: test_get_default_economy
-    test('get_default_economy returns positive values', () => {
+    it('get_default_economy returns positive values', () => {
         const economy = get_default_economy();
-        assertGreaterThan(Object.keys(economy).length, 0, 'Economy has items');
+        assert.ok(Object.keys(economy).length > 0);
         for (const value of Object.values(economy)) {
-            assertTrue(typeof value === 'number', 'Value is a number');
-            assertGreaterThan(value, 0, 'Value is positive');
+            assert.ok(typeof value === 'number');
+            assert.ok(value > 0);
         }
-        return `Default economy has ${Object.keys(economy).length} items`;
     });
     
     // Test from test_economy.py: test_get_default_economies
-    test('get_default_economies returns separate economies', () => {
+    it('get_default_economies returns separate economies', () => {
         const economies = get_default_economies();
-        assertGreaterThan(economies.length, 0, 'Has economies');
+        assert.ok(economies.length > 0);
         for (const economy of economies) {
-            assertGreaterThan(Object.keys(economy).length, 0, 'Economy has items');
+            assert.ok(Object.keys(economy).length > 0);
             for (const value of Object.values(economy)) {
-                assertTrue(typeof value === 'number', 'Value is a number');
-                assertGreaterThan(value, 0, 'Value is positive');
+                assert.ok(typeof value === 'number');
+                assert.ok(value > 0);
             }
         }
         const totalItems = economies.reduce((sum, e) => sum + Object.keys(e).length, 0);
-        return `Default economies has ${economies.length} separate economies with ${totalItems} total items`;
     });
     
     // Test from test_economy.py: test_compute_item_values_with_pinning
-    test('compute_item_values with pinning', () => {
+    it('compute_item_values with pinning', () => {
         const defaultEconomy = get_default_economy();
         
         const pinnedValues = {
@@ -209,35 +184,28 @@ export async function runTests() {
         
         const economy = compute_item_values(null, pinnedValues);
         
-        assertEquals(Object.keys(economy).length, Object.keys(defaultEconomy).length, 'Same number of items');
+        assert.strictEqual(Object.keys(economy).length, Object.keys(defaultEconomy).length);
         
         for (const [name, value] of Object.entries(pinnedValues)) {
-            assertEquals(economy[name], value, `${name} is pinned to ${value}`);
+            assert.strictEqual(economy[name], value, `${name} is pinned to ${value}`);
         }
         
         for (const value of Object.values(economy)) {
-            assertGreaterThan(value, 0, 'All values are positive');
+            assert.ok(value > 0);
         }
-        
-        return `Computed ${Object.keys(economy).length} items with ${Object.keys(pinnedValues).length} pinned`;
     });
     
     // Test CSV format details
-    test('CSV format validation', () => {
+    it('CSV format validation', () => {
         const economy = { 'Iron Ore': 1.0, 'Copper Ore': 2.5 };
         const pinnedItems = new Set(['Iron Ore']);
         
         const csv = economy_to_csv(economy, pinnedItems);
         const lines = csv.split('\n');
         
-        assertTrue(lines[0].includes('Item'), 'Header has Item');
-        assertTrue(lines[0].includes('Value'), 'Header has Value');
-        assertTrue(lines[0].includes('Pinned'), 'Header has Pinned');
-        assertGreaterThan(lines.length, 2, 'Has header + data rows');
-        
-        return 'CSV format is correct';
+        assert.ok(lines[0].includes('Item'));
+        assert.ok(lines[0].includes('Value'));
+        assert.ok(lines[0].includes('Pinned'));
+        assert.ok(lines.length > 2);
     });
-    
-    return runner;
-}
-
+});

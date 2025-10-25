@@ -1,3 +1,5 @@
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 import {
     EconomyItem,
     EconomyTableStructure,
@@ -9,62 +11,46 @@ import {
     economy_to_csv,
     economy_from_csv
 } from './economy.js';
-import {
-    TestRunner,
-    assertEquals,
-    assertNotNull,
-    assertTrue,
-    assertFalse
-} from './test-framework.js';
 
-export async function runTests() {
-    const runner = new TestRunner();
-    const test = (name, fn) => runner.test(name, fn);
-
-    // ========== Tests ==========
-
-    test('init should create controller with default economy', () => {
+describe('EconomyController', () => {
+    it('init should create controller with default economy', () => {
         const controller = new EconomyController();
         
-        assertTrue(controller instanceof EconomyController, 'is EconomyController');
-        assertTrue(typeof controller.economy === 'object', 'has economy object');
-        assertTrue(Object.keys(controller.economy).length > 0, 'economy has items');
-        assertTrue(controller.pinned_items instanceof Set, 'has pinned_items Set');
-        assertEquals(controller.pinned_items.size, 0, 'no items pinned by default');
-        assertEquals(controller.get_filter_text(), "", 'empty filter text');
-        return 'Controller initialized with default economy';
+        assert.ok(controller instanceof EconomyController);
+        assert.ok(typeof controller.economy === 'object');
+        assert.ok(Object.keys(controller.economy).length > 0);
+        assert.ok(controller.pinned_items instanceof Set);
+        assert.strictEqual(controller.pinned_items.size, 0);
+        assert.strictEqual(controller.get_filter_text(), "");
     });
 
-    test('controller should manage filter text state', () => {
+    it('controller should manage filter text state', () => {
         const controller = new EconomyController();
-        assertEquals(controller.get_filter_text(), "", 'initial filter text');
+        assert.strictEqual(controller.get_filter_text(), "");
         
         controller.set_filter_text("iron");
-        assertEquals(controller.get_filter_text(), "iron", 'updated filter text');
-        return true;
+        assert.strictEqual(controller.get_filter_text(), "iron");
     });
 
-    test('controller should track sort state', () => {
+    it('controller should track sort state', () => {
         const controller = new EconomyController();
         
         const [sort_col, sort_asc] = controller.get_sort_state();
-        assertEquals(sort_col, 'item', 'default sort column');
-        assertTrue(sort_asc, 'default sort ascending');
-        return true;
+        assert.strictEqual(sort_col, 'item');
+        assert.ok(sort_asc);
     });
 
-    test('set_sort should set new column and default to ascending', () => {
+    it('set_sort should set new column and default to ascending', () => {
         const controller = new EconomyController();
         
         controller.set_sort('value');
         const [sort_col, sort_asc] = controller.get_sort_state();
         
-        assertEquals(sort_col, 'value', 'sort column is value');
-        assertTrue(sort_asc, 'sort is ascending');
-        return true;
+        assert.strictEqual(sort_col, 'value');
+        assert.ok(sort_asc);
     });
 
-    test('set_sort on same column should toggle direction', () => {
+    it('set_sort on same column should toggle direction', () => {
         const controller = new EconomyController();
         
         controller.set_sort('value');
@@ -73,142 +59,132 @@ export async function runTests() {
         controller.set_sort('value');  // Same column again
         const [sort_col2, sort_asc2] = controller.get_sort_state();
         
-        assertEquals(sort_col1, 'value', 'first sort column');
-        assertEquals(sort_col2, 'value', 'second sort column');
-        assertTrue(sort_asc1, 'first sort ascending');
-        assertFalse(sort_asc2, 'second sort descending');
-        return true;
+        assert.strictEqual(sort_col1, 'value');
+        assert.strictEqual(sort_col2, 'value');
+        assert.ok(sort_asc1);
+        assert.ok(!sort_asc2);
     });
 
-    test('get_header_texts should return header display texts with sort indicators', () => {
+    it('get_header_texts should return header display texts with sort indicators', () => {
         const controller = new EconomyController();
         
         // Default state (sorted by item ascending)
         let texts = controller.get_header_texts();
-        assertEquals(texts['item'], 'Item ▲', 'item header with ascending arrow');
-        assertEquals(texts['value'], 'Value', 'value header no arrow');
-        assertEquals(texts['locked'], 'Locked', 'locked header no arrow');
+        assert.strictEqual(texts['item'], 'Item ▲');
+        assert.strictEqual(texts['value'], 'Value');
+        assert.strictEqual(texts['locked'], 'Locked');
         
         // Click item again to reverse sort
         controller.set_sort('item');
         texts = controller.get_header_texts();
-        assertEquals(texts['item'], 'Item ▼', 'item header with descending arrow');
-        assertEquals(texts['value'], 'Value', 'value header no arrow');
-        assertEquals(texts['locked'], 'Locked', 'locked header no arrow');
+        assert.strictEqual(texts['item'], 'Item ▼');
+        assert.strictEqual(texts['value'], 'Value');
+        assert.strictEqual(texts['locked'], 'Locked');
         
         // Sort by value descending
         controller.set_sort('value');
         controller.set_sort('value');  // second click reverses
         texts = controller.get_header_texts();
-        assertEquals(texts['item'], 'Item', 'item header no arrow');
-        assertEquals(texts['value'], 'Value ▼', 'value header with descending arrow');
-        assertEquals(texts['locked'], 'Locked', 'locked header no arrow');
+        assert.strictEqual(texts['item'], 'Item');
+        assert.strictEqual(texts['value'], 'Value ▼');
+        assert.strictEqual(texts['locked'], 'Locked');
         
         // Sort by locked ascending
         controller.set_sort('locked');
         texts = controller.get_header_texts();
-        assertEquals(texts['item'], 'Item', 'item header no arrow');
-        assertEquals(texts['value'], 'Value', 'value header no arrow');
-        assertEquals(texts['locked'], 'Locked ▲', 'locked header with ascending arrow');
-        return true;
+        assert.strictEqual(texts['item'], 'Item');
+        assert.strictEqual(texts['value'], 'Value');
+        assert.strictEqual(texts['locked'], 'Locked ▲');
     });
 
-    test('set_item_value should update economy', () => {
+    it('set_item_value should update economy', () => {
         const controller = new EconomyController();
         controller.economy = {"Iron Ore": 1.0};
         
         controller.set_item_value("Iron Ore", 5.0);
         
-        assertEquals(controller.economy["Iron Ore"], 5.0, 'item value updated');
-        return true;
+        assert.strictEqual(controller.economy["Iron Ore"], 5.0);
     });
 
-    test('set_item_value should handle nonexistent items gracefully', () => {
+    it('set_item_value should handle nonexistent items gracefully', () => {
         const controller = new EconomyController();
         
         // Should not raise or add item
         controller.set_item_value("Nonexistent", 10.0);
-        assertFalse("Nonexistent" in controller.economy, 'item not added');
-        return true;
+        assert.ok(!("Nonexistent" in controller.economy));
     });
 
-    test('set_item_pinned should update pinned state', () => {
+    it('set_item_pinned should update pinned state', () => {
         const controller = new EconomyController();
         
         controller.set_item_pinned("Iron Ore", true);
-        assertTrue(controller.pinned_items.has("Iron Ore"), 'item is pinned');
+        assert.ok(controller.pinned_items.has("Iron Ore"));
         
         controller.set_item_pinned("Iron Ore", false);
-        assertFalse(controller.pinned_items.has("Iron Ore"), 'item is unpinned');
-        return true;
+        assert.ok(!controller.pinned_items.has("Iron Ore"));
     });
 
-    test('_make_item_id should generate stable IDs', () => {
+    it('_make_item_id should generate stable IDs', () => {
         const id1 = EconomyController._make_item_id("Iron Ore");
         const id2 = EconomyController._make_item_id("Iron Ore");
         
-        assertEquals(id1, id2, 'IDs are stable');
-        assertEquals(id1, "item:Iron Ore", 'ID format is correct');
-        return true;
+        assert.strictEqual(id1, id2);
+        assert.strictEqual(id1, "item:Iron Ore");
     });
 
-    test('get_economy_table_structure should return complete structure', () => {
+    it('get_economy_table_structure should return complete structure', () => {
         const controller = new EconomyController();
         controller.economy = {"Iron Ore": 1.0, "Copper Ore": 2.0, "Coal": 0.5};
         controller.pinned_items = new Set(["Iron Ore"]);
         
         const structure = controller.get_economy_table_structure();
         
-        assertEquals(structure.items.length, 3, 'has 3 items');
-        assertTrue(structure.items.every(item => item.item_id.startsWith("item:")), 'all items have correct ID format');
-        return true;
+        assert.strictEqual(structure.items.length, 3);
+        assert.ok(structure.items.every(item => item.item_id.startsWith("item:")));
     });
 
-    test('table structure should filter items', () => {
+    it('table structure should filter items', () => {
         const controller = new EconomyController();
         controller.economy = {"Iron Ore": 1.0, "Copper Ore": 2.0, "Coal": 0.5};
         
         controller.set_filter_text("ore");
         const structure = controller.get_economy_table_structure();
         
-        assertEquals(structure.items.length, 2, 'filtered to 2 items');
-        assertTrue(structure.items.every(item => item.display_name.toLowerCase().includes("ore")), 'all items contain "ore"');
-        return true;
+        assert.strictEqual(structure.items.length, 2);
+        assert.ok(structure.items.every(item => item.display_name.toLowerCase().includes("ore")));
     });
 
-    test('table filtering should be case-insensitive', () => {
+    it('table filtering should be case-insensitive', () => {
         const controller = new EconomyController();
         controller.economy = {"Iron Ore": 1.0};
         
         controller.set_filter_text("IRON");
         const structure = controller.get_economy_table_structure();
         
-        assertEquals(structure.items.length, 1, 'case-insensitive filter found item');
-        return true;
+        assert.strictEqual(structure.items.length, 1);
     });
 
-    test('table should sort by item name', () => {
+    it('table should sort by item name', () => {
         const controller = new EconomyController();
         controller.economy = {"Zinc": 1.0, "Aluminum": 2.0, "Copper": 3.0};
         
         // Default is already sorted by item ascending
         let structure = controller.get_economy_table_structure();
         let names = structure.items.map(item => item.display_name);
-        assertEquals(names[0], "Aluminum", 'first is Aluminum');
-        assertEquals(names[1], "Copper", 'second is Copper');
-        assertEquals(names[2], "Zinc", 'third is Zinc');
+        assert.strictEqual(names[0], "Aluminum");
+        assert.strictEqual(names[1], "Copper");
+        assert.strictEqual(names[2], "Zinc");
         
         // Toggle to descending
         controller.set_sort('item');
         structure = controller.get_economy_table_structure();
         names = structure.items.map(item => item.display_name);
-        assertEquals(names[0], "Zinc", 'first is Zinc');
-        assertEquals(names[1], "Copper", 'second is Copper');
-        assertEquals(names[2], "Aluminum", 'third is Aluminum');
-        return true;
+        assert.strictEqual(names[0], "Zinc");
+        assert.strictEqual(names[1], "Copper");
+        assert.strictEqual(names[2], "Aluminum");
     });
 
-    test('table should sort by value', () => {
+    it('table should sort by value', () => {
         const controller = new EconomyController();
         controller.economy = {"A": 3.0, "B": 1.0, "C": 2.0};
         
@@ -216,13 +192,12 @@ export async function runTests() {
         const structure = controller.get_economy_table_structure();
         
         const values = structure.items.map(item => item.value);
-        assertEquals(values[0], 1.0, 'first value is 1.0');
-        assertEquals(values[1], 2.0, 'second value is 2.0');
-        assertEquals(values[2], 3.0, 'third value is 3.0');
-        return true;
+        assert.strictEqual(values[0], 1.0);
+        assert.strictEqual(values[1], 2.0);
+        assert.strictEqual(values[2], 3.0);
     });
 
-    test('table should sort by pinned state', () => {
+    it('table should sort by pinned state', () => {
         const controller = new EconomyController();
         controller.economy = {"A": 1.0, "B": 2.0, "C": 3.0};
         controller.pinned_items = new Set(["B"]);
@@ -235,23 +210,21 @@ export async function runTests() {
         const has_correct_grouping = 
             (pinned_states[0] === false && pinned_states[1] === false && pinned_states[2] === true) ||
             (pinned_states[0] === true && pinned_states[1] === false && pinned_states[2] === false);
-        assertTrue(has_correct_grouping, 'pinned items are grouped');
-        return true;
+        assert.ok(has_correct_grouping);
     });
 
-    test('table should default to item name sort', () => {
+    it('table should default to item name sort', () => {
         const controller = new EconomyController();
         controller.economy = {"Zinc": 1.0, "Aluminum": 2.0};
         
         const structure = controller.get_economy_table_structure();
         
         const names = structure.items.map(item => item.display_name);
-        assertEquals(names[0], "Aluminum", 'first is Aluminum');
-        assertEquals(names[1], "Zinc", 'second is Zinc');
-        return true;
+        assert.strictEqual(names[0], "Aluminum");
+        assert.strictEqual(names[1], "Zinc");
     });
 
-    test('table items should include all metadata', () => {
+    it('table items should include all metadata', () => {
         const controller = new EconomyController();
         controller.economy = {"Iron Ore": 5.0};
         controller.pinned_items = new Set(["Iron Ore"]);
@@ -259,15 +232,14 @@ export async function runTests() {
         const structure = controller.get_economy_table_structure();
         
         const item = structure.items[0];
-        assertEquals(item.item_id, "item:Iron Ore", 'item_id correct');
-        assertEquals(item.display_name, "Iron Ore", 'display_name correct');
-        assertEquals(item.value, 5.0, 'value correct');
-        assertTrue(item.is_pinned, 'is_pinned correct');
-        assertTrue(item.is_visible, 'is_visible correct');
-        return true;
+        assert.strictEqual(item.item_id, "item:Iron Ore");
+        assert.strictEqual(item.display_name, "Iron Ore");
+        assert.strictEqual(item.value, 5.0);
+        assert.ok(item.is_pinned);
+        assert.ok(item.is_visible);
     });
 
-    test('reset_to_default should restore default economy', () => {
+    it('reset_to_default should restore default economy', () => {
         const controller = new EconomyController();
         controller.economy = {"Custom": 999.0};
         controller.pinned_items = new Set(["Custom"]);
@@ -275,15 +247,14 @@ export async function runTests() {
         controller.reset_to_default();
         
         // Should have default items
-        assertTrue(Object.keys(controller.economy).length > 1, 'has multiple items');
-        assertFalse("Custom" in controller.economy, 'custom item removed');
+        assert.ok(Object.keys(controller.economy).length > 1);
+        assert.ok(!("Custom" in controller.economy));
         const has_default_item = "Iron Ore" in controller.economy || "Copper Ore" in controller.economy;
-        assertTrue(has_default_item, 'has default items');
-        assertEquals(controller.pinned_items.size, 0, 'no pinned items');
-        return true;
+        assert.ok(has_default_item);
+        assert.strictEqual(controller.pinned_items.size, 0);
     });
 
-    test('recompute_values should recalculate with pinned values', () => {
+    it('recompute_values should recalculate with pinned values', () => {
         const controller = new EconomyController();
         const original_iron_ore = controller.economy["Iron Ore"] || 0;
         controller.pinned_items = new Set(["Iron Ore"]);
@@ -291,13 +262,12 @@ export async function runTests() {
         controller.recompute_values();
         
         // Pinned value should remain the same
-        assertEquals(controller.economy["Iron Ore"], original_iron_ore, 'pinned value unchanged');
+        assert.strictEqual(controller.economy["Iron Ore"], original_iron_ore);
         // Other values may change (gradient descent)
-        assertTrue("Iron Plate" in controller.economy, 'has other items');
-        return true;
+        assert.ok("Iron Plate" in controller.economy);
     });
 
-    test('load_from_csv should load economy from CSV string', () => {
+    it('load_from_csv should load economy from CSV string', () => {
         const controller = new EconomyController();
         
         // Create CSV string
@@ -308,15 +278,14 @@ export async function runTests() {
         // Load into controller
         controller.load_from_csv(csv_string);
         
-        assertEquals(Object.keys(controller.economy).length, 2, 'has 2 items');
-        assertEquals(controller.economy["Iron Ore"], 1.0, 'Iron Ore value correct');
-        assertEquals(controller.economy["Copper Ore"], 2.0, 'Copper Ore value correct');
-        assertTrue(controller.pinned_items.has("Iron Ore"), 'Iron Ore is pinned');
-        assertEquals(controller.pinned_items.size, 1, 'only 1 pinned item');
-        return true;
+        assert.strictEqual(Object.keys(controller.economy).length, 2);
+        assert.strictEqual(controller.economy["Iron Ore"], 1.0);
+        assert.strictEqual(controller.economy["Copper Ore"], 2.0);
+        assert.ok(controller.pinned_items.has("Iron Ore"));
+        assert.strictEqual(controller.pinned_items.size, 1);
     });
 
-    test('save_to_csv should save economy to CSV string', () => {
+    it('save_to_csv should save economy to CSV string', () => {
         const controller = new EconomyController();
         controller.economy = {"Iron Ore": 1.0, "Copper Ore": 2.0};
         controller.pinned_items = new Set(["Iron Ore"]);
@@ -324,20 +293,19 @@ export async function runTests() {
         const csv_string = controller.save_to_csv();
         
         // Verify CSV string was created
-        assertTrue(typeof csv_string === 'string', 'returns string');
-        assertTrue(csv_string.length > 0, 'CSV is not empty');
+        assert.ok(typeof csv_string === 'string');
+        assert.ok(csv_string.length > 0);
         
         // Load it back to verify
         const [loaded_economy, loaded_pinned] = economy_from_csv(csv_string);
         
-        assertEquals(loaded_economy["Iron Ore"], controller.economy["Iron Ore"], 'Iron Ore value matches');
-        assertEquals(loaded_economy["Copper Ore"], controller.economy["Copper Ore"], 'Copper Ore value matches');
-        assertTrue(loaded_pinned.has("Iron Ore"), 'Iron Ore pinned state matches');
-        assertEquals(loaded_pinned.size, controller.pinned_items.size, 'pinned count matches');
-        return true;
+        assert.strictEqual(loaded_economy["Iron Ore"], controller.economy["Iron Ore"]);
+        assert.strictEqual(loaded_economy["Copper Ore"], controller.economy["Copper Ore"]);
+        assert.ok(loaded_pinned.has("Iron Ore"));
+        assert.strictEqual(loaded_pinned.size, controller.pinned_items.size);
     });
 
-    test('filter and sort should work together', () => {
+    it('filter and sort should work together', () => {
         const controller = new EconomyController();
         controller.economy = {"Iron Ore": 3.0, "Iron Plate": 1.0, "Copper Ore": 2.0};
         
@@ -346,12 +314,8 @@ export async function runTests() {
         
         const structure = controller.get_economy_table_structure();
         
-        assertEquals(structure.items.length, 2, 'filtered to 2 items');
-        assertEquals(structure.items[0].display_name, "Iron Plate", 'first item (lower value)');
-        assertEquals(structure.items[1].display_name, "Iron Ore", 'second item (higher value)');
-        return true;
+        assert.strictEqual(structure.items.length, 2);
+        assert.strictEqual(structure.items[0].display_name, "Iron Plate");
+        assert.strictEqual(structure.items[1].display_name, "Iron Ore");
     });
-
-    return runner;
-}
-
+});

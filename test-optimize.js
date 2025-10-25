@@ -1,38 +1,25 @@
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 import { optimize_recipes } from './optimize.js';
-import {
-    TestRunner,
-    assertEquals,
-    assertNotNull,
-    assertGreaterThan
-} from './test-framework.js';
 
-export async function runTests() {
-    const runner = new TestRunner();
-    const test = (name, fn) => runner.test(name, fn);
-
-    // Basic smoke test
-    await test('optimize_recipes is a function', () => {
-        if (typeof optimize_recipes !== 'function') {
-            throw new Error('optimize_recipes is not a function');
-        }
-        return 'optimize_recipes is callable';
+describe('Optimize', () => {
+    it('optimize_recipes is a function', () => {
+        assert.strictEqual(typeof optimize_recipes, 'function');
     });
 
     // ====================================================================
     // Tests ported from test_optimize.py
     // ====================================================================
 
-    await test('test_concrete_recipe_sanity_check: optimizer gives right answer when handed the solution', async () => {
+    it('test_concrete_recipe_sanity_check: optimizer gives right answer when handed the solution', async () => {
         const actual = await optimize_recipes({}, {"Concrete": 480}, {enablement_set: new Set(["Concrete"]), economy: {}});
         const expected = {"Concrete": 32};
         
-        assertEquals(Object.keys(actual).length, Object.keys(expected).length, 'Same number of recipes');
-        assertEquals(actual["Concrete"], expected["Concrete"], 'Concrete count matches');
-        
-        return `Result: Concrete=${actual["Concrete"]}`;
+        assert.strictEqual(Object.keys(actual).length, Object.keys(expected).length);
+        assert.strictEqual(actual["Concrete"], expected["Concrete"]);
     });
 
-    await test('test_two_recipe_concrete: concrete optimized to use standard recipe with default economy', async () => {
+    it('test_two_recipe_concrete: concrete optimized to use standard recipe with default economy', async () => {
         // Import cost_of_recipes for the check
         const { cost_of_recipes } = await import('./economy.js');
         
@@ -42,21 +29,17 @@ export async function runTests() {
         const actual = await optimize_recipes({}, {"Concrete": 480}, {enablement_set: new Set(["Concrete", "Alternate: Wet Concrete"])});
         const expected = {"Concrete": 32.0};
         
-        assertEquals(actual["Concrete"], expected["Concrete"], 'Concrete count matches');
-        
-        return `Result: Concrete=${actual["Concrete"]}`;
+        assert.strictEqual(actual["Concrete"], expected["Concrete"]);
     });
 
-    await test('test_input_utilization: optimizer uses inputs as much as possible', async () => {
+    it('test_input_utilization: optimizer uses inputs as much as possible', async () => {
         const actual = await optimize_recipes({"Copper Ingot": 15}, {"Wire": 30}, {enablement_set: new Set(["Copper Ingot", "Wire"]), economy: {}});
         const expected = {"Wire": 1.0};
         
-        assertEquals(actual["Wire"], expected["Wire"], 'Wire count matches');
-        
-        return `Result: Wire=${actual["Wire"]}`;
+        assert.strictEqual(actual["Wire"], expected["Wire"]);
     });
 
-    await test('test_invalid_output: optimizer raises error for unrecognized parts', async () => {
+    it('test_invalid_output: optimizer raises error for unrecognized parts', async () => {
         try {
             await optimize_recipes({"Copper Ingot": 15}, {"Copper Wire": 30}, {enablement_set: new Set(["Copper Ingot", "Wire"]), economy: {}});
             throw new Error('Should have thrown an error');
@@ -64,78 +47,63 @@ export async function runTests() {
             if (!e.message.includes("Outputs contain unrecognized parts")) {
                 throw new Error(`Expected error about unrecognized parts, got: ${e.message}`);
             }
-            return 'Correctly raised error for invalid output';
         }
     });
 
-    await test('test_input_utilization_with_economy: optimizer uses inputs with economy', async () => {
+    it('test_input_utilization_with_economy: optimizer uses inputs with economy', async () => {
         const actual = await optimize_recipes({"Copper Ingot": 15}, {"Wire": 30}, {enablement_set: new Set(["Copper Ingot", "Wire"])});
         const expected = {"Wire": 1};
         
-        assertEquals(actual["Wire"], expected["Wire"], 'Wire count matches');
-        
-        return `Result: Wire=${actual["Wire"]}`;
+        assert.strictEqual(actual["Wire"], expected["Wire"]);
     });
 
-    await test('test_quickwire: quickwire recipe optimized with default economy', async () => {
+    it('test_quickwire: quickwire recipe optimized with default economy', async () => {
         const actual = await optimize_recipes({}, {"Quickwire": 20});
         const expected = {"Caterium Ingot": 1.0, "Quickwire": 1.0};
         
-        assertEquals(actual["Caterium Ingot"], expected["Caterium Ingot"], 'Caterium Ingot count matches');
-        assertEquals(actual["Quickwire"], expected["Quickwire"], 'Quickwire count matches');
-        
-        return `Result: Caterium Ingot=${actual["Caterium Ingot"]}, Quickwire=${actual["Quickwire"]}`;
+        assert.strictEqual(actual["Caterium Ingot"], expected["Caterium Ingot"]);
+        assert.strictEqual(actual["Quickwire"], expected["Quickwire"]);
     });
 
-    await test('test_concrete_with_power_design: concrete with power design enabled', async () => {
+    it('test_concrete_with_power_design: concrete with power design enabled', async () => {
         const actual = await optimize_recipes({}, {"Concrete": 480}, {enablement_set: new Set(["Concrete", "Coal Power"]), design_power: true});
         const expected = {"Concrete": 32.0, "Coal Power": 2.0};
         
-        assertEquals(actual["Concrete"], expected["Concrete"], 'Concrete count matches');
-        assertEquals(actual["Coal Power"], expected["Coal Power"], 'Coal Power count matches');
-        
-        return `Result: Concrete=${actual["Concrete"]}, Coal Power=${actual["Coal Power"]}`;
+        assert.strictEqual(actual["Concrete"], expected["Concrete"]);
+        assert.strictEqual(actual["Coal Power"], expected["Coal Power"]);
     });
 
-    await test('test_concrete_with_input_water: concrete with input water', async () => {
+    it('test_concrete_with_input_water: concrete with input water', async () => {
         const actual = await optimize_recipes({"Water": 100}, {"Concrete": 80}, {enablement_set: new Set(["Concrete", "Alternate: Wet Concrete"])});
         const expected = {"Alternate: Wet Concrete": 1.0};
         
-        assertEquals(actual["Alternate: Wet Concrete"], expected["Alternate: Wet Concrete"], 'Alternate: Wet Concrete count matches');
-        
-        return `Result: Alternate: Wet Concrete=${actual["Alternate: Wet Concrete"]}`;
+        assert.strictEqual(actual["Alternate: Wet Concrete"], expected["Alternate: Wet Concrete"]);
     });
 
-    await test('test_concrete_with_not_enough_water: concrete with insufficient water', async () => {
+    it('test_concrete_with_not_enough_water: concrete with insufficient water', async () => {
         const actual = await optimize_recipes({"Water": 100}, {"Concrete": 95}, {enablement_set: new Set(["Concrete", "Alternate: Wet Concrete"])});
         const expected = {"Alternate: Wet Concrete": 1.0, "Concrete": 1.0};
         
-        assertEquals(actual["Alternate: Wet Concrete"], expected["Alternate: Wet Concrete"], 'Alternate: Wet Concrete count matches');
-        assertEquals(actual["Concrete"], expected["Concrete"], 'Concrete count matches');
-        
-        return `Result: Alternate: Wet Concrete=${actual["Alternate: Wet Concrete"]}, Concrete=${actual["Concrete"]}`;
+        assert.strictEqual(actual["Alternate: Wet Concrete"], expected["Alternate: Wet Concrete"]);
+        assert.strictEqual(actual["Concrete"], expected["Concrete"]);
     });
 
-    await test('test_dont_design_power_when_disabled: optimizer does not design power when disabled', async () => {
+    it('test_dont_design_power_when_disabled: optimizer does not design power when disabled', async () => {
         const actual = await optimize_recipes({}, {"Concrete": 480}, {enablement_set: new Set(["Concrete", "Biomass (Mycelia)", "Solid Biofuel", "Power (Biomass)"]), power_consumption_weight: 1.0, design_power: false});
         const expected = {"Concrete": 32.0};
         
-        assertEquals(actual["Concrete"], expected["Concrete"], 'Concrete count matches');
-        assertEquals(Object.keys(actual).length, 1, 'Should only have Concrete recipe');
-        
-        return `Result: Concrete=${actual["Concrete"]}`;
+        assert.strictEqual(actual["Concrete"], expected["Concrete"]);
+        assert.strictEqual(Object.keys(actual).length, 1);
     });
 
-    await test('test_power_generation: power generation works', async () => {
+    it('test_power_generation: power generation works', async () => {
         const actual = await optimize_recipes({}, {"MWm": 1}, {enablement_set: new Set(["Coal Power"])});
         const expected = {"Coal Power": 1.0};
         
-        assertEquals(actual["Coal Power"], expected["Coal Power"], 'Coal Power count matches');
-        
-        return `Result: Coal Power=${actual["Coal Power"]}`;
+        assert.strictEqual(actual["Coal Power"], expected["Coal Power"]);
     });
 
-    await test('test_invalid_enablement_set: invalid recipe names raise error', async () => {
+    it('test_invalid_enablement_set: invalid recipe names raise error', async () => {
         try {
             await optimize_recipes({}, {"Iron Plate": 100}, {enablement_set: new Set(["NonExistentRecipe", "Iron Plate"])});
             throw new Error('Should have thrown an error');
@@ -143,11 +111,10 @@ export async function runTests() {
             if (!e.message.includes("Enablement set contains invalid recipes")) {
                 throw new Error(`Expected error about invalid recipes, got: ${e.message}`);
             }
-            return 'Correctly raised error for invalid enablement set';
         }
     });
 
-    await test('test_zero_input_costs_weight: input_costs_weight=0 works correctly', async () => {
+    it('test_zero_input_costs_weight: input_costs_weight=0 works correctly', async () => {
         const actual = await optimize_recipes(
             {},
             {"Iron Plate": 30},
@@ -159,13 +126,11 @@ export async function runTests() {
         );
         const expected = {"Iron Ingot": 2.0, "Iron Plate": 2.0};
         
-        assertEquals(actual["Iron Ingot"], expected["Iron Ingot"], 'Iron Ingot count matches');
-        assertEquals(actual["Iron Plate"], expected["Iron Plate"], 'Iron Plate count matches');
-        
-        return `Result: Iron Ingot=${actual["Iron Ingot"]}, Iron Plate=${actual["Iron Plate"]}`;
+        assert.strictEqual(actual["Iron Ingot"], expected["Iron Ingot"]);
+        assert.strictEqual(actual["Iron Plate"], expected["Iron Plate"]);
     });
 
-    await test('test_part_not_in_economy: warning when part not found in provided economy', async () => {
+    it('test_part_not_in_economy: warning when part not found in provided economy', async () => {
         // provide a minimal economy that doesn't include all parts
         const minimal_economy = {"Iron Ore": 1.0};  // missing many parts like Iron Ingot
         
@@ -183,12 +148,10 @@ export async function runTests() {
         if (!("Iron Plate" in actual)) {
             throw new Error('Iron Plate not in result');
         }
-        assertEquals(actual["Iron Plate"], 2.0, 'Iron Plate count matches');
-        
-        return `Result: Iron Plate=${actual["Iron Plate"]} (with minimal economy)`;
+        assert.strictEqual(actual["Iron Plate"], 2.0);
     });
 
-    await test('test_infeasible_optimization: infeasible optimization raises error', async () => {
+    it('test_infeasible_optimization: infeasible optimization raises error', async () => {
         // try to produce something with insufficient recipes
         // enable only the final recipe but not the intermediate ones
         try {
@@ -205,11 +168,10 @@ export async function runTests() {
             if (!e.message.includes("Couldn't design the factory")) {
                 throw new Error(`Expected error about infeasible factory, got: ${e.message}`);
             }
-            return 'Correctly raised error for infeasible optimization';
         }
     });
 
-    await test('test_infeasible_optimization_with_power_design: infeasible optimization with power design', async () => {
+    it('test_infeasible_optimization_with_power_design: infeasible optimization with power design', async () => {
         try {
             await optimize_recipes(
                 {},
@@ -224,10 +186,6 @@ export async function runTests() {
             if (!e.message.includes("Couldn't design the factory")) {
                 throw new Error(`Expected error about infeasible factory, got: ${e.message}`);
             }
-            return 'Correctly raised error for infeasible power optimization';
         }
     });
-
-    return runner;
-}
-
+});
