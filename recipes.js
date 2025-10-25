@@ -87,6 +87,9 @@ const _TERMINAL_PARTS = new Set();
 // set of recipes enabled by default
 const _DEFAULT_ENABLEMENT_SET = new Set();
 
+// case-insensitive material name lookup: lowercase -> canonical name
+let _MATERIAL_NAME_LOOKUP = null;
+
 // ============================================================================
 // Helper functions for initialization
 // ============================================================================
@@ -248,6 +251,17 @@ function _build_default_enablement_set() {
 }
 
 /**
+ * Build case-insensitive material name lookup map.
+ */
+function _build_material_name_lookup() {
+    _MATERIAL_NAME_LOOKUP = new Map();
+    
+    for (const part of _ALL_PARTS) {
+        _MATERIAL_NAME_LOOKUP.set(part.toLowerCase(), part);
+    }
+}
+
+/**
  * Process a single recipe: collect parts, index outputs, create and register Recipe.
  * @param {string} machine - machine type name
  * @param {string} recipe_name - recipe name
@@ -356,6 +370,7 @@ function _populate_lookups() {
     
     _classify_parts();
     _build_default_enablement_set();
+    _build_material_name_lookup();
 }
 
 // Initialize on module load
@@ -542,6 +557,48 @@ function get_fluid_color(fluid) {
     return FLUIDS_DATA[fluid];
 }
 
+/**
+ * Normalize material names in a dict to canonical case.
+ * @param {Object<string, number>} materials - dict of material names to values
+ * @returns {Object<string, number>} dict with normalized material names
+ */
+function normalize_material_names(materials) {
+    const normalized = {};
+    
+    for (const [material, value] of Object.entries(materials)) {
+        const canonical = _MATERIAL_NAME_LOOKUP.get(material.toLowerCase());
+        if (canonical) {
+            normalized[canonical] = value;
+        } else {
+            // keep original if not found (will be caught by validation)
+            normalized[material] = value;
+        }
+    }
+    
+    return normalized;
+}
+
+/**
+ * Normalize material names in an inputs array to canonical case.
+ * @param {Array<[string, number]>} inputs - array of [material, rate] tuples
+ * @returns {Array<[string, number]>} array with normalized material names
+ */
+function normalize_input_array(inputs) {
+    const normalized = [];
+    
+    for (const [material, rate] of inputs) {
+        const canonical = _MATERIAL_NAME_LOOKUP.get(material.toLowerCase());
+        if (canonical) {
+            normalized.push([canonical, rate]);
+        } else {
+            // keep original if not found (will be caught by validation)
+            normalized.push([material, rate]);
+        }
+    }
+    
+    return normalized;
+}
+
 export {
     Purity,
     Recipe,
@@ -559,5 +616,7 @@ export {
     get_terminal_parts,
     get_default_enablement_set,
     get_fluids,
-    get_fluid_color
+    get_fluid_color,
+    normalize_material_names,
+    normalize_input_array
 };

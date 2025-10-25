@@ -9,7 +9,9 @@ import {
     get_all_recipes_by_machine,
     get_all_recipes,
     get_base_parts,
-    get_default_enablement_set
+    get_default_enablement_set,
+    normalize_material_names,
+    normalize_input_array
 } from './recipes.js';
 import { get_default_economy } from './economy.js';
 import { solve_lp, SolverResult } from './lp-solver.js';
@@ -897,6 +899,10 @@ async function optimize_recipes(
             on_progress(message);
         }
     };
+
+    // Normalize material names to canonical case
+    outputs = normalize_material_names(outputs);
+    inputs = normalize_material_names(inputs);
 
     report_progress("Validating configuration...");
     [enablement_set, economy, design_power] = _validate_and_set_defaults(

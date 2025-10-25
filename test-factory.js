@@ -112,6 +112,27 @@ describe('Factory', () => {
         assert.ok(source.includes('Constructor'));
     });
 
+    it('lowercase concrete output generation', async () => {
+        const factory = await design_factory(
+            { 'concrete': 480 },
+            [],  // No inputs - should auto-detect limestone need
+            []
+        );
+
+        assert.ok(factory.network != null);
+        const source = factory.network.source;
+
+        // Should have auto-generated limestone input
+        assert.ok(source.includes('Limestone'));
+        assert.ok(source.toLowerCase().includes('auto'));
+
+        // Should have constructor machines
+        assert.ok(source.includes('Constructor'));
+        
+        // Should successfully generate factory despite lowercase input
+        assert.ok(source.length > 0);
+    });
+
     it('complex production chain', async () => {
         const factory = await design_factory(
             { 'Iron Plate': 200, 'Copper Ingot': 100 },

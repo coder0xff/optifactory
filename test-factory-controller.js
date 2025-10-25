@@ -85,6 +85,22 @@ Copper Ingot:50
         }
     });
 
+    it('test_parse_config_text_case_insensitive_concrete: parse_config_text should recognize both concrete and Concrete', () => {
+        const text_lower = "concrete:480";
+        const text_upper = "Concrete:480";
+        const result_lower = FactoryController.parse_config_text(text_lower);
+        const result_upper = FactoryController.parse_config_text(text_upper);
+        
+        assert.strictEqual(result_lower.length, 1);
+        assert.strictEqual(result_upper.length, 1);
+        assert.strictEqual(result_lower[0][1], 480.0);
+        assert.strictEqual(result_upper[0][1], 480.0);
+        
+        // both should parse successfully
+        assert.ok(result_lower[0][0] === "concrete" || result_lower[0][0] === "Concrete");
+        assert.ok(result_upper[0][0] === "Concrete");
+    });
+
     it('test_format_recipe_tooltip_with_inputs_and_outputs: format_recipe_tooltip should format recipe with inputs and outputs', () => {
         const recipe = new Recipe(
             "Smelter",

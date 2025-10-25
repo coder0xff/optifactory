@@ -4,7 +4,7 @@
  */
 
 import { design_balancer } from './balancer.js';
-import { Purity, get_mining_rate, Recipe, get_all_recipes, get_fluids, get_fluid_color } from './recipes.js';
+import { Purity, get_mining_rate, Recipe, get_all_recipes, get_fluids, get_fluid_color, normalize_material_names, normalize_input_array } from './recipes.js';
 import { optimize_recipes } from './optimize.js';
 import { Digraph } from './graphviz-builder.js';
 
@@ -842,6 +842,10 @@ async function design_factory(
             onProgress(message);
         }
     };
+
+    // Normalize material names to canonical case
+    outputs = normalize_material_names(outputs);
+    inputs = normalize_input_array(inputs);
 
     // Phase 1: Calculate required machines
     report_progress("Optimizing recipe selection...");
