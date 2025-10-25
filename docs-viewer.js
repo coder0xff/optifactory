@@ -158,54 +158,6 @@ const DocsViewerComponent = {
                     </ul>
                 </section>
 
-                <!-- Examples -->
-                <section id="examples">
-                    <h2>5. Interactive Examples</h2>
-                    <p><em>The examples below generate live diagrams using the actual Optifactory engine!</em></p>
-
-                    <h3 id="example-simple">5.1 Simple: Iron Rods from Iron Ore</h3>
-                    <p>Produce 60 Iron Rods per minute from raw Iron Ore.</p>
-                    <diagram-viewer 
-                        :dot-source="simpleExampleDot"
-                        :is-loading="isGeneratingSimple"
-                        container-ref="simple"
-                    />
-
-                    <h3 id="example-scaling">5.2 Scaled Production with Balancers</h3>
-                    <p>Produce 240 Iron Rods per minute, requiring multiple machines. Notice the automatic balancer networks (yellow splitters, purple mergers) that distribute materials efficiently.</p>
-                    <diagram-viewer 
-                        :dot-source="balancerExampleDot"
-                        :is-loading="isGeneratingBalancer"
-                        container-ref="balancer"
-                    />
-
-                    <h3 id="example-complex">5.3 Multi-Step: Reinforced Iron Plates</h3>
-                    <p>Produce 20 Reinforced Iron Plates per minute. This example shows a multi-step production chain with multiple input materials.</p>
-                    <diagram-viewer 
-                        :dot-source="complexExampleDot"
-                        :is-loading="isGeneratingComplex"
-                        container-ref="complex"
-                    />
-                </section>
-
-                <!-- Understanding Diagrams -->
-                <section id="diagrams">
-                    <h2>6. Understanding Diagrams</h2>
-                    
-                    <h3>Layout</h3>
-                    <ul>
-                        <li><strong>Left:</strong> Input and mine nodes</li>
-                        <li><strong>Center:</strong> Machine clusters (groups of machines doing the same recipe)</li>
-                        <li><strong>Right:</strong> Output nodes (green for requested, salmon for byproducts)</li>
-                    </ul>
-
-                    <h3>Conveyor Belts and Pipes</h3>
-                    <p>Edges show material flow. More black stripes = faster conveyor belt. Colored stripes with grey borders = pipes for fluids.</p>
-
-                    <h3>Splitters and Mergers</h3>
-                    <p>Yellow diamonds split materials to multiple machines. Purple diamonds merge materials from multiple sources. These are automatically generated to route materials efficiently.</p>
-                </section>
-
                 <!-- Tips -->
                 <section id="tips">
                     <h2>7. Tips</h2>
@@ -258,9 +210,6 @@ const DocsViewerComponent = {
         await this.generateExample1();
         await this.generateExample2();
         await this.generateExample3();
-        await this.generateSimpleExample();
-        await this.generateBalancerExample();
-        await this.generateComplexExample();
     },
     methods: {
         generateTableOfContents() {
@@ -308,7 +257,7 @@ const DocsViewerComponent = {
                     outputs,
                     inputs,
                     mines,
-                    null,
+                    Set(["Plastic"]),
                     this.economy,
                     1.0,
                     0.0,
@@ -408,7 +357,7 @@ const DocsViewerComponent = {
                     outputs,
                     inputs,
                     mines,
-                    null,  // enablementSet (null = all enabled)
+                    Set(["Residual Plastic"]),
                     this.economy,
                     1.0,   // inputCostsWeight
                     0.0,   // machineCountsWeight
@@ -444,7 +393,7 @@ const DocsViewerComponent = {
                     outputs,
                     inputs,
                     mines,
-                    null,
+                    Set([["Alternate: Pure Copper Ingot", "Copper Ingot", "Wire", "Copper Sheet", "Cable"]]),
                     this.economy,
                     1.0,
                     0.0,
