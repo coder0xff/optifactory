@@ -552,5 +552,25 @@ Copper Ingot:50
         return 'Recipe ID generation works';
     });
 
+    test('test_machine_tristate_when_alternate_disabled: Converter should be tristate when Alternate: Dark-Ion Fuel is disabled but other recipes enabled', () => {
+        const controller = new FactoryController({});
+        
+        // Enable Dark Matter Residue and Excited Photonic Matter, disable Alternate: Dark-Ion Fuel
+        controller.set_recipe_enabled("Dark Matter Residue", true);
+        controller.set_recipe_enabled("Excited Photonic Matter", true);
+        controller.set_recipe_enabled("Alternate: Dark-Ion Fuel", false);
+        
+        const structure = controller.get_recipe_tree_structure();
+        
+        // Find the Converter machine node
+        const converter = structure.machines.find(m => m.display_name === "Converter");
+        assertNotNull(converter, 'Should find Converter machine');
+        
+        // Verify that the Converter is in tristate (some but not all recipes enabled)
+        assertEquals(converter.check_state, "tristate", 'Converter should be in tristate');
+        
+        return 'Machine tristate with alternate disabled works';
+    });
+
     return runner;
 }
