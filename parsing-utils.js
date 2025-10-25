@@ -30,7 +30,7 @@ function _validate_has_colon(text) {
  *     returns [material_name, rate_string] where both are stripped of whitespace
  * 
  * @param {string} text - string in format "Material:Rate"
- * @returns {[string, string]} array of [material_name, rate_string] with whitespace removed
+ * @returns {[string, string]} [material_name, rate_string] with whitespace removed
  */
 function _split_material_rate_string(text) {
     const colonIndex = text.indexOf(':');
@@ -73,8 +73,8 @@ function _parse_rate_value(rate_str, material) {
  * Postcondition:
  *     returns [material_name, rate] where material_name is trimmed and rate is a float
  *
- * @param {string} text - String in format "Material:Rate" (e.g., "Iron Ore:120")
- * @returns {[string, number]} array of [material_name, rate]
+ * @param {string} text - string in format "Material:Rate" (e.g., "Iron Ore:120")
+ * @returns {[string, number]} [material_name, rate]
  * @throws {Error} if format is invalid or rate is not a number
  */
 export function parse_material_rate(text) {

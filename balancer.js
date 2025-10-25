@@ -9,7 +9,7 @@ import { Digraph } from './graphviz-builder.js';
 // ============================================================================
 
 /**
- * Creates a nested defaultdict-like object.
+ * Create a nested defaultdict-like object.
  * Returns a Proxy that auto-creates nested objects on access.
  */
 function createNestedDefaultDict() {
@@ -46,8 +46,8 @@ function createNestedDefaultDict() {
  * @param {number} in_flow - available flow from this input
  * @param {number} remaining - remaining flow requirement for the output
  * @param {number} out_idx - index of the output being satisfied
- * @param {Object} flow_matrix - nested dict tracking assignments
- * @param {Array} available_inputs - list of available inputs (mutated if input not fully consumed)
+ * @param {Object<number, Object<number, number>>} flow_matrix - nested dict tracking assignments
+ * @param {Array<[number, number]>} available_inputs - list of available inputs (mutated if input not fully consumed)
  * @returns {number} remaining flow requirement after this assignment
  */
 function _consume_input_flow(in_idx, in_flow, remaining, out_idx, flow_matrix, available_inputs) {
@@ -77,7 +77,7 @@ function _consume_input_flow(in_idx, in_flow, remaining, out_idx, flow_matrix, a
  * 
  * @param {Array<number>} inputs - list of input flow rates
  * @param {Array<number>} outputs - list of output flow requirements
- * @returns {Object} flow_matrix[input_idx][output_idx] = flow_amount
+ * @returns {Object<number, Object<number, number>>} flow_matrix[input_idx][output_idx] = flow_amount
  */
 function _assign_flows(inputs, outputs) {
     const flow_matrix = createNestedDefaultDict();
@@ -115,8 +115,8 @@ function _assign_flows(inputs, outputs) {
  *     dot is mutated to include output nodes (O0, O1, ...) with blue fill
  * 
  * @param {Digraph} dot - Graphviz graph to add nodes to
- * @param {Array} inputs - list of input flows (length used for node count)
- * @param {Array} outputs - list of output flows (length used for node count)
+ * @param {Array<number>} inputs - list of input flows (length used for node count)
+ * @param {Array<number>} outputs - list of output flows (length used for node count)
  */
 function _add_io_nodes(dot, inputs, outputs) {
     for (let idx = 0; idx < inputs.length; idx++) {
@@ -159,9 +159,9 @@ function _add_io_nodes(dot, inputs, outputs) {
  *     for non-leaf nodes: an edge is added from splitter to child in dot
  * 
  * @param {string} child_id - ID of the child node
- * @param {Object} child_dests - mapping of destination IDs to flow amounts for this child
+ * @param {Object<number, number>} child_dests - mapping of destination IDs to flow amounts for this child
  * @param {string} splitter_id - ID of the parent splitter node
- * @param {Object} dest_sources - dict tracking source nodes for each destination
+ * @param {Object<number, [string, number]>} dest_sources - dict tracking source nodes for each destination
  * @param {Digraph} dot - Graphviz graph
  */
 function _connect_child_to_splitter(child_id, child_dests, splitter_id, dest_sources, dot) {
@@ -194,12 +194,12 @@ function _connect_child_to_splitter(child_id, child_dests, splitter_id, dest_sou
  *     returns [splitter_id, merged_destinations_dict]
  *     dest_sources may be mutated if group contains leaf nodes
  * 
- * @param {Array} roots - list of [node_id, destinations] tuples to group
+ * @param {Array<[string, Object<number, number>]>} roots - list of [node_id, destinations] tuples to group
  * @param {number} group_size - number of roots to group together
- * @param {Array} device_counter - mutable counter for generating unique device IDs
+ * @param {Array<number>} device_counter - mutable counter for generating unique device IDs
  * @param {Digraph} dot - Graphviz graph to add nodes/edges to
- * @param {Object} dest_sources - dict tracking which node feeds each destination
- * @returns {Array} [splitter_id, merged_destinations_dict]
+ * @param {Object<number, [string, number]>} dest_sources - dict tracking which node feeds each destination
+ * @returns {[string, Object<number, number>]} [splitter_id, merged_destinations_dict]
  */
 function _group_roots_into_splitter(roots, group_size, device_counter, dot, dest_sources) {
     const group = roots.slice(0, group_size);
@@ -233,9 +233,9 @@ function _group_roots_into_splitter(roots, group_size, device_counter, dot, dest
  *     returns dict mapping source_node_id -> flow_amount for this output
  * 
  * @param {number} out_idx - index of the output to collect sources for
- * @param {Object} flow_matrix - flow assignments from inputs to outputs
- * @param {Object} input_outputs - mapping of split tree results
- * @returns {Object} dict mapping source node IDs to flow amounts feeding this output
+ * @param {Object<number, Object<number, number>>} flow_matrix - flow assignments from inputs to outputs
+ * @param {Object<number, Object<number, [string, number]>>} input_outputs - mapping of split tree results
+ * @returns {Object<string, number>} dict mapping source node IDs to flow amounts feeding this output
  */
 function _collect_sources_for_output(out_idx, flow_matrix, input_outputs) {
     const sources = {};
@@ -265,8 +265,8 @@ function _collect_sources_for_output(out_idx, flow_matrix, input_outputs) {
  *     multiple sources create merge tree
  * 
  * @param {number} out_idx - index of the output to connect
- * @param {Object} flow_matrix - flow assignments from inputs to outputs
- * @param {Object} input_outputs - split tree results
+ * @param {Object<number, Object<number, number>>} flow_matrix - flow assignments from inputs to outputs
+ * @param {Object<number, Object<number, [string, number]>>} input_outputs - split tree results
  * @param {Function} build_merge_tree_func - function to build merge trees
  * @param {Digraph} dot - Graphviz graph
  */
@@ -333,8 +333,8 @@ function design_balancer(inputs, outputs) {
      * Build optimal split tree for one source feeding multiple destinations.
      * Build bottom-up: each output starts as a root, group 3 at a time until one root remains.
      * @param {string} source_id - source node ID
-     * @param {Object} flows_dict - {dest_id: flow_amount}
-     * @returns {Object} {dest_id: [node_id, flow]} mapping destinations to their immediate source nodes
+     * @param {Object<number, number>} flows_dict - dest_id to flow_amount
+     * @returns {Object<number, [string, number]>} dest_id to [node_id, flow] mapping destinations to their immediate source nodes
      */
     function build_split_tree(source_id, flows_dict) {
         if (Object.keys(flows_dict).length === 1) {
@@ -387,7 +387,7 @@ function design_balancer(inputs, outputs) {
 
     /**
      * Build optimal merge tree for multiple sources feeding one destination.
-     * @param {Object} flows_dict - {source_id: flow_amount}
+     * @param {Object<string, number>} flows_dict - source_id to flow_amount
      * @param {string} _dest_id - destination ID (unused)
      * @returns {string} node_id of the merged flow
      */

@@ -19,10 +19,9 @@ const _LOGGER = {
 // ============================================================================
 
 /**
- * Find strongly connected components in a directed graph using Tarjan's algorithm
- * 
- * @param {Object} graph - adjacency list mapping nodes to arrays/sets of neighbors
- * @returns {Array<Set>} - array of strongly connected components (each is a Set of nodes)
+ * Find strongly connected components in a directed graph using Tarjan's algorithm.
+ * @param {Object<string, Array<string>|Set<string>>} graph - adjacency list mapping nodes to arrays/sets of neighbors
+ * @returns {Array<Set<string>>} array of strongly connected components (each is a Set of nodes)
  */
 function tarjan(graph) {
     let index = 0;
@@ -81,10 +80,9 @@ function tarjan(graph) {
 // ============================================================================
 
 /**
- * Collect all unique parts from recipes
- * 
- * @param {Object} recipes - dict mapping recipe names to Recipe objects
- * @returns {Set<string>} - set of all unique part names appearing in inputs or outputs
+ * Collect all unique parts from recipes.
+ * @param {Object<string, Recipe>} recipes - dict mapping recipe names to Recipe objects
+ * @returns {Set<string>} set of all unique part names appearing in inputs or outputs
  */
 function _collect_all_parts(recipes) {
     const allParts = new Set();
@@ -100,11 +98,10 @@ function _collect_all_parts(recipes) {
 }
 
 /**
- * Create mappings between part names and indices
- * 
+ * Create mappings between part names and indices.
  * @param {Array<string>} sortedParts - list of unique part names in sorted order
- * @param {Object} pinnedValues - dict mapping part names to fixed values
- * @returns {Array} - [partsToIndex, pinnedIndexValues] where partsToIndex maps part names to indices and pinnedIndexValues maps indices to pinned values
+ * @param {Object<string, number>} pinnedValues - dict mapping part names to fixed values
+ * @returns {[Object<string, number>, Object<number, number>]} [partsToIndex, pinnedIndexValues] where partsToIndex maps part names to indices and pinnedIndexValues maps indices to pinned values
  */
 function _create_index_mappings(sortedParts, pinnedValues) {
     const partsToIndex = {};
@@ -123,11 +120,10 @@ function _create_index_mappings(sortedParts, pinnedValues) {
 }
 
 /**
- * Convert recipe to indexed form for efficient computation
- * 
- * @param {Object} recipe - Recipe object with inputs and outputs
- * @param {Object} partsToIndex - dict mapping part names to indices
- * @returns {Array} - [inputs, outputs] where inputs and outputs are arrays of [index, amount] pairs
+ * Convert recipe to indexed form for efficient computation.
+ * @param {Recipe} recipe - Recipe object with inputs and outputs
+ * @param {Object<string, number>} partsToIndex - dict mapping part names to indices
+ * @returns {[Array<[number, number]>, Array<[number, number]>]} [inputs, outputs] where inputs and outputs are arrays of [index, amount] pairs
  */
 function _recipe_to_indexed_form(recipe, partsToIndex) {
     const inputs = [];
@@ -144,12 +140,11 @@ function _recipe_to_indexed_form(recipe, partsToIndex) {
 }
 
 /**
- * Organize recipes by their output parts for efficient lookup
- * 
- * @param {Object} recipes - dict mapping recipe names to Recipe objects
+ * Organize recipes by their output parts for efficient lookup.
+ * @param {Object<string, Recipe>} recipes - dict mapping recipe names to Recipe objects
  * @param {Array<string>} sortedParts - list of part names in sorted order
- * @param {Object} partsToIndex - dict mapping part names to indices
- * @returns {Array<Array>} - list where index i contains recipes producing sortedParts[i], each in indexed form
+ * @param {Object<string, number>} partsToIndex - dict mapping part names to indices
+ * @returns {Array<Array<[Array<[number, number]>, Array<[number, number]>]>>} list where index i contains recipes producing sortedParts[i], each in indexed form
  */
 function _organize_recipes_by_outputs(recipes, sortedParts, partsToIndex) {
     const recipesProducingDict = {};
@@ -168,12 +163,11 @@ function _organize_recipes_by_outputs(recipes, sortedParts, partsToIndex) {
 }
 
 /**
- * Organize recipes by their input parts for efficient lookup
- * 
- * @param {Object} recipes - dict mapping recipe names to Recipe objects
+ * Organize recipes by their input parts for efficient lookup.
+ * @param {Object<string, Recipe>} recipes - dict mapping recipe names to Recipe objects
  * @param {Array<string>} sortedParts - list of part names in sorted order
- * @param {Object} partsToIndex - dict mapping part names to indices
- * @returns {Array<Array>} - list where index i contains recipes consuming sortedParts[i], each in indexed form
+ * @param {Object<string, number>} partsToIndex - dict mapping part names to indices
+ * @returns {Array<Array<[Array<[number, number]>, Array<[number, number]>]>>} list where index i contains recipes consuming sortedParts[i], each in indexed form
  */
 function _organize_recipes_by_inputs(recipes, sortedParts, partsToIndex) {
     const recipesConsumingDict = {};
@@ -192,11 +186,10 @@ function _organize_recipes_by_inputs(recipes, sortedParts, partsToIndex) {
 }
 
 /**
- * Initialize values array with defaults and pinned values
- * 
+ * Initialize values array with defaults and pinned values.
  * @param {number} numParts - number of parts
- * @param {Object} pinnedIndexValues - dict mapping indices to pinned values
- * @returns {Array<number>} - array of length numParts, all values default to 1.0, pinned indices set to their pinned values
+ * @param {Object<number, number>} pinnedIndexValues - dict mapping indices to pinned values
+ * @returns {Array<number>} array of length numParts, all values default to 1.0, pinned indices set to their pinned values
  */
 function _initialize_values_array(numParts, pinnedIndexValues) {
     const values = new Array(numParts).fill(1);
@@ -207,11 +200,10 @@ function _initialize_values_array(numParts, pinnedIndexValues) {
 }
 
 /**
- * Compute error and change trends from recent history
- * 
+ * Compute error and change trends from recent history.
  * @param {Array<number>} recentErrors - list of recent errors
  * @param {Array<number>} recentChanges - list of recent changes
- * @returns {Array<number>} - [errorTrend, changeTrend]; if length >= 100, compares first 50 vs last 50, otherwise returns [0, 0]
+ * @returns {[number, number]} [errorTrend, changeTrend]; if length >= 100, compares first 50 vs last 50, otherwise returns [0, 0]
  */
 function _compute_trend_metrics(recentErrors, recentChanges) {
     if (recentErrors.length >= 100) {
@@ -228,14 +220,13 @@ function _compute_trend_metrics(recentErrors, recentChanges) {
 }
 
 /**
- * Adjust temperature based on convergence trends
- * 
+ * Adjust temperature based on convergence trends.
  * @param {number} temperature - current temperature
  * @param {number} temperatureCap - temperature cap
  * @param {number} temperatureCapRate - temperature cap rate
  * @param {number} errorTrend - error trend
  * @param {number} changeTrend - change trend
- * @returns {Array<number>} - [newTemperature, newTemperatureCap, newTemperatureCapRate]
+ * @returns {[number, number, number]} [newTemperature, newTemperatureCap, newTemperatureCapRate]
  */
 function _adjust_temperature(temperature, temperatureCap, temperatureCapRate, errorTrend, changeTrend) {
     if (errorTrend >= 0 && changeTrend >= 0) {
@@ -256,11 +247,10 @@ function _adjust_temperature(temperature, temperatureCap, temperatureCapRate, er
 }
 
 /**
- * Normalize values to minimum of 1.0 and round
- * 
+ * Normalize values to minimum of 1.0 and round.
  * @param {Array<number>} values - list of values (all positive)
- * @param {Object} pinnedIndexValues - dict mapping indices to pinned values
- * @returns {Array<number>} - normalized and rounded values
+ * @param {Object<number, number>} pinnedIndexValues - dict mapping indices to pinned values
+ * @returns {Array<number>} normalized and rounded values
  */
 function _normalize_and_round_values(values, pinnedIndexValues) {
     const minValue = Math.min(...values);
@@ -276,10 +266,9 @@ function _normalize_and_round_values(values, pinnedIndexValues) {
 }
 
 /**
- * Normalize list of values so minimum is 1.0
- * 
+ * Normalize list of values so minimum is 1.0.
  * @param {Array<number>} values - list of positive floats
- * @returns {Array<number>} - normalized values
+ * @returns {Array<number>} normalized values
  */
 function _normalize_values_list(values) {
     const normalization = 1 / Math.min(...values);
@@ -287,13 +276,12 @@ function _normalize_values_list(values) {
 }
 
 /**
- * Interpolate between current and instantaneous values using temperature
- * 
+ * Interpolate between current and instantaneous values using temperature.
  * @param {Array<number>} values - list of current values
  * @param {Array<number>} instantaneousValues - list of instantaneous values
  * @param {number} temperature - interpolation factor (0 to 1)
- * @param {Object} pinnedIndexValues - dict mapping indices to pinned values
- * @returns {Array<number>} - interpolated values
+ * @param {Object<number, number>} pinnedIndexValues - dict mapping indices to pinned values
+ * @returns {Array<number>} interpolated values
  */
 function _interpolate_values(values, instantaneousValues, temperature, pinnedIndexValues) {
     const newValues = values.map((original, i) => 
@@ -309,12 +297,11 @@ function _interpolate_values(values, instantaneousValues, temperature, pinnedInd
 }
 
 /**
- * Compute errors and changes between iterations
- * 
+ * Compute errors and changes between iterations.
  * @param {Array<number>} values - list of original values
  * @param {Array<number>} newValues - list of new values after interpolation
  * @param {Array<number>} instantaneousValues - list of instantaneous values
- * @returns {Array<Array<number>>} - [errors, changes] where errors[i] = abs(instantaneousValues[i] - newValues[i]) and changes[i] = newValues[i] - values[i]
+ * @returns {[Array<number>, Array<number>]} [errors, changes] where errors[i] = abs(instantaneousValues[i] - newValues[i]) and changes[i] = newValues[i] - values[i]
  */
 function _compute_errors_and_changes(values, newValues, instantaneousValues) {
     const errors = newValues.map((value, i) => Math.abs(instantaneousValues[i] - value));
@@ -323,12 +310,11 @@ function _compute_errors_and_changes(values, newValues, instantaneousValues) {
 }
 
 /**
- * Compute value estimate from consuming recipes
- * 
+ * Compute value estimate from consuming recipes.
  * @param {number} partIndex - index of the part
- * @param {Array} consumingRecipes - list of (inputs, outputs) tuples consuming this part
+ * @param {Array<[Array<[number, number]>, Array<[number, number]>]>} consumingRecipes - list of (inputs, outputs) tuples consuming this part
  * @param {Array<number>} values - list of current value estimates
- * @returns {number} - value estimate based on consumer outputs
+ * @returns {number} value estimate based on consumer outputs
  */
 function _value_from_consumers(partIndex, consumingRecipes, values) {
     let valueOfAllConsumerOutputs = 0;
@@ -360,12 +346,11 @@ function _value_from_consumers(partIndex, consumingRecipes, values) {
 }
 
 /**
- * Compute value estimate from producing recipes
- * 
+ * Compute value estimate from producing recipes.
  * @param {number} partIndex - index of the part
- * @param {Array} producingRecipes - list of (inputs, outputs) tuples producing this part
+ * @param {Array<[Array<[number, number]>, Array<[number, number]>]>} producingRecipes - list of (inputs, outputs) tuples producing this part
  * @param {Array<number>} values - list of current value estimates
- * @returns {number} - value estimate based on producer inputs
+ * @returns {number} value estimate based on producer inputs
  */
 function _value_from_producers(partIndex, producingRecipes, values) {
     let valueOfAllProducerInputs = 0;
@@ -397,13 +382,12 @@ function _value_from_producers(partIndex, producingRecipes, values) {
 }
 
 /**
- * Compute instantaneous value estimate for a part
- * 
+ * Compute instantaneous value estimate for a part.
  * @param {number} partIndex - index of the part being updated
- * @param {Array} producingRecipes - recipes that produce this part
- * @param {Array} consumingRecipes - recipes that consume this part
+ * @param {Array<[Array<[number, number]>, Array<[number, number]>]>} producingRecipes - recipes that produce this part
+ * @param {Array<[Array<[number, number]>, Array<[number, number]>]>} consumingRecipes - recipes that consume this part
  * @param {Array<number>} values - current value estimates for all parts
- * @returns {number} - new instantaneous value estimate for the part
+ * @returns {number} new instantaneous value estimate for the part
  */
 function _instantaneous_value(partIndex, producingRecipes, consumingRecipes, values) {
     let counter = 0;
@@ -423,13 +407,12 @@ function _instantaneous_value(partIndex, producingRecipes, consumingRecipes, val
 }
 
 /**
- * Compute instantaneous values for all parts
- * 
- * @param {Array} recipesProducing - list of recipes producing each part
- * @param {Array} recipesConsuming - list of recipes consuming each part
+ * Compute instantaneous values for all parts.
+ * @param {Array<Array<[Array<[number, number]>, Array<[number, number]>]>>} recipesProducing - list of recipes producing each part
+ * @param {Array<Array<[Array<[number, number]>, Array<[number, number]>]>>} recipesConsuming - list of recipes consuming each part
  * @param {Array<number>} values - list of current value estimates
- * @param {Object} pinnedIndexValues - dict mapping indices to pinned values
- * @returns {Array<number>} - list of instantaneous values
+ * @param {Object<number, number>} pinnedIndexValues - dict mapping indices to pinned values
+ * @returns {Array<number>} list of instantaneous values
  */
 function _compute_all_instantaneous_values(recipesProducing, recipesConsuming, values, pinnedIndexValues) {
     const instantaneousValues = [];
@@ -450,14 +433,13 @@ function _compute_all_instantaneous_values(recipesProducing, recipesConsuming, v
 }
 
 /**
- * Perform one iteration step of value convergence
- * 
- * @param {Array} recipesProducing - list of recipes producing each part
- * @param {Array} recipesConsuming - list of recipes consuming each part
+ * Perform one iteration step of value convergence.
+ * @param {Array<Array<[Array<[number, number]>, Array<[number, number]>]>>} recipesProducing - list of recipes producing each part
+ * @param {Array<Array<[Array<[number, number]>, Array<[number, number]>]>>} recipesConsuming - list of recipes consuming each part
  * @param {Array<number>} values - list of current value estimates
  * @param {number} temperature - interpolation factor
- * @param {Object} pinnedIndexValues - dict mapping indices to pinned values
- * @returns {Array} - [newValues, changes, errors]
+ * @param {Object<number, number>} pinnedIndexValues - dict mapping indices to pinned values
+ * @returns {[Array<number>, Array<number>, Array<number>]} [newValues, changes, errors]
  */
 function _step(recipesProducing, recipesConsuming, values, temperature, pinnedIndexValues) {
     let instantaneousValues = _compute_all_instantaneous_values(
@@ -470,12 +452,11 @@ function _step(recipesProducing, recipesConsuming, values, temperature, pinnedIn
 }
 
 /**
- * Compute two-way ranks for all parts (distance from base/terminal items)
- * 
- * @param {Array} recipesProducing - list of recipes producing each part
- * @param {Array} recipesConsuming - list of recipes consuming each part
+ * Compute two-way ranks for all parts (distance from base/terminal items).
+ * @param {Array<Array<[Array<[number, number]>, Array<[number, number]>]>>} recipesProducing - list of recipes producing each part
+ * @param {Array<Array<[Array<[number, number]>, Array<[number, number]>]>>} recipesConsuming - list of recipes consuming each part
  * @param {number} numParts - number of parts
- * @returns {Array<number>} - list of ranks (rank 0 for base/terminal items)
+ * @returns {Array<number>} list of ranks (rank 0 for base/terminal items)
  */
 function _compute_two_way_ranks(recipesProducing, recipesConsuming, numParts) {
     const twoWayRanks = new Array(numParts).fill(numParts);
@@ -513,14 +494,13 @@ function _compute_two_way_ranks(recipesProducing, recipesConsuming, numParts) {
 }
 
 /**
- * Relax values by processing parts in reverse rank order
- * 
- * @param {Array} recipesProducing - list of recipes producing each part
- * @param {Array} recipesConsuming - list of recipes consuming each part
+ * Relax values by processing parts in reverse rank order.
+ * @param {Array<Array<[Array<[number, number]>, Array<[number, number]>]>>} recipesProducing - list of recipes producing each part
+ * @param {Array<Array<[Array<[number, number]>, Array<[number, number]>]>>} recipesConsuming - list of recipes consuming each part
  * @param {Array<number>} values - list of current value estimates
  * @param {Array<number>} twoWayRanks - list of ranks for each part
- * @param {Object} pinnedIndexValues - dict mapping indices to pinned values
- * @returns {Array<number>} - relaxed values
+ * @param {Object<number, number>} pinnedIndexValues - dict mapping indices to pinned values
+ * @returns {Array<number>} relaxed values
  */
 function _relax_by_ranks(recipesProducing, recipesConsuming, values, twoWayRanks, pinnedIndexValues) {
     const maxRank = Math.max(...twoWayRanks);
@@ -552,11 +532,10 @@ function _relax_by_ranks(recipesProducing, recipesConsuming, values, twoWayRanks
 }
 
 /**
- * Compute values for all items in a single economy using iterative convergence
- * 
- * @param {Object} recipes - dict mapping recipe names to Recipe objects (all recipes form single interconnected economy)
- * @param {Object} pinnedValues - dict mapping item names to fixed values that won't change during convergence (optional)
- * @returns {Object} - dict mapping item names to computed values
+ * Compute values for all items in a single economy using iterative convergence.
+ * @param {Object<string, Recipe>} recipes - dict mapping recipe names to Recipe objects (all recipes form single interconnected economy)
+ * @param {Object<string, number>|null} pinnedValues - dict mapping item names to fixed values that won't change during convergence (optional)
+ * @returns {Object<string, number>} dict mapping item names to computed values
  */
 function _compute_economy_values(recipes, pinnedValues = null) {
     pinnedValues = pinnedValues || {};
@@ -622,14 +601,13 @@ function _compute_economy_values(recipes, pinnedValues = null) {
 }
 
 /**
- * Perform relaxation to improve value estimates
- * 
- * @param {Array} recipesProducing - list of recipes producing each part
- * @param {Array} recipesConsuming - list of recipes consuming each part
+ * Perform relaxation to improve value estimates.
+ * @param {Array<Array<[Array<[number, number]>, Array<[number, number]>]>>} recipesProducing - list of recipes producing each part
+ * @param {Array<Array<[Array<[number, number]>, Array<[number, number]>]>>} recipesConsuming - list of recipes consuming each part
  * @param {Array<number>} values - list of current value estimates
  * @param {Array<string>} sortedParts - list of part names (unused, for debugging)
- * @param {Object} pinnedIndexValues - dict mapping indices to pinned values
- * @returns {Array<number>} - relaxed values
+ * @param {Object<number, number>} pinnedIndexValues - dict mapping indices to pinned values
+ * @returns {Array<number>} relaxed values
  */
 function _relax(recipesProducing, recipesConsuming, values, sortedParts, pinnedIndexValues) {
     const twoWayRanks = _compute_two_way_ranks(recipesProducing, recipesConsuming, values.length);
@@ -642,10 +620,9 @@ function _relax(recipesProducing, recipesConsuming, values, sortedParts, pinnedI
 // ============================================================================
 
 /**
- * Separate recipes into disconnected economies using Tarjan's algorithm
- * 
- * @param {Object} recipes - dict mapping recipe names to Recipe objects
- * @returns {Array<Object>} - list of economy dicts, each containing interconnected recipes
+ * Separate recipes into disconnected economies using Tarjan's algorithm.
+ * @param {Object<string, Recipe>} recipes - dict mapping recipe names to Recipe objects
+ * @returns {Array<Object<string, Recipe>>} list of economy dicts, each containing interconnected recipes
  */
 function separate_economies(recipes) {
     const partsToParts = {};
@@ -711,11 +688,10 @@ function separate_economies(recipes) {
 }
 
 /**
- * Compute item values for all recipes, handling multiple separate economies
- * 
- * @param {Object} recipes - dict of all recipes to consider (if null, uses all available recipes)
- * @param {Object} pinnedValues - dict of item names to fixed values that won't change during convergence
- * @returns {Object} - dict mapping all item names to their computed values
+ * Compute item values for all recipes, handling multiple separate economies.
+ * @param {Object<string, Recipe>|null} recipes - dict of all recipes to consider (if null, uses all available recipes)
+ * @param {Object<string, number>|null} pinnedValues - dict of item names to fixed values that won't change during convergence
+ * @returns {Object<string, number>} dict mapping all item names to their computed values
  */
 function compute_item_values(recipes = null, pinnedValues = null) {
     recipes = recipes || get_all_recipes();
@@ -732,10 +708,9 @@ function compute_item_values(recipes = null, pinnedValues = null) {
 }
 
 /**
- * Get the default economies for a given set of recipes
- * 
- * @param {Object} recipes - dict of recipes (if null, uses all available recipes)
- * @returns {Array<Object>} - array of economy dicts, each mapping item names to values
+ * Get the default economies for a given set of recipes.
+ * @param {Object<string, Recipe>|null} recipes - dict of recipes (if null, uses all available recipes)
+ * @returns {Array<Object<string, number>>} array of economy dicts, each mapping item names to values
  */
 function get_default_economies(recipes = null) {
     recipes = recipes || get_all_recipes();
@@ -744,21 +719,19 @@ function get_default_economies(recipes = null) {
 }
 
 /**
- * Get the default economy combining all separate economies into one dict
- * 
- * @param {Object} recipes - dict of recipes (if null, uses all available recipes)
- * @returns {Object} - dict mapping all item names to values
+ * Get the default economy combining all separate economies into one dict.
+ * @param {Object<string, Recipe>|null} recipes - dict of recipes (if null, uses all available recipes)
+ * @returns {Object<string, number>} dict mapping all item names to values
  */
 function get_default_economy(recipes = null) {
     return compute_item_values(recipes);
 }
 
 /**
- * Compute the total cost of recipe inputs
- * 
- * @param {Object} recipes - dict mapping recipe names to counts
- * @param {Object} economy - dict mapping item names to values (if null, uses default economy)
- * @returns {number} - total cost
+ * Compute the total cost of recipe inputs.
+ * @param {Object<string, number>} recipes - dict mapping recipe names to counts
+ * @param {Object<string, number>|null} economy - dict mapping item names to values (if null, uses default economy)
+ * @returns {number} total cost
  */
 function cost_of_recipes(recipes, economy = null) {
     economy = economy || get_default_economy();
@@ -775,11 +748,10 @@ function cost_of_recipes(recipes, economy = null) {
 }
 
 /**
- * Convert economy values and pinned status to CSV string
- * 
- * @param {Object} economy - dict mapping item names to values
- * @param {Set} pinnedItems - set of item names that are pinned (optional)
- * @returns {string} - CSV string with header and data rows
+ * Convert economy values and pinned status to CSV string.
+ * @param {Object<string, number>} economy - dict mapping item names to values
+ * @param {Set<string>|null} pinnedItems - set of item names that are pinned (optional)
+ * @returns {string} CSV string with header and data rows
  */
 function economy_to_csv(economy, pinnedItems = null) {
     pinnedItems = pinnedItems || new Set();
@@ -796,10 +768,9 @@ function economy_to_csv(economy, pinnedItems = null) {
 }
 
 /**
- * Parse economy values and pinned status from CSV string
- * 
+ * Parse economy values and pinned status from CSV string.
  * @param {string} csvString - CSV string with Item, Value, Pinned columns
- * @returns {Array} - [economy, pinnedItems] where economy is dict and pinnedItems is Set
+ * @returns {[Object<string, number>, Set<string>]} [economy, pinnedItems] where economy is dict and pinnedItems is Set
  */
 function economy_from_csv(csvString) {
     const economy = {};

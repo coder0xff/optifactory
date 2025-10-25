@@ -6,7 +6,7 @@
  */
 
 /**
- * Result from LP solver.
+ * result from LP solver
  */
 export class SolverResult {
     /**
@@ -20,7 +20,7 @@ export class SolverResult {
     
     /**
      * Check if optimization succeeded.
-     * @returns {boolean}
+     * @returns {boolean} whether optimization was optimal
      */
     is_optimal() {
         return this.status === 'Optimal';
@@ -33,7 +33,6 @@ let _highs_instance = null;
 /**
  * Initialize HiGHS solver (loads the WASM module).
  * Should be called once before using solve_lp.
- * 
  * @returns {Promise<Object>} HiGHS instance
  */
 export async function init_highs() {

@@ -51,16 +51,6 @@ class EconomyTableStructure {
 class EconomyController {
     /**
      * Initialize controller with default economy.
-     *
-     * Precondition:
-     *     none
-     *
-     * Postcondition:
-     *     this.economy is initialized with default economy dict
-     *     this.pinned_items is initialized as empty set
-     *     this._filter_text is empty string
-     *     this._sort_column is 'item'
-     *     this._sort_ascending is true
      */
     constructor() {
         this.economy = Object.assign({}, get_default_economy());
@@ -76,15 +66,7 @@ class EconomyController {
     
     /**
      * Get current filter text.
-     *
-     * Precondition:
-     *     none
-     *
-     * Postcondition:
-     *     returns current filter text string
-     *
-     * Returns:
-     *     current filter text
+     * @returns {string} current filter text
      */
     get_filter_text() {
         return this._filter_text;
@@ -92,16 +74,7 @@ class EconomyController {
     
     /**
      * Get current sort state.
-     *
-     * Precondition:
-     *     none
-     *
-     * Postcondition:
-     *     returns [sort_column, sort_ascending] array
-     *     sort_column may be null, 'item', 'value', or 'locked'
-     *
-     * Returns:
-     *     array of [sort_column, sort_ascending]
+     * @returns {Array<*>} array of [sort_column, sort_ascending]
      */
     get_sort_state() {
         return [this._sort_column, this._sort_ascending];
@@ -109,18 +82,7 @@ class EconomyController {
     
     /**
      * Get header display texts with sort indicators.
-     *
-     * Precondition:
-     *     this._sort_column is null, 'item', 'value', or 'locked'
-     *     this._sort_ascending is a boolean
-     *
-     * Postcondition:
-     *     returns object mapping column names to display text
-     *     sorted column has arrow indicator (▲ or ▼)
-     *     unsorted columns have no indicator
-     *
-     * Returns:
-     *     object mapping column name ('item', 'value', 'locked') to display text
+     * @returns {Object<string, string>} object mapping column name ('item', 'value', 'locked') to display text
      */
     get_header_texts() {
         const base_names = {
@@ -146,15 +108,7 @@ class EconomyController {
     
     /**
      * Set filter text.
-     *
-     * Precondition:
-     *     text is a string
-     *
-     * Postcondition:
-     *     this._filter_text is updated to text
-     *
-     * Args:
-     *     text: new filter text
+     * @param {string} text - new filter text
      */
     set_filter_text(text) {
         this._filter_text = text;
@@ -162,17 +116,7 @@ class EconomyController {
     
     /**
      * Set sort column, toggling direction if same column.
-     *
-     * Precondition:
-     *     column is null, 'item', 'value', or 'locked'
-     *
-     * Postcondition:
-     *     if column == current column: direction is toggled
-     *     if column != current column: column is set, direction is ascending
-     *     this._sort_column and this._sort_ascending are updated
-     *
-     * Args:
-     *     column: 'item', 'value', 'locked', or null
+     * @param {string|null} column - 'item', 'value', 'locked', or null
      */
     set_sort(column) {
         if (this._sort_column === column) {
@@ -187,18 +131,8 @@ class EconomyController {
     
     /**
      * Set value for an item.
-     *
-     * Precondition:
-     *     item_name is a string
-     *     value is a number
-     *
-     * Postcondition:
-     *     if item_name in economy: this.economy[item_name] is set to value
-     *     if item_name not in economy: no change
-     *
-     * Args:
-     *     item_name: name of the item
-     *     value: new value
+     * @param {string} item_name - name of the item
+     * @param {number} value - new value
      */
     set_item_value(item_name, value) {
         if (item_name in this.economy) {
@@ -208,18 +142,8 @@ class EconomyController {
     
     /**
      * Set pinned state for an item.
-     *
-     * Precondition:
-     *     item_name is a string
-     *     is_pinned is a boolean
-     *
-     * Postcondition:
-     *     if is_pinned: item_name is added to this.pinned_items
-     *     if not is_pinned: item_name is removed from this.pinned_items
-     *
-     * Args:
-     *     item_name: name of the item
-     *     is_pinned: true to pin, false to unpin
+     * @param {string} item_name - name of the item
+     * @param {boolean} is_pinned - true to pin, false to unpin
      */
     set_item_pinned(item_name, is_pinned) {
         if (is_pinned) {
@@ -233,18 +157,8 @@ class EconomyController {
     
     /**
      * Generate stable ID for economy item.
-     *
-     * Precondition:
-     *     item_name is a non-empty string
-     *
-     * Postcondition:
-     *     returns string in format "item:{item_name}"
-     *
-     * Args:
-     *     item_name: name of the item
-     *
-     * Returns:
-     *     stable ID string
+     * @param {string} item_name - name of the item
+     * @returns {string} stable ID string
      */
     static _make_item_id(item_name) {
         return `item:${item_name}`;
@@ -252,21 +166,8 @@ class EconomyController {
     
     /**
      * Filter economy items by text match.
-     *
-     * Precondition:
-     *     filter_text is a lowercase string (may be empty)
-     *     this.economy contains item names
-     *
-     * Postcondition:
-     *     returns array of item names matching filter
-     *     empty filter returns all items
-     *     matching is case-insensitive
-     *
-     * Args:
-     *     filter_text: lowercase filter text
-     *
-     * Returns:
-     *     array of matching item names
+     * @param {string} filter_text - lowercase filter text
+     * @returns {Array<string>} array of matching item names
      */
     _filter_economy_items(filter_text) {
         return Object.keys(this.economy).filter(item_name =>
@@ -276,17 +177,7 @@ class EconomyController {
     
     /**
      * Sort economy items in-place based on current sort column.
-     *
-     * Precondition:
-     *     items is an array of item names from this.economy
-     *     this._sort_column is null, 'item', 'value', or 'locked'
-     *     this._sort_ascending is a boolean
-     *
-     * Postcondition:
-     *     items array is sorted in-place according to sort column and direction
-     *
-     * Args:
-     *     items: array of item names to sort
+     * @param {Array<string>} items - array of item names to sort
      */
     _sort_economy_items(items) {
         if (this._sort_column === 'item') {
@@ -316,20 +207,8 @@ class EconomyController {
     
     /**
      * Build an EconomyItem structure from an item name.
-     *
-     * Precondition:
-     *     item_name is in this.economy
-     *     item_name is a valid string
-     *
-     * Postcondition:
-     *     returns EconomyItem with all fields populated
-     *     is_visible is always true (pre-filtered)
-     *
-     * Args:
-     *     item_name: name of the item
-     *
-     * Returns:
-     *     EconomyItem structure
+     * @param {string} item_name - name of the item
+     * @returns {EconomyItem} EconomyItem structure
      */
     _build_economy_item(item_name) {
         return new EconomyItem(
@@ -343,20 +222,7 @@ class EconomyController {
     
     /**
      * Get complete table structure with IDs, values, and visibility.
-     *
-     * Precondition:
-     *     this.economy is initialized
-     *     this._filter_text is a string
-     *     this._sort_column is null, 'item', 'value', or 'locked'
-     *     this._sort_ascending is a boolean
-     *
-     * Postcondition:
-     *     returns EconomyTableStructure with filtered, sorted items
-     *     each item has ID, display name, value, and pinned state
-     *     structure includes current sort state
-     *
-     * Returns:
-     *     EconomyTableStructure ready for rendering
+     * @returns {EconomyTableStructure} EconomyTableStructure ready for rendering
      */
     get_economy_table_structure() {
         const filter_text = this._filter_text.toLowerCase();
@@ -379,14 +245,6 @@ class EconomyController {
     
     /**
      * Reset economy to default values.
-     *
-     * Precondition:
-     *     none
-     *
-     * Postcondition:
-     *     this.economy is cleared and reloaded with default values
-     *     this.pinned_items is cleared
-     *     info message is logged
      */
     reset_to_default() {
         this.economy = Object.assign({}, get_default_economy());
@@ -397,18 +255,7 @@ class EconomyController {
     
     /**
      * Recompute economy values using gradient descent with pinned values.
-     *
-     * Precondition:
-     *     this.economy contains valid item values
-     *     this.pinned_items contains item names to pin
-     *
-     * Postcondition:
-     *     this.economy is updated with newly computed values
-     *     pinned items retain their original values
-     *     info message is logged
-     *
-     * Throws:
-     *     Exception: if recomputation fails
+     * @throws {Error} if recomputation fails
      */
     recompute_values() {
         // Build pinned_values object from pinned items
@@ -426,21 +273,8 @@ class EconomyController {
     
     /**
      * Load economy from CSV string.
-     *
-     * Precondition:
-     *     csv_string is a valid CSV string
-     *     CSV string contains economy data in correct format
-     *
-     * Postcondition:
-     *     this.economy is cleared and loaded with data from CSV
-     *     this.pinned_items is cleared and loaded with pinned items from CSV
-     *     info message is logged
-     *
-     * Args:
-     *     csv_string: CSV string with economy data
-     *     
-     * Throws:
-     *     Exception: if load fails
+     * @param {string} csv_string - CSV string with economy data
+     * @throws {Error} if load fails
      */
     load_from_csv(csv_string) {
         const [loaded_economy, loaded_pinned] = economy_from_csv(csv_string);
@@ -455,20 +289,8 @@ class EconomyController {
     
     /**
      * Save economy to CSV string.
-     *
-     * Precondition:
-     *     this.economy contains valid item values
-     *     this.pinned_items contains item names
-     *
-     * Postcondition:
-     *     returns CSV string with economy data
-     *     info message is logged
-     *
-     * Returns:
-     *     CSV string representation of economy
-     *     
-     * Throws:
-     *     Exception: if save fails
+     * @returns {string} CSV string representation of economy
+     * @throws {Error} if save fails
      */
     save_to_csv() {
         const csv_string = economy_to_csv(this.economy, this.pinned_items);

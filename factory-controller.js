@@ -117,24 +117,7 @@ class RecipeTreeStructure {
 class FactoryController {
     /**
      * Initialize controller with economy values.
-     * 
-     * Precondition:
-     *     economy is a dict mapping item names to float values
-     * 
-     * Postcondition:
-     *     this.economy references the provided economy
-     *     this._outputs_text is initialized to default "Concrete:480"
-     *     this._inputs_text is initialized to comment template
-     *     this._mines_text is initialized to empty string
-     *     this.enabled_recipes is initialized to default enabled recipes
-     *     this._recipe_search_text is empty string
-     *     this._input_costs_weight is 1.0
-     *     this._machine_counts_weight is 0.0
-     *     this._power_consumption_weight is 1.0
-     *     this._design_power is false
-     *     this._current_factory is null
-     * 
-     * @param {Object.<string, number>} economy - dict of item names to values
+     * @param {Object<string, number>} economy - dict of item names to values
      */
     constructor(economy) {
         this.economy = economy;
@@ -168,13 +151,6 @@ class FactoryController {
     
     /**
      * Get outputs configuration text.
-     * 
-     * Precondition:
-     *     none
-     * 
-     * Postcondition:
-     *     returns current outputs text string
-     * 
      * @returns {string} outputs configuration text
      */
     get_outputs_text() {
@@ -183,13 +159,6 @@ class FactoryController {
     
     /**
      * Get inputs configuration text.
-     * 
-     * Precondition:
-     *     none
-     * 
-     * Postcondition:
-     *     returns current inputs text string
-     * 
      * @returns {string} inputs configuration text
      */
     get_inputs_text() {
@@ -198,13 +167,6 @@ class FactoryController {
     
     /**
      * Get mines configuration text.
-     * 
-     * Precondition:
-     *     none
-     * 
-     * Postcondition:
-     *     returns current mines text string
-     * 
      * @returns {string} mines configuration text
      */
     get_mines_text() {
@@ -213,13 +175,6 @@ class FactoryController {
     
     /**
      * Get recipe search filter text.
-     * 
-     * Precondition:
-     *     none
-     * 
-     * Postcondition:
-     *     returns current recipe search text string
-     * 
      * @returns {string} recipe search filter text
      */
     get_recipe_search_text() {
@@ -228,13 +183,6 @@ class FactoryController {
     
     /**
      * Get input costs optimization weight.
-     * 
-     * Precondition:
-     *     none
-     * 
-     * Postcondition:
-     *     returns current input costs weight
-     * 
      * @returns {number} input costs optimization weight
      */
     get_input_costs_weight() {
@@ -243,13 +191,6 @@ class FactoryController {
     
     /**
      * Get machine counts optimization weight.
-     * 
-     * Precondition:
-     *     none
-     * 
-     * Postcondition:
-     *     returns current machine counts weight
-     * 
      * @returns {number} machine counts optimization weight
      */
     get_machine_counts_weight() {
@@ -258,13 +199,6 @@ class FactoryController {
     
     /**
      * Get power consumption optimization weight.
-     * 
-     * Precondition:
-     *     none
-     * 
-     * Postcondition:
-     *     returns current power consumption weight
-     * 
      * @returns {number} power consumption optimization weight
      */
     get_power_consumption_weight() {
@@ -273,13 +207,6 @@ class FactoryController {
     
     /**
      * Get design power flag.
-     * 
-     * Precondition:
-     *     none
-     * 
-     * Postcondition:
-     *     returns current design power setting
-     * 
      * @returns {boolean} design power flag
      */
     get_design_power() {
@@ -288,13 +215,6 @@ class FactoryController {
     
     /**
      * Get currently generated factory.
-     * 
-     * Precondition:
-     *     none
-     * 
-     * Postcondition:
-     *     returns current factory or null
-     * 
      * @returns {Factory|null} currently generated Factory, or null if not generated
      */
     get_current_factory() {
@@ -303,14 +223,6 @@ class FactoryController {
     
     /**
      * Get set of enabled recipe names.
-     * 
-     * Precondition:
-     *     this.enabled_recipes is initialized
-     * 
-     * Postcondition:
-     *     returns copy of enabled recipes set
-     *     modifications to returned set do not affect controller state
-     * 
      * @returns {Set<string>} copy of enabled recipe names
      */
     get_enabled_recipes() {
@@ -319,14 +231,6 @@ class FactoryController {
     
     /**
      * Get graphviz source from current factory.
-     * 
-     * Precondition:
-     *     none
-     * 
-     * Postcondition:
-     *     returns Graphviz source string if factory and network exist
-     *     returns null if no factory generated or network is null
-     * 
      * @returns {string|null} Graphviz source string, or null if no factory generated
      */
     get_graphviz_source() {
@@ -338,15 +242,7 @@ class FactoryController {
     
     /**
      * Get all recipes organized by machine.
-     * 
-     * Precondition:
-     *     none
-     * 
-     * Postcondition:
-     *     returns dict of all recipes grouped by machine
-     *     delegates to recipes module function
-     * 
-     * @returns {Object.<string, Object.<string, Recipe>>} dict of {machine_name: {recipe_name: Recipe}}
+     * @returns {Object<string, Object<string, Recipe>>} dict of {machine_name: {recipe_name: Recipe}}
      */
     get_all_recipes_by_machine() {
         return get_all_recipes_by_machine();
@@ -354,14 +250,6 @@ class FactoryController {
     
     /**
      * Find a recipe by name across all machines.
-     * 
-     * Precondition:
-     *     recipe_name is a string
-     * 
-     * Postcondition:
-     *     returns Recipe if found, null otherwise
-     *     searches across all machines
-     * 
      * @param {string} recipe_name - name of the recipe to find
      * @returns {Recipe|null} Recipe object or null
      */
@@ -377,14 +265,6 @@ class FactoryController {
     
     /**
      * Get formatted tooltip text for a recipe.
-     * 
-     * Precondition:
-     *     recipe_name is a string
-     * 
-     * Postcondition:
-     *     returns formatted tooltip if recipe found
-     *     returns null if recipe not found
-     * 
      * @param {string} recipe_name - name of the recipe
      * @returns {string|null} formatted tooltip string, or null if recipe not found
      */
@@ -400,13 +280,6 @@ class FactoryController {
     
     /**
      * Set outputs configuration text.
-     * 
-     * Precondition:
-     *     text is a string
-     * 
-     * Postcondition:
-     *     this._outputs_text is updated to text
-     * 
      * @param {string} text - new outputs configuration text
      */
     set_outputs_text(text) {
@@ -415,13 +288,6 @@ class FactoryController {
     
     /**
      * Set inputs configuration text.
-     * 
-     * Precondition:
-     *     text is a string
-     * 
-     * Postcondition:
-     *     this._inputs_text is updated to text
-     * 
      * @param {string} text - new inputs configuration text
      */
     set_inputs_text(text) {
@@ -430,13 +296,6 @@ class FactoryController {
     
     /**
      * Set mines configuration text.
-     * 
-     * Precondition:
-     *     text is a string
-     * 
-     * Postcondition:
-     *     this._mines_text is updated to text
-     * 
      * @param {string} text - new mines configuration text
      */
     set_mines_text(text) {
@@ -445,13 +304,6 @@ class FactoryController {
     
     /**
      * Set recipe search filter text.
-     * 
-     * Precondition:
-     *     text is a string
-     * 
-     * Postcondition:
-     *     this._recipe_search_text is updated to text
-     * 
      * @param {string} text - new recipe search filter text
      */
     set_recipe_search_text(text) {
@@ -460,13 +312,6 @@ class FactoryController {
     
     /**
      * Set input costs optimization weight.
-     * 
-     * Precondition:
-     *     value is a number
-     * 
-     * Postcondition:
-     *     this._input_costs_weight is updated to value
-     * 
      * @param {number} value - new input costs weight
      */
     set_input_costs_weight(value) {
@@ -475,13 +320,6 @@ class FactoryController {
     
     /**
      * Set machine counts optimization weight.
-     * 
-     * Precondition:
-     *     value is a number
-     * 
-     * Postcondition:
-     *     this._machine_counts_weight is updated to value
-     * 
      * @param {number} value - new machine counts weight
      */
     set_machine_counts_weight(value) {
@@ -490,13 +328,6 @@ class FactoryController {
     
     /**
      * Set power consumption optimization weight.
-     * 
-     * Precondition:
-     *     value is a number
-     * 
-     * Postcondition:
-     *     this._power_consumption_weight is updated to value
-     * 
      * @param {number} value - new power consumption weight
      */
     set_power_consumption_weight(value) {
@@ -505,13 +336,6 @@ class FactoryController {
     
     /**
      * Set design power flag.
-     * 
-     * Precondition:
-     *     value is a boolean
-     * 
-     * Postcondition:
-     *     this._design_power is updated to value
-     * 
      * @param {boolean} value - new design power flag
      */
     set_design_power(value) {
@@ -520,16 +344,6 @@ class FactoryController {
     
     /**
      * Enable or disable a recipe.
-     * 
-     * Precondition:
-     *     recipe_name is a string
-     *     enabled is a boolean
-     *     this.enabled_recipes is initialized
-     * 
-     * Postcondition:
-     *     if enabled is true, recipe_name is added to this.enabled_recipes
-     *     if enabled is false, recipe_name is removed from this.enabled_recipes
-     * 
      * @param {string} recipe_name - name of recipe to modify
      * @param {boolean} enabled - true to enable, false to disable
      */
@@ -543,13 +357,6 @@ class FactoryController {
     
     /**
      * Set the complete set of enabled recipes.
-     * 
-     * Precondition:
-     *     recipe_names is a Set of strings
-     * 
-     * Postcondition:
-     *     this.enabled_recipes is replaced with a copy of recipe_names
-     * 
      * @param {Set<string>} recipe_names - set of recipe names to enable (all others disabled)
      */
     set_recipes_enabled(recipe_names) {
@@ -560,15 +367,6 @@ class FactoryController {
     
     /**
      * Check if power warning should be displayed.
-     * 
-     * Precondition:
-     *     this._design_power is a boolean
-     *     this.enabled_recipes is initialized
-     * 
-     * Postcondition:
-     *     returns true if design_power enabled but no power recipes enabled
-     *     returns false otherwise
-     * 
      * @returns {boolean} true if design_power is enabled but no power recipes are enabled
      */
     should_show_power_warning() {
@@ -584,13 +382,6 @@ class FactoryController {
     
     /**
      * Generate stable tree ID for machine.
-     * 
-     * Precondition:
-     *     machine_name is a non-empty string
-     * 
-     * Postcondition:
-     *     returns string in format "machine:{machine_name}"
-     * 
      * @param {string} machine_name - name of the machine
      * @returns {string} stable tree ID string
      */
@@ -600,14 +391,6 @@ class FactoryController {
     
     /**
      * Generate stable tree ID for recipe.
-     * 
-     * Precondition:
-     *     machine_name is a non-empty string
-     *     recipe_name is a non-empty string
-     * 
-     * Postcondition:
-     *     returns string in format "recipe:{machine}:{recipe}"
-     * 
      * @param {string} machine_name - name of the machine
      * @param {string} recipe_name - name of the recipe
      * @returns {string} stable tree ID string
@@ -618,14 +401,6 @@ class FactoryController {
     
     /**
      * Parse recipe tree ID into [machine_name, recipe_name].
-     * 
-     * Precondition:
-     *     tree_id is a string
-     * 
-     * Postcondition:
-     *     if tree_id starts with "recipe:" and has valid format, returns array
-     *     otherwise returns null
-     * 
      * @param {string} tree_id - tree ID in format "recipe:{machine}:{recipe}"
      * @returns {Array<string>|null} array of [machine_name, recipe_name] or null if not a recipe ID
      */
@@ -641,16 +416,6 @@ class FactoryController {
     
     /**
      * Check if recipe matches search text.
-     * 
-     * Precondition:
-     *     recipe_name is a string
-     *     recipe is a Recipe object
-     *     search_text is a lowercase string
-     * 
-     * Postcondition:
-     *     returns true if recipe_name, inputs, or outputs contain search_text
-     *     returns false otherwise
-     * 
      * @param {string} recipe_name - name of the recipe
      * @param {Recipe} recipe - Recipe object
      * @param {string} search_text - lowercase search text
@@ -670,16 +435,6 @@ class FactoryController {
     
     /**
      * Get complete tree structure with IDs, states, and visibility.
-     * 
-     * Precondition:
-     *     this._recipe_search_text is a string
-     *     this.enabled_recipes is initialized
-     * 
-     * Postcondition:
-     *     returns RecipeTreeStructure with machine and recipe nodes
-     *     visibility is based on search text
-     *     check states reflect enabled/disabled recipes
-     * 
      * @returns {RecipeTreeStructure} RecipeTreeStructure ready for rendering
      */
     get_recipe_tree_structure() {
@@ -736,15 +491,6 @@ class FactoryController {
     
     /**
      * Handle recipe toggle event.
-     * 
-     * Precondition:
-     *     recipe_tree_id is a string (may be in recipe format)
-     *     is_checked is a boolean
-     * 
-     * Postcondition:
-     *     if recipe_tree_id is valid recipe format, recipe enablement is updated
-     *     if recipe_tree_id is not valid recipe format, no action taken
-     * 
      * @param {string} recipe_tree_id - tree ID in format "recipe:{machine}:{recipe}"
      * @param {boolean} is_checked - new checked state
      */
@@ -758,14 +504,6 @@ class FactoryController {
     
     /**
      * Get tooltip text for a tree ID.
-     * 
-     * Precondition:
-     *     tree_id is a string
-     * 
-     * Postcondition:
-     *     if tree_id is valid recipe format, returns formatted tooltip
-     *     otherwise returns null
-     * 
      * @param {string} tree_id - tree ID (machine or recipe format)
      * @returns {string|null} tooltip text or null
      */
@@ -782,19 +520,7 @@ class FactoryController {
     
     /**
      * Generate factory using current controller state.
-     * 
-     * Precondition:
-     *     this._outputs_text, _inputs_text, _mines_text are initialized
-     *     this.enabled_recipes is initialized
-     *     this.economy is initialized
-     *     optimization weights are set
-     * 
-     * Postcondition:
-     *     this._current_factory is updated with generated Factory
-     *     info messages are logged
-     *     returns Graphviz diagram string
-     * 
-     * @returns {Object} graphviz diagram suitable for display
+     * @returns {string} graphviz diagram suitable for display
      * @throws {Error} if configuration is invalid or generation fails
      */
     async generate_factory_from_state() {
@@ -828,15 +554,6 @@ class FactoryController {
     
     /**
      * Get graphviz source for copying to clipboard.
-     * 
-     * Precondition:
-     *     none
-     * 
-     * Postcondition:
-     *     if factory exists with network, returns graphviz source
-     *     if no factory, returns null
-     *     info message is logged
-     * 
      * @returns {string|null} graphviz source or null if no factory available
      */
     copy_graphviz_source() {
@@ -854,15 +571,6 @@ class FactoryController {
     
     /**
      * Get default set of enabled recipes.
-     * 
-     * Precondition:
-     *     none
-     * 
-     * Postcondition:
-     *     returns set of recipe names
-     *     excludes power generation recipes (MWm in outputs)
-     *     excludes Packager recipes
-     * 
      * @returns {Set<string>} set of enabled recipe names
      */
     static _get_default_enabled_recipes() {
@@ -879,19 +587,6 @@ class FactoryController {
     
     /**
      * Parse configuration text into list of [material, rate] tuples.
-     * 
-     * Precondition:
-     *     text is a string (may be multi-line)
-     * 
-     * Postcondition:
-     *     returns list of [material, rate] tuples
-     *     comments (lines starting with #) are ignored
-     *     empty lines are ignored
-     * 
-     * Format: Material:Rate, one per line
-     * Lines starting with # are comments and ignored
-     * Empty lines are ignored
-     * 
      * @param {string} text - multi-line configuration text
      * @returns {Array<[string, number]>} list of [material, rate] tuples
      * @throws {Error} if parsing fails for any line
@@ -911,16 +606,6 @@ class FactoryController {
     
     /**
      * Format recipe inputs/outputs for display.
-     * 
-     * Precondition:
-     *     recipe is a Recipe object with inputs and outputs dicts
-     * 
-     * Postcondition:
-     *     returns formatted multi-line string
-     *     inputs section lists all input materials and rates
-     *     outputs section lists all output materials and rates
-     *     sections are separated by blank line
-     * 
      * @param {Recipe} recipe - Recipe to format
      * @returns {string} formatted string with inputs and outputs
      */
@@ -953,15 +638,6 @@ class FactoryController {
     
     /**
      * Validate factory configuration.
-     * 
-     * Precondition:
-     *     config is a FactoryConfig object
-     * 
-     * Postcondition:
-     *     returns ValidationResult with is_valid, warnings, errors
-     *     checks for empty outputs (error)
-     *     checks for power design without power recipes (warning)
-     * 
      * @param {FactoryConfig} config - factory configuration to validate
      * @returns {ValidationResult} ValidationResult with any warnings or errors
      */
@@ -991,15 +667,6 @@ class FactoryController {
     
     /**
      * Generate factory from configuration.
-     * 
-     * Precondition:
-     *     config is a FactoryConfig object
-     *     this.economy is initialized
-     * 
-     * Postcondition:
-     *     configuration is validated before generation
-     *     returns Factory object with network design
-     * 
      * @param {FactoryConfig} config - factory configuration
      * @returns {Factory} generated Factory object
      * @throws {Error} if configuration is invalid or generation fails

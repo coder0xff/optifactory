@@ -15,7 +15,7 @@ import { Digraph } from './graphviz-builder.js';
 /**
  * Check if a material is a fluid.
  * @param {string} material - material name to check
- * @returns {boolean} true if material is a fluid, false otherwise
+ * @returns {boolean} whether material is a fluid
  */
 function _isFluid(material) {
     return get_fluids().includes(material);
@@ -108,12 +108,12 @@ function _getEdgeColor(material, flowRate) {
 
 /**
  * Initialize material balance with inputs, mines, and output requirements.
- * inputs and mines contribute positive flow, outputs contribute negative flow.
+ * Inputs and mines contribute positive flow, outputs contribute negative flow.
  * Mining rates assume Mk.3 miners.
- * @param {Object} outputs - required output materials and amounts
- * @param {Array} inputs - list of [material, flowRate] tuples
- * @param {Array} mines - list of [resource, Purity] tuples
- * @returns {Object} material balance dictionary
+ * @param {Object<string, number>} outputs - required output materials and amounts
+ * @param {Array<[string, number]>} inputs - list of [material, flowRate] tuples
+ * @param {Array<[string, string]>} mines - list of [resource, Purity] tuples
+ * @returns {Object<string, number>} material balance dictionary
  */
 function _initializeBalance(outputs, inputs, mines) {
     const balance = {};
@@ -135,9 +135,9 @@ function _initializeBalance(outputs, inputs, mines) {
 
 /**
  * Build input materials dict for optimizer from inputs and mines.
- * @param {Array} inputs - available input materials and rates
- * @param {Array} mines - resource mines with purity levels
- * @returns {Object} dict of material names to flow rates
+ * @param {Array<[string, number]>} inputs - available input materials and rates
+ * @param {Array<[string, string]>} mines - resource mines with purity levels
+ * @returns {Object<string, number>} dict of material names to flow rates
  */
 function _buildOptimizerInputs(inputs, mines) {
     const inputsDict = {};
@@ -155,8 +155,8 @@ function _buildOptimizerInputs(inputs, mines) {
 
 /**
  * Transform optimizer output into machine instances, recipes, and total production.
- * @param {Object} recipeCounts - optimizer output mapping recipe names to counts
- * @returns {Array} tuple of [machineInstances, recipesUsed, totalProduction] dicts
+ * @param {Object<string, number>} recipeCounts - optimizer output mapping recipe names to counts
+ * @returns {[Object<string, number>, Object<string, Recipe>, Object<string, number>]} tuple of [machineInstances, recipesUsed, totalProduction] dicts
  */
 function _transformOptimizerOutput(recipeCounts) {
     const allRecipes = get_all_recipes();
@@ -182,11 +182,11 @@ function _transformOptimizerOutput(recipeCounts) {
 /**
  * Compute required raw materials from final balance.
  * Only includes materials with negative balance (shortfalls).
- * @param {Object} recipeCounts - optimizer output
- * @param {Object} outputs - required outputs
- * @param {Array} inputs - available inputs
- * @param {Array} mines - resource mines
- * @returns {Object} dict of material shortfalls
+ * @param {Object<string, number>} recipeCounts - optimizer output
+ * @param {Object<string, number>} outputs - required outputs
+ * @param {Array<[string, number]>} inputs - available inputs
+ * @param {Array<[string, string]>} mines - resource mines
+ * @returns {Object<string, number>} dict of material shortfalls
  */
 function _computeRequiredRawMaterials(recipeCounts, outputs, inputs, mines) {
     const balance = _initializeBalance(outputs, inputs, mines);
@@ -214,16 +214,16 @@ function _computeRequiredRawMaterials(recipeCounts, outputs, inputs, mines) {
 
 /**
  * Calculate required machines and material balance.
- * @param {Object} outputs - required output materials and amounts
- * @param {Array} inputs - available input materials and rates
- * @param {Array} mines - resource mines with purity levels
- * @param {Set|null} enablementSet - enabled recipes or null
- * @param {Object|null} economy - material values or null
+ * @param {Object<string, number>} outputs - required output materials and amounts
+ * @param {Array<[string, number]>} inputs - available input materials and rates
+ * @param {Array<[string, string]>} mines - resource mines with purity levels
+ * @param {Set<string>|null} enablementSet - enabled recipes or null
+ * @param {Object<string, number>|null} economy - material values or null
  * @param {number} inputCostsWeight - optimization weight
  * @param {number} machineCountsWeight - optimization weight
  * @param {number} powerConsumptionWeight - optimization weight
  * @param {boolean} designPower - whether to design power generation
- * @returns {Array} tuple of [machineInstances, recipesUsed, requiredRawMaterials, totalProduction]
+ * @returns {[Object<string, number>, Object<string, Recipe>, Object<string, number>, Object<string, number>]} tuple of [machineInstances, recipesUsed, requiredRawMaterials, totalProduction]
  */
 async function _calculateMachines(
     outputs,
@@ -271,10 +271,10 @@ async function _calculateMachines(
 
 /**
  * Compute actual factory outputs including byproducts.
- * @param {Object} outputs - requested output materials
- * @param {Object} totalProduction - total production rates
- * @param {Object} balance - material balances (positive = excess)
- * @returns {Object} dict mapping materials to output rates
+ * @param {Object<string, number>} outputs - requested output materials
+ * @param {Object<string, number>} totalProduction - total production rates
+ * @param {Object<string, number>} balance - material balances (positive = excess)
+ * @returns {Object<string, number>} dict mapping materials to output rates
  */
 function _computeActualOutputs(outputs, totalProduction, balance) {
     // Recompute balance for byproduct detection
@@ -303,8 +303,8 @@ function _computeActualOutputs(outputs, totalProduction, balance) {
 /**
  * Add user-provided input nodes to graphviz graph.
  * @param {Object} inputsGroup - graphviz subgraph for inputs
- * @param {Array} inputs - list of input materials and rates
- * @param {Object} materialFlows - dict tracking material sources
+ * @param {Array<[string, number]>} inputs - list of input materials and rates
+ * @param {Object<string, {sources: Array<[string, number]>, sinks: Array<[string, number]>}>} materialFlows - dict tracking material sources
  */
 function _addUserInputNodes(inputsGroup, inputs, materialFlows) {
     for (let idx = 0; idx < inputs.length; idx++) {
@@ -325,9 +325,9 @@ function _addUserInputNodes(inputsGroup, inputs, materialFlows) {
 /**
  * Add auto-generated input nodes for required raw materials.
  * @param {Object} inputsGroup - graphviz subgraph for inputs
- * @param {Array} inputs - list of provided input materials and rates
- * @param {Object} requiredRawMaterials - dict of material shortfalls
- * @param {Object} materialFlows - dict tracking material sources
+ * @param {Array<[string, number]>} inputs - list of provided input materials and rates
+ * @param {Object<string, number>} requiredRawMaterials - dict of material shortfalls
+ * @param {Object<string, {sources: Array<[string, number]>, sinks: Array<[string, number]>}>} materialFlows - dict tracking material sources
  */
 function _addAutoInputNodes(inputsGroup, inputs, requiredRawMaterials, materialFlows) {
     for (const [material, requiredAmount] of Object.entries(requiredRawMaterials)) {
@@ -354,8 +354,8 @@ function _addAutoInputNodes(inputsGroup, inputs, requiredRawMaterials, materialF
  * Add mine nodes to graphviz graph.
  * Mining rates assume Mk.3 miners.
  * @param {Object} inputsGroup - graphviz subgraph for inputs
- * @param {Array} mines - list of resource mines with purity levels
- * @param {Object} materialFlows - dict tracking material sources
+ * @param {Array<[string, string]>} mines - list of resource mines with purity levels
+ * @param {Object<string, {sources: Array<[string, number]>, sinks: Array<[string, number]>}>} materialFlows - dict tracking material sources
  */
 function _addMineNodes(inputsGroup, mines, materialFlows) {
     for (let idx = 0; idx < mines.length; idx++) {
@@ -378,10 +378,10 @@ function _addMineNodes(inputsGroup, mines, materialFlows) {
  * Add input and mine nodes to the graph.
  * Creates "inputs" subgraph with rank="same".
  * @param {Digraph} dot - main graphviz digraph
- * @param {Array} inputs - list of input materials and rates
- * @param {Array} mines - list of resource mines with purity
- * @param {Object} requiredRawMaterials - dict of material shortfalls
- * @param {Object} materialFlows - dict tracking material sources
+ * @param {Array<[string, number]>} inputs - list of input materials and rates
+ * @param {Array<[string, string]>} mines - list of resource mines with purity
+ * @param {Object<string, number>} requiredRawMaterials - dict of material shortfalls
+ * @param {Object<string, {sources: Array<[string, number]>, sinks: Array<[string, number]>}>} materialFlows - dict tracking material sources
  */
 function _addInputNodes(dot, inputs, mines, requiredRawMaterials, materialFlows) {
     dot.subgraph("inputs", (inputsGroup) => {
@@ -559,9 +559,9 @@ function _addOutputNodes(dot, outputs, totalProduction, balance, materialFlows) 
  * Adds edge from source to sink with material label and colored by flow rate.
  * @param {Digraph} dot - graphviz digraph
  * @param {string} material - material name
- * @param {Array} sources - list with one [node_id, flow] tuple
- * @param {Array} sinks - list with one [node_id, flow] tuple
- * @param {Array} sinkFlows - list with one flow rate
+ * @param {Array<[string, number]>} sources - list with one [node_id, flow] tuple
+ * @param {Array<[string, number]>} sinks - list with one [node_id, flow] tuple
+ * @param {Array<number>} sinkFlows - list with one flow rate
  */
 function _handleDirectConnection(dot, material, sources, sinks, sinkFlows) {
     const [sourceId, _] = sources[0];
@@ -574,9 +574,9 @@ function _handleDirectConnection(dot, material, sources, sinks, sinkFlows) {
 /**
  * Proportionally allocate integer flows ensuring they sum to targetTotal.
  * Proportions maintained as closely as possible; last element gets any remaining to ensure exact sum.
- * @param {Array} flows - list of flow rates to allocate
+ * @param {Array<number>} flows - list of flow rates to allocate
  * @param {number} targetTotal - target sum for integer flows
- * @returns {Array} list of integer flows summing to targetTotal
+ * @returns {Array<number>} list of integer flows summing to targetTotal
  */
 function _computeIntegerFlows(flows, targetTotal) {
     const flowsInt = [];
@@ -599,9 +599,9 @@ function _computeIntegerFlows(flows, targetTotal) {
 /**
  * Build mapping from balancer IDs to factory IDs.
  * "I{idx}" maps to source node_ids, "O{idx}" maps to sink node_ids.
- * @param {Array} sources - list of source [node_id, flow] tuples
- * @param {Array} sinks - list of sink [node_id, flow] tuples
- * @returns {Object} dict mapping balancer IDs to factory node IDs
+ * @param {Array<[string, number]>} sources - list of source [node_id, flow] tuples
+ * @param {Array<[string, number]>} sinks - list of sink [node_id, flow] tuples
+ * @returns {Object<string, string>} dict mapping balancer IDs to factory node IDs
  */
 function _buildNodeMapping(sources, sinks) {
     const nodeMapping = {};
@@ -624,7 +624,7 @@ function _buildNodeMapping(sources, sinks) {
  * @param {string} balancerSrc - graphviz source string from balancer
  * @param {string} material - material name for node ID
  * @param {number} balancerCounter - counter for unique IDs
- * @param {Object} nodeMapping - dict to update with ID mappings
+ * @param {Object<string, string>} nodeMapping - dict to update with ID mappings
  */
 function _copyBalancerNodes(dot, balancerSrc, material, balancerCounter, nodeMapping) {
     const nodeRegex = /(S\d+|M\d+)\s+\[label="[^"]*"[^\]]*\]/g;
@@ -645,7 +645,7 @@ function _copyBalancerNodes(dot, balancerSrc, material, balancerCounter, nodeMap
  * Labels include material name and flow rate.
  * @param {string} balancerSrc - graphviz source string from balancer
  * @param {string} material - material name
- * @param {Object} nodeMapping - dict mapping old IDs to new IDs
+ * @param {Object<string, string>} nodeMapping - dict mapping old IDs to new IDs
  * @param {Digraph} dot - main graphviz digraph
  */
 function _copyBalancerEdges(balancerSrc, material, nodeMapping, dot) {
@@ -670,8 +670,8 @@ function _copyBalancerEdges(balancerSrc, material, nodeMapping, dot) {
  * Flows converted to integers for balancer design.
  * @param {Digraph} dot - main graphviz digraph
  * @param {string} material - material name
- * @param {Array} sourcesWithFlows - tuple of [sources, sourceFlows]
- * @param {Array} sinksWithFlows - tuple of [sinks, sinkFlows]
+ * @param {[Array<[string, number]>, Array<number>]} sourcesWithFlows - tuple of [sources, sourceFlows]
+ * @param {[Array<[string, number]>, Array<number>]} sinksWithFlows - tuple of [sinks, sinkFlows]
  * @param {number} balancerCounter - counter for unique IDs
  */
 function _createMaterialBalancer(dot, material, sourcesWithFlows, sinksWithFlows, balancerCounter) {
@@ -793,12 +793,12 @@ function _applyMachineBalance(balance, machineInstances, recipesUsed) {
 /**
  * Recompute material balance after machine calculation.
  * Negative values indicate deficit (need input), positive values indicate surplus (available as output).
- * @param {Array} inputs - list of [material, rate] tuples
- * @param {Array} mines - list of [resource, Purity] tuples
- * @param {Object} outputs - dict mapping materials to desired rates
- * @param {Object} machineInstances - dict mapping "machine|recipe" to count
- * @param {Object} recipesUsed - dict mapping "machine|recipe" to Recipe
- * @returns {Object} dict mapping materials to net flow
+ * @param {Array<[string, number]>} inputs - list of [material, rate] tuples
+ * @param {Array<[string, string]>} mines - list of [resource, Purity] tuples
+ * @param {Object<string, number>} outputs - dict mapping materials to desired rates
+ * @param {Object<string, number>} machineInstances - dict mapping "machine|recipe" to count
+ * @param {Object<string, Recipe>} recipesUsed - dict mapping "machine|recipe" to Recipe
+ * @returns {Object<string, number>} dict mapping materials to net flow
  */
 function _recomputeBalanceForOutputs(inputs, mines, outputs, machineInstances, recipesUsed) {
     const balance = _initializeBalance(outputs, inputs, mines);
@@ -812,17 +812,16 @@ function _recomputeBalanceForOutputs(inputs, mines, outputs, machineInstances, r
 
 /**
  * Design a complete factory network with machines and balancers.
- * @param {Object} outputs - desired output materials and rates (e.g., {"Iron Plate": 100})
- * @param {Array} inputs - list of [material, flowRate] tuples for input conveyors
- *                         (e.g., [["Iron Ore", 200], ["Iron Ore", 200]])
- * @param {Array} mines - list of [resourceName, purity] tuples for mining nodes
- * @param {Set|null} enablementSet - set of enabled recipe names or null for defaults
- * @param {Object|null} economy - dict of material values for cost optimization
- * @param {number} inputCostsWeight - optimization weight for input costs (default 1.0)
- * @param {number} machineCountsWeight - optimization weight for machine counts (default 0.0)
- * @param {number} powerConsumptionWeight - optimization weight for power usage (default 1.0)
- * @param {boolean} designPower - whether to include power generation in the design (default false)
- * @returns {Factory} Factory with complete network graph including machines and balancers
+ * @param {Object<string, number>} outputs - desired output materials and rates (e.g., {"Iron Plate": 100})
+ * @param {Array<[string, number]>} inputs - list of [material, flowRate] tuples for input conveyors
+ * @param {Array<[string, string]>} mines - list of [resourceName, purity] tuples for mining nodes
+ * @param {Set<string>|null} enablementSet - set of enabled recipe names or null for defaults
+ * @param {Object<string, number>|null} economy - dict of material values for cost optimization
+ * @param {number} inputCostsWeight - optimization weight for input costs
+ * @param {number} machineCountsWeight - optimization weight for machine counts
+ * @param {number} powerConsumptionWeight - optimization weight for power usage
+ * @param {boolean} designPower - whether to include power generation in the design
+ * @returns {Promise<Factory>} Factory with complete network graph including machines and balancers
  */
 async function design_factory(
     outputs,

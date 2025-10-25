@@ -7,6 +7,11 @@
  * Subgraph class for creating graph clusters and subgraphs
  */
 class Subgraph {
+    /**
+     * Create a new subgraph.
+     * @param {string} name - subgraph name
+     * @param {Digraph|Subgraph|null} parent - parent graph or subgraph
+     */
     constructor(name, parent = null) {
         this.name = name;
         this.parent = parent;
@@ -20,7 +25,7 @@ class Subgraph {
      * Add a node to this subgraph.
      * @param {string} id - node identifier
      * @param {string} label - node label (can be empty string)
-     * @param {Object} attrs - node attributes
+     * @param {Object<string, *>} attrs - node attributes
      */
     node(id, label, attrs = {}) {
         this.nodes.push({ id, label, ...attrs });
@@ -30,7 +35,7 @@ class Subgraph {
      * Add an edge to this subgraph.
      * @param {string} fromId - source node ID
      * @param {string} toId - target node ID
-     * @param {Object} attrs - edge attributes
+     * @param {Object<string, *>} attrs - edge attributes
      */
     edge(fromId, toId, attrs = {}) {
         this.edges.push({ from: fromId, to: toId, ...attrs });
@@ -100,6 +105,12 @@ class Subgraph {
         return output;
     }
 
+    /**
+     * Format a node as DOT string.
+     * @param {Object<string, *>} node - node object with id, label, and attributes
+     * @param {string} indent - indentation string
+     * @returns {string} formatted node string
+     */
     _formatNode(node, indent) {
         const attrs = [];
         const escapeFunc = this._getEscapeFunc();
@@ -116,6 +127,12 @@ class Subgraph {
         return `${indent}${quotedId}${attrStr}\n`;
     }
 
+    /**
+     * Format an edge as DOT string.
+     * @param {Object<string, *>} edge - edge object with from, to, and attributes
+     * @param {string} indent - indentation string
+     * @returns {string} formatted edge string
+     */
     _formatEdge(edge, indent) {
         const attrs = [];
         const escapeFunc = this._getEscapeFunc();
@@ -162,6 +179,10 @@ class Subgraph {
  * Digraph class for building directed graphs in DOT format
  */
 class Digraph {
+    /**
+     * Create a new directed graph.
+     * @param {string} name - graph name
+     */
     constructor(name = 'G') {
         this.name = name;
         this.nodes = [];
@@ -200,7 +221,7 @@ class Digraph {
      * Add a node to the graph.
      * @param {string} id - node identifier
      * @param {string} label - node label (can be empty string)
-     * @param {Object} attrs - node attributes (shape, style, fillcolor, etc.)
+     * @param {Object<string, *>} attrs - node attributes (shape, style, fillcolor, etc.)
      */
     node(id, label, attrs = {}) {
         this.nodes.push({ id, label, ...attrs });
@@ -210,7 +231,7 @@ class Digraph {
      * Add an edge to the graph.
      * @param {string} fromId - source node ID
      * @param {string} toId - target node ID
-     * @param {Object} attrs - edge attributes (label, color, penwidth, etc.)
+     * @param {Object<string, *>} attrs - edge attributes (label, color, penwidth, etc.)
      */
     edge(fromId, toId, attrs = {}) {
         this.edges.push({ from: fromId, to: toId, ...attrs });
@@ -231,7 +252,7 @@ class Digraph {
 
     /**
      * Create a subgraph.
-     * In Python, this is used with a context manager. In JS, provide a callback:
+     * Provide a callback:
      * 
      * graph.subgraph('cluster_0', (sub) => {
      *   sub.attr({ label: 'My Cluster' });
