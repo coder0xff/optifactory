@@ -166,11 +166,11 @@ const FactoryViewComponent = {
                             :style="{ transform: \`scale(\${zoomFactor})\` }"
                         ></div>
                     </div>
-                    <div class="zoom-indicator">{{ (zoomFactor * 100).toFixed(0) }}%</div>
                 </div>
                 <div v-else class="viewer-placeholder">
                     {{ placeholder || 'Graph visualization will appear here' }}
                 </div>
+                <div v-if="graphvizSource" class="zoom-indicator">{{ (zoomFactor * 100).toFixed(0) }}%</div>
             </div>
         </div>
     `,
