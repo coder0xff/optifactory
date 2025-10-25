@@ -262,8 +262,8 @@ Copper Ingot:50
 
     it('test_get_set_optimization_weights: controller should manage optimization weight state', () => {
         const controller = new FactoryController({});
-        assert.strictEqual(controller.get_input_costs_weight(), 1.0);
-        assert.strictEqual(controller.get_machine_counts_weight(), 0.0);
+        assert.strictEqual(controller.get_input_costs_weight(), 0.1);
+        assert.strictEqual(controller.get_machine_counts_weight(), 1.0);
         assert.strictEqual(controller.get_power_consumption_weight(), 1.0);
         
         controller.set_input_costs_weight(0.5);
