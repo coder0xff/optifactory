@@ -3,7 +3,7 @@
  * All quantities are "per minute".
  */
 
-import { RECIPES_DATA } from './recipes-data-new.js';
+import { RECIPES_DATA } from './recipes-data.js';
 import { POWER_RECIPES_DATA } from './power-recipes-data.js';
 import { LOADS_DATA } from './loads-data.js';
 import { FLUIDS_DATA } from './fluids-data.js';
