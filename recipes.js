@@ -3,7 +3,8 @@
  * All quantities are "per minute".
  */
 
-import { RECIPES_DATA } from './recipes-data.js';
+import { RECIPES_DATA } from './recipes-data-new.js';
+import { POWER_RECIPES_DATA } from './power-recipes-data.js';
 import { LOADS_DATA } from './loads-data.js';
 import { FLUIDS_DATA } from './fluids-data.js';
 
@@ -58,6 +59,9 @@ class Recipe {
 // ============================================================================
 // Module-level data structures
 // ============================================================================
+
+// transformed recipe data in old format
+let _TRANSFORMED_RECIPES_DATA = {};
 
 // nested dict: output -> amount -> list of [machine, recipe_name]
 const _BY_OUTPUT = {};
@@ -257,10 +261,94 @@ function _process_single_recipe(machine, recipe_name, recipe_data) {
 }
 
 /**
+ * Transform new data format to old format expected by the rest of the code.
+ * New format: {items: {...}, recipes: {...}, buildings: {...}}
+ * Old format: {MachineName: {RecipeName: {in: {...}, out: {...}}}}
+ */
+function _transform_recipes_data() {
+    const transformed = {};
+    
+    // Build ID-to-name mappings
+    const itemNames = {};
+    const buildingNames = {};
+    
+    for (const [className, itemData] of Object.entries(RECIPES_DATA.items)) {
+        itemNames[className] = itemData.name;
+    }
+    
+    for (const [className, buildingData] of Object.entries(RECIPES_DATA.buildings)) {
+        buildingNames[className] = buildingData.name;
+    }
+    
+    // Process each recipe
+    for (const [recipeClassName, recipeData] of Object.entries(RECIPES_DATA.recipes)) {
+        // Skip non-machine recipes (build gun, workshop, etc.)
+        if (!recipeData.inMachine) {
+            continue;
+        }
+        
+        // Skip recipes with no production machine
+        if (!recipeData.producedIn || recipeData.producedIn.length === 0) {
+            continue;
+        }
+        
+        // Convert per-cycle to per-minute (amount * 60 / time)
+        const timeMultiplier = 60.0 / recipeData.time;
+        
+        const inputs = {};
+        for (const ingredient of recipeData.ingredients) {
+            const itemName = itemNames[ingredient.item] || ingredient.item;
+            inputs[itemName] = ingredient.amount * timeMultiplier;
+        }
+        
+        const outputs = {};
+        for (const product of recipeData.products) {
+            const itemName = itemNames[product.item] || product.item;
+            outputs[itemName] = product.amount * timeMultiplier;
+        }
+        
+        // Process each machine that can produce this recipe
+        for (const machineClassName of recipeData.producedIn) {
+            const machineName = buildingNames[machineClassName] || machineClassName;
+            
+            if (!transformed[machineName]) {
+                transformed[machineName] = {};
+            }
+            
+            transformed[machineName][recipeData.name] = {
+                in: inputs,
+                out: outputs
+            };
+        }
+    }
+    
+    return transformed;
+}
+
+/**
+ * Merge power recipes into transformed data.
+ * Power recipes are already in the old format.
+ * @param {Object} transformed - transformed recipe data
+ */
+function _merge_power_recipes(transformed) {
+    for (const [machine, recipes] of Object.entries(POWER_RECIPES_DATA)) {
+        if (!transformed[machine]) {
+            transformed[machine] = {};
+        }
+        for (const [recipe_name, recipe_data] of Object.entries(recipes)) {
+            transformed[machine][recipe_name] = recipe_data;
+        }
+    }
+}
+
+/**
  * Initialize all module-level lookup tables from recipe data.
  */
 function _populate_lookups() {
-    for (const [machine, recipes] of Object.entries(RECIPES_DATA)) {
+    _TRANSFORMED_RECIPES_DATA = _transform_recipes_data();
+    _merge_power_recipes(_TRANSFORMED_RECIPES_DATA);
+    
+    for (const [machine, recipes] of Object.entries(_TRANSFORMED_RECIPES_DATA)) {
         for (const [recipe_name, recipe_data] of Object.entries(recipes)) {
             _process_single_recipe(machine, recipe_name, recipe_data);
         }
@@ -359,7 +447,7 @@ function _is_recipe_enabled(recipe_name, enablement_set) {
  * @returns {Recipe} new Recipe object without power consumption in inputs
  */
 function _create_recipe_from_raw(machine, recipe_name) {
-    const raw_recipe = RECIPES_DATA[machine][recipe_name];
+    const raw_recipe = _TRANSFORMED_RECIPES_DATA[machine][recipe_name];
     return new Recipe(machine, raw_recipe.in, raw_recipe.out);
 }
 
