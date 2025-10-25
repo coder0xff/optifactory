@@ -5,7 +5,7 @@
 
 import { design_factory } from './factory.js';
 import { parse_material_rate } from './parsing-utils.js';
-import { get_all_recipes_by_machine, get_recipes_for } from './recipes.js';
+import { get_all_recipes_by_machine, get_recipes_for, get_default_enablement_set } from './recipes.js';
 
 // ============================================================================
 // Data Classes
@@ -134,7 +134,7 @@ class FactoryController {
         this._mines_text = "";
         
         // recipe state
-        this.enabled_recipes = FactoryController._get_default_enabled_recipes();
+        this.enabled_recipes = get_default_enablement_set();
         this._recipe_search_text = "";
         
         // optimization weights
@@ -643,22 +643,6 @@ class FactoryController {
     }
     
     // ========== Static Helper Methods ==========
-    
-    /**
-     * Get default set of enabled recipes.
-     * @returns {Set<string>} set of enabled recipe names
-     */
-    static _get_default_enabled_recipes() {
-        const enabled = new Set();
-        for (const [machine_name, recipes] of Object.entries(get_all_recipes_by_machine())) {
-            for (const [recipe_name, recipe] of Object.entries(recipes)) {
-                if (!("MWm" in recipe.outputs) && machine_name !== "Packager" && machine_name !== "Converter") {
-                    enabled.add(recipe_name);
-                }
-            }
-        }
-        return enabled;
-    }
     
     /**
      * Parse configuration text into list of [material, rate] tuples.

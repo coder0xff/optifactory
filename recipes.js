@@ -234,7 +234,7 @@ function _classify_parts() {
  * @returns {boolean} true if recipe doesn't output MWm and isn't from Packager
  */
 function _should_enable_recipe_by_default(recipe, machine) {
-    return !("MWm" in recipe.outputs) && machine !== "Packager";
+    return !("MWm" in recipe.outputs) && machine !== "Packager" && machine !== "Converter";
 }
 
 /**
