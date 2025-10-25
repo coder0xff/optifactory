@@ -520,10 +520,11 @@ class FactoryController {
     
     /**
      * Generate factory using current controller state.
+     * @param {Function} onProgress - optional callback for progress updates
      * @returns {string} graphviz diagram suitable for display
      * @throws {Error} if configuration is invalid or generation fails
      */
-    async generate_factory_from_state() {
+    async generate_factory_from_state(onProgress = null) {
         console.log("Generating factory...");
 
         // parse configuration from text state
@@ -543,7 +544,7 @@ class FactoryController {
         );
         
         // generate and cache result (design_factory is async)
-        const factory = await this.generate_factory(config);
+        const factory = await this.generate_factory(config, onProgress);
         this._current_factory = factory;
         
         console.log("Factory generated successfully");
@@ -668,10 +669,11 @@ class FactoryController {
     /**
      * Generate factory from configuration.
      * @param {FactoryConfig} config - factory configuration
+     * @param {Function} onProgress - optional callback for progress updates
      * @returns {Factory} generated Factory object
      * @throws {Error} if configuration is invalid or generation fails
      */
-    async generate_factory(config) {
+    async generate_factory(config, onProgress = null) {
         // validate first
         const validation = this.validate_config(config);
         if (!validation.is_valid) {
@@ -688,7 +690,8 @@ class FactoryController {
             config.input_costs_weight,
             config.machine_counts_weight,
             config.power_consumption_weight,
-            config.design_power
+            config.design_power,
+            onProgress
         );
     }
 }

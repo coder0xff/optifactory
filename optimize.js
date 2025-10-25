@@ -888,19 +888,30 @@ async function optimize_recipes(
         input_costs_weight = 1.0,
         machine_counts_weight = 0.0,
         power_consumption_weight = 0.0,
-        design_power = false
+        design_power = false,
+        on_progress = null
     } = {}
 ) {
+    const report_progress = (message) => {
+        if (on_progress) {
+            on_progress(message);
+        }
+    };
+
+    report_progress("Validating configuration...");
     [enablement_set, economy, design_power] = _validate_and_set_defaults(
         enablement_set, economy, outputs, design_power
     );
 
+    report_progress("Building recipe matrix...");
     const part_recipe_matrix = _build_part_recipe_matrix(enablement_set);
     _validate_outputs_are_producible(outputs, part_recipe_matrix);
 
+    report_progress("Creating LP model...");
     const builder = _create_lp_builder();
     const recipe_vars = _create_recipe_variables(builder, enablement_set);
 
+    report_progress("Adding constraints...");
     const [part_costs, power_sum] = _add_material_balance_constraints(
         builder,
         part_recipe_matrix,
@@ -923,12 +934,16 @@ async function optimize_recipes(
         builder.add_constraint(constraint, "power_balance");
     }
 
+    report_progress("Setting objective function...");
     _set_objective(builder, part_costs, recipe_vars, input_costs_weight, machine_counts_weight);
 
-    // generate LP text and solve
+    report_progress("Generating LP problem...");
     const lp_text = builder.to_lp_text();
+    
+    report_progress("Solving LP problem (this may take a while)...");
     const result = await solve_lp(lp_text);
 
+    report_progress("Extracting solution...");
     _validate_optimization_succeeded(result, design_power, lp_text);
     return _extract_recipe_counts(recipe_vars, result);
 }

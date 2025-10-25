@@ -289,8 +289,13 @@ const FactoryViewComponent = {
             this.setStatus('Generating factory...', 'info');
             
             try {
+                // Progress callback to update status
+                const onProgress = (message) => {
+                    this.setStatus(message, 'info');
+                };
+                
                 // generate_factory_from_state is async and returns a Promise
-                this.graphvizSource = await this.controller.generate_factory_from_state();
+                this.graphvizSource = await this.controller.generate_factory_from_state(onProgress);
                 
                 this.resetZoom();
                 await this.renderGraphviz(this.graphvizSource);

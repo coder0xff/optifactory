@@ -234,7 +234,8 @@ async function _calculateMachines(
     inputCostsWeight,
     machineCountsWeight,
     powerConsumptionWeight,
-    designPower
+    designPower,
+    onProgress
 ) {
     // Build inputs dict for optimizer
     const inputsDict = _buildOptimizerInputs(inputs, mines);
@@ -249,7 +250,8 @@ async function _calculateMachines(
             input_costs_weight: inputCostsWeight,
             machine_counts_weight: machineCountsWeight,
             power_consumption_weight: powerConsumptionWeight,
-            design_power: designPower
+            design_power: designPower,
+            on_progress: onProgress
         }
     );
     
@@ -832,9 +834,17 @@ async function design_factory(
     inputCostsWeight = 1.0,
     machineCountsWeight = 0.0,
     powerConsumptionWeight = 1.0,
-    designPower = false
+    designPower = false,
+    onProgress = null
 ) {
+    const report_progress = (message) => {
+        if (onProgress) {
+            onProgress(message);
+        }
+    };
+
     // Phase 1: Calculate required machines
+    report_progress("Optimizing recipe selection...");
     const [machineInstances, recipesUsed, requiredRawMaterials, totalProduction] = 
         await _calculateMachines(
             outputs,
@@ -845,8 +855,11 @@ async function design_factory(
             inputCostsWeight,
             machineCountsWeight,
             powerConsumptionWeight,
-            designPower
+            designPower,
+            onProgress
         );
+
+    report_progress("Building factory network...");
 
     // Recompute balance for output calculation
     const balance = _recomputeBalanceForOutputs(
