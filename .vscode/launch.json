@@ -1,0 +1,40 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Run All Tests",
+            "program": "${workspaceFolder}/run-tests.js",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Run Single Test File",
+            "program": "${file}",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "console": "integratedTerminal",
+            "args": []
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Debug Factory Controller Tests",
+            "program": "${workspaceFolder}/debug-test.js",
+            "args": [
+                "test-factory-controller"
+            ],
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "console": "integratedTerminal"
+        }
+    ]
+}
+

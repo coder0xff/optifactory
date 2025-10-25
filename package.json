@@ -1,0 +1,10 @@
+{
+  "name": "optifactory",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Factory optimization tools",
+  "scripts": {
+    "test": "node run-tests.js"
+  }
+}
+

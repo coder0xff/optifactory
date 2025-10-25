@@ -33,6 +33,9 @@ export const TEST_STYLES = `
     }
 `;
 
+// detect if we're running in Node.js
+const isNode = typeof process !== 'undefined' && process.versions && process.versions.node;
+
 /**
  * Test runner class
  */
@@ -198,6 +201,62 @@ export class TestRunner {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    /**
+     * Print results to console (for Node.js)
+     * Waits for all queued tests to complete before printing
+     */
+    async printResults() {
+        // Wait for all tests to complete
+        await Promise.all(this.testPromises);
+        
+        let passCount = 0;
+        let failCount = 0;
+
+        // ANSI color codes
+        const GREEN = '\x1b[32m';
+        const RED = '\x1b[31m';
+        const YELLOW = '\x1b[33m';
+        const RESET = '\x1b[0m';
+        const BOLD = '\x1b[1m';
+
+        console.log('\n' + BOLD + '='.repeat(70) + RESET);
+        console.log(BOLD + 'Test Results' + RESET);
+        console.log(BOLD + '='.repeat(70) + RESET + '\n');
+
+        // Display each result
+        for (const result of this.results) {
+            if (result.status === 'pass') {
+                passCount++;
+                console.log(GREEN + '✓ PASS:' + RESET + ' ' + result.name);
+                if (result.message) {
+                    console.log('  ' + result.message);
+                }
+            } else {
+                failCount++;
+                console.log(RED + '✗ FAIL:' + RESET + ' ' + result.name);
+                if (result.message) {
+                    console.log('  ' + RED + result.message + RESET);
+                }
+                if (result.error && result.error.stack) {
+                    console.log('  ' + RED + result.error.stack + RESET);
+                }
+            }
+            console.log('');
+        }
+
+        // Print summary
+        console.log(BOLD + '='.repeat(70) + RESET);
+        const summary = `${passCount} passed, ${failCount} failed, ${passCount + failCount} total`;
+        if (failCount === 0) {
+            console.log(BOLD + GREEN + summary + RESET);
+        } else {
+            console.log(BOLD + YELLOW + summary + RESET);
+        }
+        console.log(BOLD + '='.repeat(70) + RESET + '\n');
+
+        return { passCount, failCount, total: passCount + failCount };
     }
 }
 

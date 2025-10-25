@@ -40,10 +40,23 @@ export async function init_highs() {
         return _highs_instance;
     }
     
-    // Load HiGHS module from CDN
-    _highs_instance = await Module({
-        locateFile: (file) => `${file}`
-    });
+    // Detect environment and load HiGHS appropriately
+    const isNode = typeof process !== 'undefined' && process.versions && process.versions.node;
+    
+    if (isNode) {
+        // Node.js: require the CommonJS module
+        const { createRequire } = await import('module');
+        const require = createRequire(import.meta.url);
+        const Module = require('./highs.cjs');
+        _highs_instance = await Module({
+            locateFile: (file) => `${file}`
+        });
+    } else {
+        // Browser: Module is globally available from <script> tag
+        _highs_instance = await Module({
+            locateFile: (file) => `${file}`
+        });
+    }
     
     return _highs_instance;
 }

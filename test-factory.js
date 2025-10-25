@@ -1,0 +1,258 @@
+import { Factory, design_factory } from './factory.js';
+import { Purity, get_recipes_for } from './recipes.js';
+import { init_highs } from './lp-solver.js';
+import {
+    TestRunner,
+    assertEquals,
+    assertNotNull,
+    assertTrue,
+    assertGreaterThan
+} from './test-framework.js';
+
+export async function runTests() {
+    const runner = new TestRunner();
+    const test = (name, fn) => runner.test(name, fn);
+
+    // Basic instantiation tests
+    await test('Factory class can be instantiated', () => {
+        const factory = new Factory(null, [], {}, []);
+        assertNotNull(factory, 'Factory instance created');
+        return 'Factory instance created successfully';
+    });
+
+    await test('Factory class has correct properties', () => {
+        const network = { test: 'network' };
+        const inputs = [['Iron Ore', 100]];
+        const outputs = { 'Iron Plate': 50 };
+        const mines = [['Iron Ore', Purity.NORMAL]];
+        
+        const factory = new Factory(network, inputs, outputs, mines);
+        
+        assertEquals(factory.network, network, 'Network property');
+        assertEquals(factory.inputs, inputs, 'Inputs property');
+        assertEquals(factory.outputs, outputs, 'Outputs property');
+        assertEquals(factory.mines, mines, 'Mines property');
+        return 'All properties correctly assigned';
+    });
+
+    // Test recipe lookup
+    await test('get_recipes_for works for Iron Plate', () => {
+        const recipes = get_recipes_for("Iron Plate");
+        assertNotNull(recipes, 'Should find recipes for Iron Plate');
+        assertTrue(20.0 in recipes, 'Should include 20/min recipe');
+        return 'Recipe lookup successful';
+    });
+
+    // Test factory design with input
+    await test('design_factory with raw material input', async () => {
+        const factory = await design_factory(
+            { 'Iron Plate': 100 },
+            [['Iron Ore', 500]],
+            []
+        );
+
+        assertNotNull(factory.network, 'Network created');
+        assertTrue(factory.network.source.length > 0, 'Network has content');
+        
+        // Check that machines were created
+        const source = factory.network.source;
+        assertTrue(source.includes('Machine_') || source.includes('Smelter'), 'Should create machine nodes');
+        
+        return { message: `Factory designed with input (network has ${source.length} chars)`, graph: factory.network };
+    });
+
+    // Test factory design with mine
+    await test('design_factory with mining node', async () => {
+        const factory = await design_factory(
+            { 'Iron Plate': 100 },
+            [],
+            [['Iron Ore', Purity.PURE]]
+        );
+
+        assertNotNull(factory.network, 'Network created');
+        assertTrue(factory.network.source.length > 0, 'Network has content');
+
+        // Check that mine was created
+        const source = factory.network.source;
+        const hasMine = source.includes('Mine_') || source.includes('Miner');
+        assertTrue(hasMine, 'Should create mine node');
+
+        return { message: 'Factory designed with mine', graph: factory.network };
+    });
+
+    // Test auto-generation of missing raw materials
+    await test('auto-generates missing raw materials', async () => {
+        const factory = await design_factory(
+            { 'Iron Plate': 100 },
+            [],
+            []  // No inputs or mines
+        );
+
+        assertNotNull(factory.network, 'Network created');
+        const source = factory.network.source;
+        assertTrue(source.includes('Iron Ore'), 'Should include Iron Ore');
+        assertTrue(source.toLowerCase().includes('auto'), 'Should have auto-generated input');
+
+        return { message: 'Auto-generates missing raw materials', graph: factory.network };
+    });
+
+    // Test Factory dataclass properties
+    await test('Factory dataclass properly populated', async () => {
+        const outputs = { 'Iron Plate': 100 };
+        const inputs = [['Iron Ore', 500]];
+        const mines = [];
+
+        const factory = await design_factory(outputs, inputs, mines);
+
+        // Check that all requested outputs are present
+        for (const [material, amount] of Object.entries(outputs)) {
+            assertTrue(material in factory.outputs, `Missing requested output: ${material}`);
+            assertTrue(
+                factory.outputs[material] >= amount,
+                `Insufficient output for ${material}: ${factory.outputs[material]} < ${amount}`
+            );
+        }
+
+        assertEquals(factory.inputs, inputs, 'Inputs match');
+        assertEquals(factory.mines, mines, 'Mines match');
+        assertNotNull(factory.network, 'Network exists');
+
+        return 'Factory dataclass valid';
+    });
+
+    // Test automatic raw material detection
+    await test('automatic raw material detection', async () => {
+        const factory = await design_factory(
+            { 'Concrete': 480 },
+            [],  // No inputs - should auto-detect limestone need
+            []
+        );
+
+        assertNotNull(factory.network, 'Network created');
+        const source = factory.network.source;
+
+        // Should have auto-generated limestone input
+        assertTrue(source.includes('Limestone'), 'Should have Limestone');
+        assertTrue(source.toLowerCase().includes('auto'), 'Should have auto marker');
+
+        // Should have constructor machines
+        assertTrue(source.includes('Constructor'), 'Should have Constructor');
+
+        return { message: 'Auto raw materials detection works', graph: factory.network };
+    });
+
+    // Test complex production chain
+    await test('complex production chain', async () => {
+        const factory = await design_factory(
+            { 'Iron Plate': 200, 'Copper Ingot': 100 },
+            [],
+            [['Iron Ore', Purity.NORMAL], ['Copper Ore', Purity.NORMAL]]
+        );
+
+        assertNotNull(factory.network, 'Network created');
+        const source = factory.network.source;
+
+        // Should have mine nodes
+        assertTrue(source.includes('Mine') || source.includes('Miner'), 'Should have mines');
+
+        // Should have multiple machines
+        assertTrue(source.includes('Smelter') || source.includes('Machine'), 'Should have machines');
+
+        return { message: 'Complex production chain works', graph: factory.network };
+    });
+
+    // Test simple single machine
+    await test('simple single machine case', async () => {
+        const factory = await design_factory(
+            { 'Iron Plate': 30 },
+            [['Iron Ore', 30]],
+            []
+        );
+
+        assertNotNull(factory.network, 'Network created');
+        assertTrue(factory.network.source.length > 0, 'Network has content');
+
+        return { message: 'Simple single machine case works', graph: factory.network };
+    });
+
+    // Test byproduct handling
+    await test('byproduct handling', async () => {
+        const factory = await design_factory(
+            { 'Fuel': 100 },
+            [],
+            []
+        );
+
+        assertNotNull(factory.network, 'Network created');
+        const source = factory.network.source;
+        
+        // Should create a valid graph with the primary output
+        assertTrue(source.includes('Fuel'), 'Should include Fuel');
+
+        return { message: 'Byproduct handling works', graph: factory.network };
+    });
+
+    // Test intermediate and final output
+    await test('intermediate and final output', async () => {
+        const factory = await design_factory(
+            { 'Iron Ingot': 50, 'Iron Plate': 30 },
+            [],
+            [['Iron Ore', Purity.NORMAL]]
+        );
+
+        assertNotNull(factory.network, 'Network created');
+        const source = factory.network.source;
+        
+        // Both should be in the output
+        assertTrue(source.includes('Iron Ingot'), 'Should include Iron Ingot');
+        assertTrue(source.includes('Iron Plate'), 'Should include Iron Plate');
+        
+        return { message: 'Intermediate and final output works', graph: factory.network };
+    });
+
+    // Test Computer factory graph properties
+    await test('Computer factory graph properties', async () => {
+        const factory = await design_factory(
+            { 'Computer': 1 },
+            [],
+            []
+        );
+
+        assertNotNull(factory.network, 'Network created');
+        assertNotNull(factory.network.nodes, 'Network has nodes');
+        
+        const nodes = factory.network.nodes;
+        const circularShapes = ['circle', 'oval', 'ellipse', 'doublecircle', 'point'];
+        
+        // Check all nodes
+        for (const node of nodes) {
+            // Check node is not circular (shape must be set and not circular, since default is oval)
+            assertTrue(node.shape, `Node ${node.id} must have shape set (default is oval which is circular)`);
+            const isCircular = circularShapes.includes(node.shape.toLowerCase());
+            assertTrue(!isCircular, `Node ${node.id} should not have circular shape, got ${node.shape}`)
+            
+            // Check node has a border (peripheries != 0 and style != invisible)
+            if (node.peripheries !== undefined) {
+                assertTrue(node.peripheries !== 0 && node.peripheries !== '0', 
+                    `Node ${node.id} should have a border (peripheries=${node.peripheries})`);
+            }
+            if (node.style) {
+                const hasNoBorder = node.style === 'invis' || node.style === 'invisible' || 
+                                   node.style.includes('invis');
+                assertTrue(!hasNoBorder, `Node ${node.id} should have a border (style=${node.style})`);
+            }
+            
+            // Check diamond nodes have empty label
+            if (node.shape && node.shape.toLowerCase() === 'diamond') {
+                const hasEmptyLabel = !node.label || node.label === '' || node.label === '""';
+                assertTrue(hasEmptyLabel, 
+                    `Node ${node.id} with diamond shape should have empty label, got "${node.label}"`);
+            }
+        }
+        
+        return { message: `Checked ${nodes.length} nodes for proper graph properties`, graph: factory.network };
+    });
+
+    return runner;
+}
+
