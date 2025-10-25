@@ -138,8 +138,8 @@ class FactoryController {
         this._recipe_search_text = "";
         
         // optimization weights
-        this._input_costs_weight = 1.0;
-        this._machine_counts_weight = 0.0;
+        this._input_costs_weight = 0.1;
+        this._machine_counts_weight = 1.0;
         this._power_consumption_weight = 1.0;
         this._design_power = false;
         
