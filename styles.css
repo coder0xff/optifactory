@@ -59,8 +59,8 @@ input[type="number"] {
 
 input[type="checkbox"] {
     cursor: pointer;
-    width: 18px;
-    height: 18px;
+    width: 14px;
+    height: 14px;
 }
 
 input[type="range"] {
@@ -324,10 +324,11 @@ tbody tr:hover {
 
 .tree-machine {
     font-weight: 500;
+    font-size: 12px;
 }
 
 .tree-recipe {
-    padding-left: 24px;
+    padding-left: 36px;
     font-size: 12px;
 }
 
