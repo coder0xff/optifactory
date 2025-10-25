@@ -482,14 +482,24 @@ class FactoryController {
                 // determine visibility based on search
                 const is_visible = this._recipe_matches_search(recipe_name, recipe, search_text);
                 
+                // transform "Alternate: X" to "X (Alternate)"
+                let display_name = recipe_name;
+                if (recipe_name.startsWith("Alternate: ")) {
+                    const base_name = recipe_name.substring(11);
+                    display_name = `${base_name} (Alternate)`;
+                }
+                
                 const recipe_node = new RecipeTreeNode(
                     FactoryController._make_recipe_id(machine_name, recipe_name),
-                    recipe_name,
+                    display_name,
                     this.enabled_recipes.has(recipe_name),
                     is_visible
                 );
                 recipe_nodes.push(recipe_node);
             }
+            
+            // sort recipes by display name
+            recipe_nodes.sort((a, b) => a.display_name.localeCompare(b.display_name));
             
             // calculate machine state from visible recipes
             const visible_recipes = recipe_nodes.filter(r => r.is_visible);
@@ -519,6 +529,9 @@ class FactoryController {
             );
             machines.push(machine_node);
         }
+        
+        // sort machines by display name
+        machines.sort((a, b) => a.display_name.localeCompare(b.display_name));
         
         return new RecipeTreeStructure(machines);
     }
