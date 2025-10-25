@@ -476,6 +476,29 @@ tbody tr:hover {
     font-size: 11px;
     font-family: monospace;
     pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.zoom-fit-button {
+    pointer-events: auto;
+    padding: 2px 6px;
+    font-size: 11px;
+    background-color: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.zoom-fit-button:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+.zoom-fit-button:active {
+    background-color: rgba(255, 255, 255, 0.4);
 }
 
 /* Standalone editor pages */

@@ -170,7 +170,10 @@ const FactoryViewComponent = {
                 <div v-else class="viewer-placeholder">
                     {{ placeholder || 'Graph visualization will appear here' }}
                 </div>
-                <div v-if="graphvizSource" class="zoom-indicator">{{ (zoomFactor * 100).toFixed(0) }}%</div>
+                <div v-if="graphvizSource" class="zoom-indicator">
+                    <button @click="zoomToFit" class="zoom-fit-button">Fit</button>
+                    <span>{{ (zoomFactor * 100).toFixed(0) }}%</span>
+                </div>
             </div>
         </div>
     `,
