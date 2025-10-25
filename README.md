@@ -13,8 +13,8 @@ This directory contains JavaScript as self-contained HTML files using Vue.js 3.
 - **styles.css** (~450 lines) - All CSS styles shared across all pages
 - **controllers.js** (~380 lines) - Business logic controllers (EconomyController, FactoryController)
 - **graphviz-viewer.js** (~120 lines) - Vue mixin for interactive graph viewing with zoom/pan
-- **economy-view-component.js** (~170 lines) - Reusable Economy View component (UI + file I/O)
-- **factory-view-component.js** (~350 lines) - Reusable Factory View component (UI + graphviz rendering)
+- **economy-editor.js** (~170 lines) - Reusable Economy View component (UI + file I/O)
+- **factory-editor.js** (~350 lines) - Reusable Factory View component (UI + graphviz rendering)
 
 ## Architecture
 
@@ -30,8 +30,8 @@ Shared Components (Loaded via <script> tags)
 ├── styles.css                   → All CSS (no duplication)
 ├── controllers.js               → Business logic (pure, no UI/file I/O)
 ├── graphviz-viewer.js           → Vue mixin for zoom/pan
-├── factory-view-component.js    → Factory view component (UI + rendering)
-└── economy-view-component.js    → Economy view component (UI + file I/O)
+├── factory-editor.js    → Factory view component (UI + rendering)
+└── economy-editor.js    → Economy view component (UI + file I/O)
 ```
 
 **MVC Separation:**
@@ -161,7 +161,7 @@ The placeholder controllers include sample mock data:
 ### File Operations
 CSV operations are split between view and controller:
 
-**View Responsibilities (economy-view-component.js):**
+**View Responsibilities (economy-editor.js):**
 - Trigger file picker dialog (`<input type="file">`)
 - Read file content using FileReader API
 - Create and download CSV files using Blob + URL.createObjectURL
