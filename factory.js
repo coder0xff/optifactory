@@ -859,7 +859,7 @@ async function design_factory(
 
     // Phase 2: Build network graph with balancers
     const dot = new Digraph("Factory Network");
-    dot.attr("rankdir", "LR");
+    dot.attr({ rankdir: "LR", dpi: 50 });
 
     // Track material flows: {material: {"sources": [...], "sinks": [...]}}
     const materialFlows = {};
