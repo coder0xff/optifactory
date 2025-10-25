@@ -324,7 +324,7 @@ const DocsViewerComponent = {
                     outputs,
                     inputs,
                     mines,
-                    null,
+                    new Set(["Alternate: Pure Copper Ingot", "Copper Ingot", "Wire", "Copper Sheet", "Cable"]),
                     this.economy,
                     1.0,
                     0.0,
