@@ -558,7 +558,7 @@ function _extract_recipe_counts(recipe_vars, result) {
         // look up variable value in result
         const value = result.variable_values[var_obj.name] || 0;
         if (value > 0) {
-            output[recipe_name] = value;
+            output[recipe_name] = Math.round(value);
         }
     }
     
