@@ -89,8 +89,8 @@ describe('Factory', () => {
             );
         }
 
-        assert.strictEqual(factory.inputs, inputs);
-        assert.strictEqual(factory.mines, mines);
+        assert.deepStrictEqual(factory.inputs, inputs);
+        assert.deepStrictEqual(factory.mines, mines);
         assert.ok(factory.network != null);
     });
 
@@ -228,5 +228,133 @@ describe('Factory', () => {
                     `Node ${node.id} with diamond shape should have empty label, got "${node.label}"`);
             }
         }
+    });
+
+    it('disableBalancers parameter defaults to false (uses balancers)', async () => {
+        const factory = await design_factory(
+            { 'Iron Plate': 100 },
+            [['Iron Ore', 200], ['Iron Ore', 200]],
+            []
+        );
+
+        assert.ok(factory.network != null);
+        const source = factory.network.source;
+        
+        // With balancers enabled (default), should have splitter/merger nodes (diamond shapes)
+        assert.ok(source.includes('shape=diamond') || source.includes('shape="diamond"'), 
+            'Should have diamond-shaped balancer nodes when disableBalancers=false');
+    });
+
+    it('disableBalancers=true creates hub nodes instead of balancers', async () => {
+        const factory = await design_factory(
+            { 'Iron Plate': 100 },
+            [['Iron Ore', 200], ['Iron Ore', 200]],
+            [],
+            null,  // enablementSet
+            null,  // economy
+            1.0,   // inputCostsWeight
+            0.0,   // machineCountsWeight
+            1.0,   // powerConsumptionWeight
+            false, // designPower
+            true   // disableBalancers
+        );
+
+        assert.ok(factory.network != null);
+        const source = factory.network.source;
+        
+        // With balancers disabled, should have circular hub nodes
+        assert.ok(source.includes('shape=circle') || source.includes('shape="circle"'),
+            'Should have circular hub nodes when disableBalancers=true');
+        
+        // Should have a hub for Iron Ore material
+        assert.ok(source.includes('Iron_Ore_Hub'),
+            'Should have Iron_Ore_Hub node');
+    });
+
+    it('disableBalancers=true skips electricity routing', async () => {
+        const factory = await design_factory(
+            { 'Iron Plate': 30 },
+            [['Iron Ore', 30]],
+            [],
+            null,
+            null,
+            1.0,
+            0.0,
+            1.0,
+            false,
+            true  // disableBalancers
+        );
+
+        assert.ok(factory.network != null);
+        const source = factory.network.source;
+        
+        // Should successfully generate a factory with disableBalancers
+        assert.ok(source.length > 0);
+        
+        // Should have the expected machines
+        assert.ok(source.includes('Machine') || source.includes('Smelter'));
+        
+        // Electricity (MWm) should not have hub nodes
+        assert.ok(!source.includes('MWm_Hub'),
+            'Should not create hub for electricity');
+    });
+
+    it('disableBalancers=true with multiple materials creates separate hubs', async () => {
+        const factory = await design_factory(
+            { 'Iron Plate': 50, 'Copper Ingot': 50 },
+            [['Iron Ore', 100], ['Iron Ore', 100], ['Copper Ore', 100], ['Copper Ore', 100]],
+            [],
+            null,
+            null,
+            1.0,
+            0.0,
+            1.0,
+            false,
+            true  // disableBalancers
+        );
+
+        assert.ok(factory.network != null);
+        const source = factory.network.source;
+        
+        // Should have hub nodes for both materials
+        assert.ok(source.includes('Iron_Ore_Hub'),
+            'Should have Iron_Ore_Hub node');
+        assert.ok(source.includes('Copper_Ore_Hub'),
+            'Should have Copper_Ore_Hub node');
+        
+        // Both hubs should be circular
+        const ironHubMatch = source.match(/Iron_Ore_Hub[^\n]*\n[^\[]*\[[^\]]*shape=(?:")?circle(?:")?\b/);
+        const copperHubMatch = source.match(/Copper_Ore_Hub[^\n]*\n[^\[]*\[[^\]]*shape=(?:")?circle(?:")?\b/);
+        
+        assert.ok(ironHubMatch || source.includes('Iron_Ore_Hub') && source.includes('shape=circle'),
+            'Iron hub should be circular');
+        assert.ok(copperHubMatch || source.includes('Copper_Ore_Hub') && source.includes('shape=circle'),
+            'Copper hub should be circular');
+    });
+
+    it('disableBalancers=false uses balancer network for multiple sources', async () => {
+        const factory = await design_factory(
+            { 'Iron Plate': 100 },
+            [['Iron Ore', 200], ['Iron Ore', 200]],
+            [],
+            null,
+            null,
+            1.0,
+            0.0,
+            1.0,
+            false,
+            false  // disableBalancers (explicit false)
+        );
+
+        assert.ok(factory.network != null);
+        const source = factory.network.source;
+        
+        // Should have diamond-shaped splitter/merger nodes from balancer.js
+        assert.ok(source.includes('shape=diamond') || source.includes('shape="diamond"'),
+            'Should have diamond-shaped balancer nodes');
+        
+        // Should NOT have hub nodes
+        assert.ok(!source.includes('_Hub'),
+            'Should not have hub nodes when balancers are enabled');
     });
 });

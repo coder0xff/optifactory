@@ -24,12 +24,14 @@ class FactoryConfig {
      * @param {number} machine_counts_weight - optimization weight for machine counts
      * @param {number} power_consumption_weight - optimization weight for power consumption
      * @param {boolean} design_power - whether to design power generation
+     * @param {boolean} disable_balancers - if true, use simple hub nodes instead of balancer networks
      */
     constructor(outputs, inputs, mines, enabled_recipes, 
                 input_costs_weight = 1.0, 
                 machine_counts_weight = 0.0, 
                 power_consumption_weight = 1.0, 
-                design_power = false) {
+                design_power = false,
+                disable_balancers = false) {
         this.outputs = outputs;
         this.inputs = inputs;
         this.mines = mines;
@@ -38,6 +40,7 @@ class FactoryConfig {
         this.machine_counts_weight = machine_counts_weight;
         this.power_consumption_weight = power_consumption_weight;
         this.design_power = design_power;
+        this.disable_balancers = disable_balancers;
     }
 }
 
@@ -142,6 +145,7 @@ class FactoryController {
         this._machine_counts_weight = 1.0;
         this._power_consumption_weight = 1.0;
         this._design_power = false;
+        this._disable_balancers = false;
         
         // generated factory (result)
         this._current_factory = null;
@@ -211,6 +215,14 @@ class FactoryController {
      */
     get_design_power() {
         return this._design_power;
+    }
+    
+    /**
+     * Get disable balancers flag.
+     * @returns {boolean} disable balancers flag
+     */
+    get_disable_balancers() {
+        return this._disable_balancers;
     }
     
     /**
@@ -340,6 +352,14 @@ class FactoryController {
      */
     set_design_power(value) {
         this._design_power = value;
+    }
+    
+    /**
+     * Set disable balancers flag.
+     * @param {boolean} value - new disable balancers flag
+     */
+    set_disable_balancers(value) {
+        this._disable_balancers = value;
     }
     
     /**
@@ -614,7 +634,8 @@ class FactoryController {
             this._input_costs_weight,
             this._machine_counts_weight,
             this._power_consumption_weight,
-            this._design_power
+            this._design_power,
+            this._disable_balancers
         );
         
         // generate and cache result (design_factory is async)
@@ -749,6 +770,7 @@ class FactoryController {
             config.machine_counts_weight,
             config.power_consumption_weight,
             config.design_power,
+            config.disable_balancers,
             onProgress
         );
     }

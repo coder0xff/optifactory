@@ -134,6 +134,15 @@ const FactoryViewComponent = {
                         >
                         <label for="design-power">Include power in design</label>
                     </div>
+                    <div class="checkbox-container">
+                        <input 
+                            type="checkbox" 
+                            id="disable-balancers"
+                            v-model="disableBalancers"
+                            @change="onDisableBalancersChanged"
+                        >
+                        <label for="disable-balancers">Disable balancers (use simple hubs)</label>
+                    </div>
                     <div v-if="showPowerWarning" class="warning">
                         Warning: No power-generating recipes are enabled
                     </div>
@@ -201,6 +210,7 @@ const FactoryViewComponent = {
             machineCountsWeight: 0.0,
             powerConsumptionWeight: 1.0,
             designPower: false,
+            disableBalancers: false,
             showPowerWarning: false,
             showConverterWarning: false,
             isGenerating: false,
@@ -215,6 +225,7 @@ const FactoryViewComponent = {
         this.machineCountsWeight = this.controller.get_machine_counts_weight();
         this.powerConsumptionWeight = this.controller.get_power_consumption_weight();
         this.designPower = this.controller.get_design_power();
+        this.disableBalancers = this.controller.get_disable_balancers();
         this.refreshTreeView();
         this.updatePowerWarning();
         this.updateConverterWarning();
@@ -255,6 +266,9 @@ const FactoryViewComponent = {
         onDesignPowerChanged() {
             this.controller.set_design_power(this.designPower);
             this.updatePowerWarning();
+        },
+        onDisableBalancersChanged() {
+            this.controller.set_disable_balancers(this.disableBalancers);
         },
         toggleMachine(machineId) {
             const machine = this.treeStructure.find(m => m.tree_id === machineId);

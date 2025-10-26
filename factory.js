@@ -753,6 +753,60 @@ function _routeMaterialsWithBalancers(dot, materialFlows) {
     }
 }
 
+/**
+ * Route materials between sources and sinks using simple hub nodes.
+ * All materials (except MWm/electricity) are routed through circular hub nodes.
+ * @param {Digraph} dot - main graphviz digraph
+ * @param {Object} materialFlows - dict mapping materials to source/sink flows
+ */
+function _routeMaterialsWithNodes(dot, materialFlows) {
+    for (const [material, flows] of Object.entries(materialFlows)) {
+        if (material === "MWm") {  // skip electricity - doesn't need routing
+            continue;
+        }
+        
+        const sources = flows.sources;
+        const sinks = flows.sinks;
+
+        // Skip materials with no sources or sinks
+        if (!sources || sources.length === 0 || !sinks || sinks.length === 0) {
+            continue;
+        }
+
+        const sourceFlows = sources.map(([_, flow]) => flow);
+        const sinkFlows = sinks.map(([_, flow]) => flow);
+
+        const totalSource = sourceFlows.reduce((a, b) => a + b, 0);
+        const totalSink = sinkFlows.reduce((a, b) => a + b, 0);
+
+        if (totalSource < totalSink) {
+            console.log(`Warning: Insufficient ${material}: ${totalSource} < ${totalSink}`);
+            continue;
+        }
+
+        // Direct connection for single source and single sink
+        if (sources.length === 1 && sinks.length === 1) {
+            _handleDirectConnection(dot, material, sources, sinks, sinkFlows);
+        } else {
+            // Create hub node and connect all sources and sinks to it
+            const hubId = `${material.replace(/ /g, '_')}_Hub`;
+            dot.node(hubId, "", { shape: "circle", style: "filled", fillcolor: "lightgrey" });
+
+            // Connect all sources to hub
+            for (const [sourceId, flowRate] of sources) {
+                const color = _getEdgeColor(material, flowRate);
+                dot.edge(sourceId, hubId, { label: `${material}\n${flowRate}`, color: color, penwidth: "2" });
+            }
+
+            // Connect hub to all sinks
+            for (const [sinkId, flowRate] of sinks) {
+                const color = _getEdgeColor(material, flowRate);
+                dot.edge(hubId, sinkId, { label: `${material}\n${flowRate}`, color: color, penwidth: "2" });
+            }
+        }
+    }
+}
+
 // ============================================================================
 // Factory class
 // ============================================================================
@@ -823,6 +877,7 @@ function _recomputeBalanceForOutputs(inputs, mines, outputs, machineInstances, r
  * @param {number} machineCountsWeight - optimization weight for machine counts
  * @param {number} powerConsumptionWeight - optimization weight for power usage
  * @param {boolean} designPower - whether to include power generation in the design
+ * @param {boolean} disableBalancers - if true, use simple hub nodes instead of balancer networks
  * @returns {Promise<Factory>} Factory with complete network graph including machines and balancers
  */
 async function design_factory(
@@ -835,6 +890,7 @@ async function design_factory(
     machineCountsWeight = 0.0,
     powerConsumptionWeight = 1.0,
     designPower = false,
+    disableBalancers = false,
     onProgress = null
 ) {
     const report_progress = (message) => {
@@ -889,8 +945,12 @@ async function design_factory(
     // Add output nodes
     _addOutputNodes(dot, outputs, totalProduction, balance, materialFlows);
 
-    // Phase 3: Route materials with balancers
-    _routeMaterialsWithBalancers(dot, materialFlows);
+    // Phase 3: Route materials with balancers or simple hub nodes
+    if (disableBalancers) {
+        _routeMaterialsWithNodes(dot, materialFlows);
+    } else {
+        _routeMaterialsWithBalancers(dot, materialFlows);
+    }
 
     return new Factory(dot, inputs, actualOutputs, mines);
 }
