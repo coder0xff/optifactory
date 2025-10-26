@@ -38,12 +38,13 @@ const DocsViewerComponent = {
                 <!-- Introduction -->
                 <section id="introduction">
                     <h2>1. Introduction</h2>
+                    <p>Optifactory is similar to existing Satisfactory planning tools, but stands out thanks to its ability to produce optimal designs for your desired outputs. Based on the recipes enabled, the inputs available, and tuned to your personal preferences, Optifactory produces the provably best design, including balancer networks, alternate recipes, and power systems if desired. It uses the HiGHS mixed LP optimizer to accomplish this feat.</p>
                     <h3>Key Features</h3>
                     <ul>
-                        <li>Designs complete factory networks including material routing</li>
-                        <li>Optimizes for input costs, machine counts, or power consumption</li>
-                        <li>Interactive diagrams with zoom and pan</li>
-                        <li>Runs entirely in browser (no server required)</li>
+                        <li>Designs complete factory networks including material routing.</li>
+                        <li>Optimizes for input costs, machine counts, or power consumption.</li>
+                        <li>Interactive diagrams with zoom and pan.</li>
+                        <li>Runs entirely in browser (no server required).</li>
                     </ul>
                 </section>
 
