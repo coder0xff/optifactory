@@ -139,6 +139,7 @@ Finds optimal recipe combinations to minimize costs while meeting production req
   - Input material costs (based on economy values)
   - Machine counts
   - Power consumption
+  - Waste products (excess material production)
 - Supports recipe enablement filtering
 - Handles material balance constraints
 
@@ -147,7 +148,7 @@ Finds optimal recipe combinations to minimize costs while meeting production req
 
 **LP Model:**
 - **Variables:** Recipe instance counts (integers)
-- **Objective:** Weighted sum of input costs, machine counts, and power
+- **Objective:** Weighted sum of input costs, machine counts, power, and waste products
 - **Constraints:**
   - Material balance: production ≥ requirements
   - Non-negativity: all variables ≥ 0
@@ -201,7 +202,7 @@ Or just open `index.html` directly in your browser (file:// protocol).
 ## Features
 
 - **Economy Editor:** Compute and adjust item values, pin specific values, export/import CSV
-- **Factory Designer:** Design production chains, select recipes, optimize for cost/machines/power
+- **Factory Designer:** Design production chains, select recipes, optimize for cost/machines/power/waste
 - **Interactive Visualization:** Zoom, pan, and explore factory network diagrams
 - **Balancer Generation:** Automatic splitter/merger networks for material routing
 - **No Backend Required:** Everything runs in the browser with WebAssembly

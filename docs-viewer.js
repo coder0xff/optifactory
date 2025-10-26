@@ -42,7 +42,7 @@ const DocsViewerComponent = {
                     <h3>Key Features</h3>
                     <ul>
                         <li>Designs complete factory networks including material routing.</li>
-                        <li>Optimizes for input costs, machine counts, or power consumption.</li>
+                        <li>Optimizes for input costs, machine counts, power consumption, or waste products.</li>
                         <li>Interactive diagrams with zoom and pan.</li>
                         <li>Runs entirely in browser (no server required).</li>
                     </ul>
@@ -112,11 +112,12 @@ const DocsViewerComponent = {
                     <p><strong>Note:</strong> Power generation recipes (Biomass Burner, Coal Generator, Fuel Generator, etc.) and Packager recipes are disabled by default. Enable them manually if needed.</p>
 
                     <h3 id="optimization">3.4 Optimization</h3>
-                    <p>Use the three sliders to control what the optimizer prioritizes:</p>
+                    <p>Use the four sliders to control what the optimizer prioritizes:</p>
                     <ul>
                         <li><strong>Input Costs</strong> - Minimize raw material usage</li>
                         <li><strong>Machine Counts</strong> - Minimize number of machines</li>
                         <li><strong>Power Usage</strong> - Minimize power consumption</li>
+                        <li><strong>Waste Products</strong> - Minimize excess material production</li>
                     </ul>
                     <p>Higher values = higher priority. Adjust the sliders to match your goals.</p>
 
