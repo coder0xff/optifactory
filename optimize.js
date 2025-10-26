@@ -762,6 +762,7 @@ function _add_material_balance_constraints(
 ) {
     let power_sum = null;
     const part_costs = [];
+    const wastes = [];
 
     for (const [part, contributors_dict] of Object.entries(part_recipe_matrix)) {
         const part_count = _compute_part_count(part, contributors_dict, recipe_vars, inputs, design_power);
@@ -777,6 +778,10 @@ function _add_material_balance_constraints(
             // handle cost for non-output parts
             const part_cost = builder.add_var(
                 _safe_var_name(`${part}_cost`), INTEGER
+            );
+
+            const waste = builder.add_var(
+                _safe_var_name(`${part}_waste`), INTEGER
             );
 
             const [weighted_part_cost, updated_power_sum] = _compute_weighted_part_cost(
@@ -799,10 +804,14 @@ function _add_material_balance_constraints(
                 builder.add_constraint(constraint, _safe_var_name(`${part}_cost`));
                 part_costs.push(part_cost);
             }
+
+            const constraint = waste.sub(part_count).greater_or_equal(0);
+            builder.add_constraint(constraint, _safe_var_name(`${part}_waste`));
+            wastes.push(waste);
         }
     }
 
-    return [part_costs, power_sum];
+    return [part_costs, power_sum, wastes];
 }
 
 /**
@@ -826,9 +835,11 @@ function _add_material_balance_constraints(
 function _set_objective(
     builder,
     part_costs,
+    wastes,
     recipe_vars,
     input_costs_weight,
-    machine_counts_weight
+    machine_counts_weight,
+    waste_products_weight
 ) {
     // sum all part costs
     let objective = new LinExpr([], 0);
@@ -844,6 +855,13 @@ function _set_objective(
     }
     objective = objective.add(machine_sum.mul(machine_counts_weight));
     
+    // add wastes
+    let waste_sum = new LinExpr([], 0);
+    for (const waste of wastes) {
+        waste_sum = waste_sum.add(waste);
+    }
+    objective = objective.add(waste_sum.mul(waste_products_weight));
+
     builder.set_objective(objective);
 }
 
@@ -876,6 +894,7 @@ function _set_objective(
  * @param {number} options.input_costs_weight - weight for input costs in objective
  * @param {number} options.machine_counts_weight - weight for machine counts in objective
  * @param {number} options.power_consumption_weight - weight for power consumption in objective
+ * @param {number} options.waste_products_weight - weight for waste products in objective
  * @param {boolean} options.design_power - whether to design power generation (forced true if MWm in outputs)
  * @returns {Object<string, number>} object mapping recipe name -> number of machines needed
  * @throws {Error} if enablement set is invalid, outputs are unrecognized,
@@ -890,6 +909,7 @@ async function optimize_recipes(
         input_costs_weight = 1.0,
         machine_counts_weight = 0.0,
         power_consumption_weight = 0.0,
+        waste_products_weight = 0.0,
         design_power = false,
         on_progress = null
     } = {}
@@ -918,7 +938,7 @@ async function optimize_recipes(
     const recipe_vars = _create_recipe_variables(builder, enablement_set);
 
     report_progress("Adding constraints...");
-    const [part_costs, power_sum] = _add_material_balance_constraints(
+    const [part_costs, power_sum, wastes] = _add_material_balance_constraints(
         builder,
         part_recipe_matrix,
         recipe_vars,
@@ -941,7 +961,7 @@ async function optimize_recipes(
     }
 
     report_progress("Setting objective function...");
-    _set_objective(builder, part_costs, recipe_vars, input_costs_weight, machine_counts_weight);
+    _set_objective(builder, part_costs, wastes, recipe_vars, input_costs_weight, machine_counts_weight, waste_products_weight);
 
     report_progress("Generating LP problem...");
     const lp_text = builder.to_lp_text();

@@ -234,6 +234,7 @@ async function _calculateMachines(
     inputCostsWeight,
     machineCountsWeight,
     powerConsumptionWeight,
+    wasteProductsWeight,
     designPower,
     onProgress
 ) {
@@ -250,6 +251,7 @@ async function _calculateMachines(
             input_costs_weight: inputCostsWeight,
             machine_counts_weight: machineCountsWeight,
             power_consumption_weight: powerConsumptionWeight,
+            waste_products_weight: wasteProductsWeight,
             design_power: designPower,
             on_progress: onProgress
         }
@@ -889,6 +891,7 @@ async function design_factory(
     inputCostsWeight = 1.0,
     machineCountsWeight = 0.0,
     powerConsumptionWeight = 1.0,
+    wasteProductsWeight = 0.0,
     designPower = false,
     disableBalancers = false,
     onProgress = null
@@ -915,6 +918,7 @@ async function design_factory(
             inputCostsWeight,
             machineCountsWeight,
             powerConsumptionWeight,
+            wasteProductsWeight,
             designPower,
             onProgress
         );

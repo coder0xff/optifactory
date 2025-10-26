@@ -177,6 +177,7 @@ Copper Ingot:50
             1.0,
             0.0,
             1.0,
+            0.0,
             true  // design_power
         );
         const result = controller.validate_config(config);
@@ -195,6 +196,7 @@ Copper Ingot:50
             1.0,
             0.0,
             1.0,
+            0.0,
             true
         );
         const result = controller.validate_config(config);
@@ -212,6 +214,7 @@ Copper Ingot:50
             1.0,
             0.0,
             1.0,
+            0.0,
             false
         );
         const result = controller.validate_config(config);
@@ -242,6 +245,7 @@ Copper Ingot:50
             1.0,
             0.0,
             1.0,
+            0.0,
             false,
             true  // disable_balancers
         );

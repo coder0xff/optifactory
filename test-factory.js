@@ -255,6 +255,7 @@ describe('Factory', () => {
             1.0,   // inputCostsWeight
             0.0,   // machineCountsWeight
             1.0,   // powerConsumptionWeight
+            0.0,   // wasteProductsWeight
             false, // designPower
             true   // disableBalancers
         );
@@ -281,6 +282,7 @@ describe('Factory', () => {
             1.0,
             0.0,
             1.0,
+            0.0,
             false,
             true  // disableBalancers
         );
@@ -309,6 +311,7 @@ describe('Factory', () => {
             1.0,
             0.0,
             1.0,
+            0.0,
             false,
             true  // disableBalancers
         );

@@ -23,13 +23,15 @@ class FactoryConfig {
      * @param {number} input_costs_weight - optimization weight for input costs
      * @param {number} machine_counts_weight - optimization weight for machine counts
      * @param {number} power_consumption_weight - optimization weight for power consumption
+     * @param {number} waste_products_weight - optimization weight for waste products
      * @param {boolean} design_power - whether to design power generation
      * @param {boolean} disable_balancers - if true, use simple hub nodes instead of balancer networks
      */
     constructor(outputs, inputs, mines, enabled_recipes, 
                 input_costs_weight = 1.0, 
                 machine_counts_weight = 0.0, 
-                power_consumption_weight = 1.0, 
+                power_consumption_weight = 1.0,
+                waste_products_weight = 0.0,
                 design_power = false,
                 disable_balancers = false) {
         this.outputs = outputs;
@@ -39,6 +41,7 @@ class FactoryConfig {
         this.input_costs_weight = input_costs_weight;
         this.machine_counts_weight = machine_counts_weight;
         this.power_consumption_weight = power_consumption_weight;
+        this.waste_products_weight = waste_products_weight;
         this.design_power = design_power;
         this.disable_balancers = disable_balancers;
     }
@@ -147,6 +150,7 @@ class FactoryController {
         this._input_costs_weight = 0.1;
         this._machine_counts_weight = 1.0;
         this._power_consumption_weight = 1.0;
+        this._waste_products_weight = 0.0;
         this._design_power = false;
         this._disable_balancers = false;
         
@@ -223,6 +227,14 @@ class FactoryController {
         return this._power_consumption_weight;
     }
     
+    /**
+     * Get waste products optimization weight.
+     * @returns {number} waste products optimization weight
+     */
+    get_waste_products_weight() {
+        return this._waste_products_weight;
+    }
+
     /**
      * Get design power flag.
      * @returns {boolean} design power flag
@@ -371,6 +383,14 @@ class FactoryController {
         this._power_consumption_weight = value;
     }
     
+    /**
+     * Set waste products optimization weight.
+     * @param {number} value - new waste products weight
+     */
+    set_waste_products_weight(value) {
+        this._waste_products_weight = value;
+    }
+
     /**
      * Set design power flag.
      * @param {boolean} value - new design power flag
@@ -911,6 +931,7 @@ class FactoryController {
             input_costs_weight: this._input_costs_weight,
             machine_counts_weight: this._machine_counts_weight,
             power_consumption_weight: this._power_consumption_weight,
+            waste_products_weight: this._waste_products_weight,
             design_power: this._design_power,
             disable_balancers: this._disable_balancers,
             graphviz_source: this.get_graphviz_source()
@@ -943,6 +964,7 @@ class FactoryController {
         this.set_input_costs_weight(state.input_costs_weight);
         this.set_machine_counts_weight(state.machine_counts_weight);
         this.set_power_consumption_weight(state.power_consumption_weight);
+        this.set_waste_products_weight(state.waste_products_weight);
         this.set_design_power(state.design_power);
         this.set_disable_balancers(state.disable_balancers);
         
@@ -977,6 +999,7 @@ class FactoryController {
             this._input_costs_weight,
             this._machine_counts_weight,
             this._power_consumption_weight,
+            this._waste_products_weight,
             this._design_power,
             this._disable_balancers
         );
@@ -1113,6 +1136,7 @@ class FactoryController {
             config.input_costs_weight,
             config.machine_counts_weight,
             config.power_consumption_weight,
+            config.waste_products_weight,
             config.design_power,
             config.disable_balancers,
             onProgress

@@ -184,6 +184,22 @@ const FactoryViewComponent = {
                         >
                         <span class="tooltip-text">prioritize minimizing power consumption</span>
                     </div>
+
+                    <div class="slider-container tooltip">
+                        <div class="slider-header">
+                            <span class="slider-label">Waste Products:</span>
+                            <span class="slider-value">{{ wasteProductsWeight.toFixed(2) }}</span>
+                        </div>
+                        <input 
+                            type="range" 
+                            min="0" 
+                            max="1" 
+                            step="0.01" 
+                            v-model.number="wasteProductsWeight"
+                            @input="onWeightChanged"
+                        >
+                        <span class="tooltip-text">prioritize minimizing waste products</span>
+                    </div>
                 </div>
 
                 <!-- Design Power Section -->
@@ -273,6 +289,7 @@ const FactoryViewComponent = {
             inputCostsWeight: 1.0,
             machineCountsWeight: 0.0,
             powerConsumptionWeight: 1.0,
+            wasteProductsWeight: 0.0,
             designPower: false,
             disableBalancers: false,
             showPowerWarning: false,
@@ -293,6 +310,7 @@ const FactoryViewComponent = {
         this.inputCostsWeight = this.controller.get_input_costs_weight();
         this.machineCountsWeight = this.controller.get_machine_counts_weight();
         this.powerConsumptionWeight = this.controller.get_power_consumption_weight();
+        this.wasteProductsWeight = this.controller.get_waste_products_weight();
         this.designPower = this.controller.get_design_power();
         this.disableBalancers = this.controller.get_disable_balancers();
         this.refreshTreeView();
@@ -356,6 +374,7 @@ const FactoryViewComponent = {
             this.controller.set_input_costs_weight(this.inputCostsWeight);
             this.controller.set_machine_counts_weight(this.machineCountsWeight);
             this.controller.set_power_consumption_weight(this.powerConsumptionWeight);
+            this.controller.set_waste_products_weight(this.wasteProductsWeight);
             this.$emit('stateChange');
         },
         onDesignPowerChanged() {
@@ -495,6 +514,7 @@ const FactoryViewComponent = {
                 this.inputCostsWeight = this.controller.get_input_costs_weight();
                 this.machineCountsWeight = this.controller.get_machine_counts_weight();
                 this.powerConsumptionWeight = this.controller.get_power_consumption_weight();
+                this.wasteProductsWeight = this.controller.get_waste_products_weight();
                 this.designPower = this.controller.get_design_power();
                 this.disableBalancers = this.controller.get_disable_balancers();
                 
