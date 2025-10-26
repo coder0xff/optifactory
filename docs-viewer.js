@@ -174,6 +174,13 @@ const DocsViewerComponent = {
                     <p><strong>No Mine Configuration UI:</strong> The backend supports mines with different purities, but there's no UI to configure them. All examples use Normal purity nodes with Mk.3 miners.</p>
                     <p><strong>Default Recipe Exclusions:</strong> Power generation and Packager recipes are disabled by default. You must manually enable them if needed.</p>
                 </section>
+
+                <!-- Reset Section -->
+                <div class="docs-footer">
+                    <h3>Reset Application</h3>
+                    <p>If you want to clear your auto-saved session and start fresh, click the button below. This will clear your current factory design, economy values, and settings from the browser. Any files you've saved to disk will not be affected.</p>
+                    <button @click="resetToDefaults" class="button-secondary">Clear Auto-Saved Session</button>
+                </div>
             </div>
         </div>
     `,
@@ -442,6 +449,22 @@ const DocsViewerComponent = {
                 this.$emit('status-change', { text: 'Error: ' + error.message, level: 'error' });
             } finally {
                 this.isGeneratingComplex = false;
+            }
+        },
+        resetToDefaults() {
+            const confirmed = confirm(
+                'Are you sure you want to reset to defaults?\n\n' +
+                'This will clear your auto-saved session:\n' +
+                '• Current factory design\n' +
+                '• Current economy values\n' +
+                '• Current settings\n\n' +
+                'This will NOT delete any files you\'ve saved to disk.\n\n' +
+                'The page will reload.'
+            );
+            
+            if (confirmed) {
+                localStorage.clear();
+                window.location.reload();
             }
         }
     }
