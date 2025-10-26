@@ -561,9 +561,20 @@ class FactoryController {
     static _parse_schematic_recipe_id(tree_id) {
         if (tree_id.startsWith("recipe:")) {
             const remainder = tree_id.substring(7);
-            const parts = remainder.split(":");
-            if (parts.length === 3) {
-                return parts; // [tier, schematic_name, recipe_name]
+            const first_colon = remainder.indexOf(":");
+            if (first_colon !== -1) {
+                const tier = remainder.substring(0, first_colon);
+                // schematic format always has numeric tier, machine format has text machine name
+                if (!/^\d+$/.test(tier)) {
+                    return null; // not a schematic ID (probably machine format)
+                }
+                const after_first = remainder.substring(first_colon + 1);
+                const second_colon = after_first.indexOf(":");
+                if (second_colon !== -1) {
+                    const schematic_name = after_first.substring(0, second_colon);
+                    const recipe_name = after_first.substring(second_colon + 1);
+                    return [tier, schematic_name, recipe_name];
+                }
             }
         }
         return null;
