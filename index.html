@@ -10,7 +10,12 @@
 </head>
 <body>
     <div id="app">
-        <div class="app-title">Optifactory - Factory Planner</div>
+        <div class="header">
+            <div class="app-title">Optifactory - Factory Planner</div>
+            <button @click="shareDesign" class="share-button" title="Share current design as link">
+                Share Design
+            </button>
+        </div>
 
         <div class="tabs">
             <div 
@@ -70,6 +75,7 @@
         import { FactoryViewComponent } from './factory-editor.js';
         import { EconomyViewComponent } from './economy-editor.js';
         import { DocsViewerComponent } from './docs-viewer.js';
+        import { encodeStateToBase64, decodeStateFromBase64, loadStateFromUrlHash } from './state-encoding.js';
 
         const { createApp } = Vue;
 
@@ -139,7 +145,8 @@
                     statusText: 'Ready',
                     statusClass: '',
                     economyController: null,
-                    factoryController: null
+                    factoryController: null,
+                    loadedFromHash: false
                 };
             },
             created() {
@@ -147,8 +154,15 @@
                 this.economyController = new EconomyController();
                 this.factoryController = new FactoryController(this.economyController.economy);
                 
-                // Restore state BEFORE child components mount
-                const savedState = loadStateFromLocalStorage();
+                // Check URL hash first (takes precedence over localStorage)
+                let savedState = loadStateFromUrlHash();
+                if (savedState) {
+                    console.log('Loading state from URL hash');
+                    this.loadedFromHash = true;
+                } else {
+                    // Fall back to localStorage
+                    savedState = loadStateFromLocalStorage();
+                }
                 
                 if (savedState) {
                     this.restoreState(savedState);
@@ -178,11 +192,17 @@
                         // Update economy reference in factory controller
                         this.factoryController.economy = this.economyController.economy;
                         
-                        this.setStatus('Previous session restored', 'info');
+                        const statusMessage = this.loadedFromHash 
+                            ? 'Shared design loaded' 
+                            : 'Previous session restored';
+                        this.setStatus(statusMessage, 'info');
                         console.log('State restored successfully');
                     } catch (error) {
                         console.error('Failed to restore state:', error);
-                        this.setStatus('Failed to restore previous session', 'warning');
+                        const errorMessage = this.loadedFromHash
+                            ? 'Failed to load shared design'
+                            : 'Failed to restore previous session';
+                        this.setStatus(errorMessage, 'warning');
                         // Fall back to generating initial factory
                         this.generateInitialFactory();
                     }
@@ -202,11 +222,60 @@
                 },
                 saveState() {
                     if (this.factoryController && this.economyController) {
+                        // Clear hash on first state change after loading from shared link
+                        if (this.loadedFromHash) {
+                            window.history.replaceState(null, '', window.location.pathname);
+                            this.loadedFromHash = false;
+                        }
+                        
                         saveStateToLocalStorage(
                             this.activeTab,
                             this.factoryController,
                             this.economyController
                         );
+                    }
+                },
+                shareDesign() {
+                    if (!this.factoryController || !this.economyController) {
+                        this.setStatus('No design to share', 'warning');
+                        return;
+                    }
+                    
+                    try {
+                        // Build state object (same as localStorage format)
+                        const state = {
+                            version: STORAGE_VERSION,
+                            activeTab: this.activeTab,
+                            factoryState: this.factoryController.serialize_state(),
+                            economyState: this.economyController.save_to_csv()
+                        };
+                        
+                        // Encode to base64
+                        const base64State = encodeStateToBase64(state);
+                        
+                        // Update URL hash
+                        const shareUrl = `${window.location.origin}${window.location.pathname}#share=${base64State}`;
+                        window.history.replaceState(null, '', `#share=${base64State}`);
+                        
+                        // Set flag so hash will be cleared on next state change
+                        this.loadedFromHash = true;
+                        
+                        // Try to copy to clipboard
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                            navigator.clipboard.writeText(shareUrl)
+                                .then(() => {
+                                    this.setStatus('Share link copied to clipboard!', 'info');
+                                })
+                                .catch(err => {
+                                    console.error('Failed to copy to clipboard:', err);
+                                    this.setStatus('Share link in URL (copy from address bar)', 'info');
+                                });
+                        } else {
+                            this.setStatus('Share link in URL (copy from address bar)', 'info');
+                        }
+                    } catch (error) {
+                        console.error('Failed to create share link:', error);
+                        this.setStatus('Failed to create share link', 'error');
                     }
                 },
                 handleStatusChange(event) {

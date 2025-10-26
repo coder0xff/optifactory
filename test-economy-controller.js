@@ -318,4 +318,122 @@ describe('EconomyController', () => {
         assert.strictEqual(structure.items[0].display_name, "Iron Plate");
         assert.strictEqual(structure.items[1].display_name, "Iron Ore");
     });
+
+    // ====================================================================
+    // Serialization / Deserialization Tests
+    // ====================================================================
+
+    describe('Serialization', () => {
+        it('should serialize to CSV string', () => {
+            const controller = new EconomyController();
+            
+            controller.economy = { 'Iron Ore': 1.0, 'Copper Ore': 2.0 };
+            controller.set_item_pinned('Iron Ore', true);
+            controller.set_filter_text('Iron');
+            
+            const csv = controller.save_to_csv();
+            
+            assert.strictEqual(typeof csv, 'string');
+            assert.ok(csv.includes('Iron Ore'));
+            assert.ok(csv.includes('Copper Ore'));
+            assert.ok(csv.includes('true'));
+            assert.ok(csv.includes('false'));
+        });
+
+        it('should include pinned status in CSV', () => {
+            const controller = new EconomyController();
+            
+            controller.economy = { 'A': 1.0, 'B': 2.0, 'C': 3.0 };
+            controller.set_item_pinned('A', true);
+            controller.set_item_pinned('C', true);
+            
+            const csv = controller.save_to_csv();
+            const lines = csv.split('\n');
+            
+            // Should have header + 3 items (CSV doesn't have trailing newline)
+            assert.strictEqual(lines.length, 4);  // header + 3 items
+            
+            // Check that pinned items are marked
+            const aLine = lines.find(line => line.startsWith('A,'));
+            const bLine = lines.find(line => line.startsWith('B,'));
+            const cLine = lines.find(line => line.startsWith('C,'));
+            
+            assert.ok(aLine?.endsWith('true'));
+            assert.ok(bLine?.endsWith('false'));
+            assert.ok(cLine?.endsWith('true'));
+        });
+    });
+
+    describe('Deserialization', () => {
+        it('should deserialize from CSV string', () => {
+            const controller = new EconomyController();
+            
+            const testCsv = 'Item,Value,Pinned\nIron Ore,15,true\nCopper Ore,10,false';
+            controller.load_from_csv(testCsv);
+            
+            assert.strictEqual(controller.economy['Iron Ore'], 15);
+            assert.strictEqual(controller.economy['Copper Ore'], 10);
+            assert.ok(controller.pinned_items.has('Iron Ore'));
+            assert.ok(!controller.pinned_items.has('Copper Ore'));
+        });
+
+        it('should handle pinned items correctly', () => {
+            const controller = new EconomyController();
+            
+            const testCsv = 'Item,Value,Pinned\nA,1,true\nB,2,true\nC,3,false';
+            controller.load_from_csv(testCsv);
+            
+            assert.strictEqual(controller.pinned_items.size, 2);
+            assert.ok(controller.pinned_items.has('A'));
+            assert.ok(controller.pinned_items.has('B'));
+            assert.ok(!controller.pinned_items.has('C'));
+        });
+    });
+
+    describe('Round-trip Persistence', () => {
+        it('should preserve state through serialize/deserialize cycle', () => {
+            const controller1 = new EconomyController();
+            
+            // Configure state
+            controller1.economy = { 
+                'Iron Ore': 5.0, 
+                'Copper Ore': 10.0,
+                'Concrete': 2.0
+            };
+            controller1.set_item_pinned('Iron Ore', true);
+            controller1.set_item_pinned('Concrete', true);
+            controller1.set_filter_text('Ore');
+            controller1.set_sort('value');
+            
+            // Serialize
+            const csv = controller1.save_to_csv();
+            
+            // Deserialize into new controller
+            const controller2 = new EconomyController();
+            controller2.load_from_csv(csv);
+            
+            // Verify economy values match
+            assert.strictEqual(controller2.economy['Iron Ore'], 5.0);
+            assert.strictEqual(controller2.economy['Copper Ore'], 10.0);
+            assert.strictEqual(controller2.economy['Concrete'], 2.0);
+            
+            // Verify pinned items match
+            assert.ok(controller2.pinned_items.has('Iron Ore'));
+            assert.ok(controller2.pinned_items.has('Concrete'));
+            assert.ok(!controller2.pinned_items.has('Copper Ore'));
+            assert.strictEqual(controller2.pinned_items.size, 2);
+        });
+
+        it('should handle empty economy', () => {
+            const controller = new EconomyController();
+            controller.economy = {};
+            
+            const csv = controller.save_to_csv();
+            
+            // Should have header only
+            const lines = csv.split('\n').filter(line => line.trim());
+            assert.strictEqual(lines.length, 1);
+            assert.strictEqual(lines[0], 'Item,Value,Pinned');
+        });
+    });
 });

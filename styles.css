@@ -102,13 +102,34 @@ textarea {
     flex-direction: column;
 }
 
-.app-title {
-    font-size: 20px;
-    font-weight: bold;
+/* Header with title and share button */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     padding: 10px;
     border-bottom: 2px solid #007bff;
     margin-bottom: 10px;
+}
+
+.app-title {
+    font-size: 20px;
+    font-weight: bold;
     color: #333;
+}
+
+.share-button {
+    padding: 8px 16px;
+    font-size: 13px;
+    background-color: #28a745;
+}
+
+.share-button:hover {
+    background-color: #218838;
+}
+
+.share-button:active {
+    background-color: #1e7e34;
 }
 
 /* Tabs */

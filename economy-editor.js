@@ -90,7 +90,7 @@ const EconomyViewComponent = {
     },
     methods: {
         setStatus(text, level = 'info') {
-            this.$emit('statusChange', { text, level });
+            this.$emit('status-change', { text, level });
         },
         refreshView() {
             this.headerTexts = this.controller.get_header_texts();
@@ -100,35 +100,35 @@ const EconomyViewComponent = {
         onFilterChanged() {
             this.controller.set_filter_text(this.filterText);
             this.refreshView();
-            this.$emit('stateChange');
+            this.$emit('state-change');
         },
         onHeaderClick(column) {
             this.controller.set_sort(column);
             this.refreshView();
-            this.$emit('stateChange');
+            this.$emit('state-change');
         },
         onValueChanged(itemName, event) {
             const value = parseFloat(event.target.value);
             if (!isNaN(value) && value >= 0) {
                 this.controller.set_item_value(itemName, value);
-                this.$emit('stateChange');
+                this.$emit('state-change');
             }
         },
         onPinnedToggle(itemName, event) {
             this.controller.set_item_pinned(itemName, event.target.checked);
-            this.$emit('stateChange');
+            this.$emit('state-change');
         },
         resetEconomy() {
             this.controller.reset_to_default();
             this.refreshView();
             this.setStatus('Economy reset to default', 'info');
-            this.$emit('stateChange');
+            this.$emit('state-change');
         },
         rebalanceValues() {
             this.controller.recompute_values();
             this.refreshView();
             this.setStatus('Economy values recomputed', 'info');
-            this.$emit('stateChange');
+            this.$emit('state-change');
         },
         loadCSV() {
             // Trigger file input click (view responsibility)
@@ -146,7 +146,7 @@ const EconomyViewComponent = {
                     this.controller.load_from_csv(csvContent);
                     this.refreshView();
                     this.setStatus(`Loaded economy from ${file.name}`, 'info');
-                    this.$emit('stateChange');
+                    this.$emit('state-change');
                 } catch (error) {
                     this.setStatus(`Failed to load CSV: ${error.message}`, 'error');
                 }

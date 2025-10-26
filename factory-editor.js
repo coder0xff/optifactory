@@ -319,10 +319,10 @@ const FactoryViewComponent = {
     },
     methods: {
         setStatus(text, level = 'info') {
-            this.$emit('statusChange', { text, level });
+            this.$emit('status-change', { text, level });
         },
         handleStatusChange(event) {
-            this.$emit('statusChange', event);
+            this.$emit('status-change', event);
         },
         refreshTreeView() {
             const structure = this.controller.get_recipe_tree_structure();
@@ -354,37 +354,37 @@ const FactoryViewComponent = {
         },
         onOutputsChanged() {
             this.controller.set_outputs_text(this.outputsText);
-            this.$emit('stateChange');
+            this.$emit('state-change');
         },
         onInputsChanged() {
             this.controller.set_inputs_text(this.inputsText);
-            this.$emit('stateChange');
+            this.$emit('state-change');
         },
         onSearchChanged() {
             this.controller.set_recipe_search_text(this.recipeSearchText);
             this.refreshTreeView();
-            this.$emit('stateChange');
+            this.$emit('state-change');
         },
         onTreeViewModeChanged() {
             this.controller.set_tree_view_mode(this.treeViewMode);
             this.refreshTreeView();
-            this.$emit('stateChange');
+            this.$emit('state-change');
         },
         onWeightChanged() {
             this.controller.set_input_costs_weight(this.inputCostsWeight);
             this.controller.set_machine_counts_weight(this.machineCountsWeight);
             this.controller.set_power_consumption_weight(this.powerConsumptionWeight);
             this.controller.set_waste_products_weight(this.wasteProductsWeight);
-            this.$emit('stateChange');
+            this.$emit('state-change');
         },
         onDesignPowerChanged() {
             this.controller.set_design_power(this.designPower);
             this.updatePowerWarning();
-            this.$emit('stateChange');
+            this.$emit('state-change');
         },
         onDisableBalancersChanged() {
             this.controller.set_disable_balancers(this.disableBalancers);
-            this.$emit('stateChange');
+            this.$emit('state-change');
         },
         toggleMachine(nodeId) {
             // Recursively search for node in tree structure
@@ -410,7 +410,7 @@ const FactoryViewComponent = {
             this.refreshTreeView();
             this.updatePowerWarning();
             this.updateConverterWarning();
-            this.$emit('stateChange');
+            this.$emit('state-change');
         },
         toggleRecipe(recipeId) {
             const machine = this.treeStructure.find(m => 
@@ -422,7 +422,7 @@ const FactoryViewComponent = {
                 this.refreshTreeView();
                 this.updatePowerWarning();
                 this.updateConverterWarning();
-                this.$emit('stateChange');
+                this.$emit('state-change');
             }
         },
         getRecipeTooltip(treeId) {
@@ -449,7 +449,7 @@ const FactoryViewComponent = {
                 await this.controller.generate_factory_from_state(onProgress);
                 
                 this.setStatus('Factory generated successfully', 'info');
-                this.$emit('stateChange');
+                this.$emit('state-change');
             } catch (error) {
                 this.setStatus('Factory generation failed: ' + error.message, 'error');
                 console.error('Factory generation error:', error);
@@ -524,7 +524,7 @@ const FactoryViewComponent = {
                 this.updateConverterWarning();
                 
                 this.setStatus('Design loaded successfully', 'info');
-                this.$emit('stateChange');
+                this.$emit('state-change');
             } catch (error) {
                 this.setStatus('Failed to load design: ' + error.message, 'error');
                 console.error('Load state error:', error);

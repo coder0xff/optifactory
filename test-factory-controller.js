@@ -9,6 +9,7 @@ import {
     FactoryController
 } from './factory-controller.js';
 import { Recipe, Purity } from './recipes.js';
+import { EconomyController } from './economy-controller.js';
 
 describe('FactoryController', () => {
     // ====================================================================
@@ -772,5 +773,282 @@ Copper Ingot:50
         
         // Verify factory is still null
         assert.strictEqual(controller2.get_current_factory(), null);
+    });
+
+    // ====================================================================
+    // Serialization / Deserialization Tests
+    // ====================================================================
+
+    describe('Serialization', () => {
+        it('should serialize complete state to JSON string', () => {
+            const controller = new FactoryController({});
+            
+            controller.set_outputs_text('Concrete:480');
+            controller.set_inputs_text('Limestone:240');
+            controller.set_input_costs_weight(0.7);
+            controller.set_machine_counts_weight(0.3);
+            controller.set_power_consumption_weight(0.5);
+            controller.set_design_power(true);
+            controller.set_disable_balancers(false);
+            
+            const serialized = controller.serialize_state();
+            
+            assert.strictEqual(typeof serialized, 'string');
+            
+            const parsed = JSON.parse(serialized);
+            assert.strictEqual(parsed.version, 1);
+            assert.strictEqual(parsed.outputs_text, 'Concrete:480');
+            assert.strictEqual(parsed.inputs_text, 'Limestone:240');
+            assert.strictEqual(parsed.input_costs_weight, 0.7);
+            assert.strictEqual(parsed.machine_counts_weight, 0.3);
+            assert.strictEqual(parsed.power_consumption_weight, 0.5);
+            assert.strictEqual(parsed.design_power, true);
+            assert.strictEqual(parsed.disable_balancers, false);
+            assert.ok(Array.isArray(parsed.enabled_recipes));
+            assert.ok(parsed.enabled_recipes.length > 0);
+        });
+
+        it('should include enabled recipes in serialized state', () => {
+            const controller = new FactoryController({});
+            
+            // Enable specific recipes
+            controller.set_recipes_enabled(new Set(['Steel Ingot', 'Steel Beam']));
+            
+            const serialized = controller.serialize_state();
+            const parsed = JSON.parse(serialized);
+            
+            assert.ok(parsed.enabled_recipes.includes('Steel Ingot'));
+            assert.ok(parsed.enabled_recipes.includes('Steel Beam'));
+            assert.strictEqual(parsed.enabled_recipes.length, 2);
+        });
+
+        it('should include graphviz source when available', () => {
+            const controller = new FactoryController({});
+            
+            // Set cached graphviz source
+            controller._cached_graphviz_source = 'digraph G { A -> B; }';
+            
+            const serialized = controller.serialize_state();
+            const parsed = JSON.parse(serialized);
+            
+            assert.strictEqual(parsed.graphviz_source, 'digraph G { A -> B; }');
+        });
+    });
+
+    describe('Deserialization', () => {
+        it('should deserialize complete state from JSON string', () => {
+            const controller = new FactoryController({});
+            
+            const testState = {
+                version: 1,
+                outputs_text: 'Steel Beam:45',
+                inputs_text: 'Iron Ore:90',
+                enabled_recipes: ['Steel Ingot', 'Steel Beam'],
+                input_costs_weight: 0.8,
+                machine_counts_weight: 0.2,
+                power_consumption_weight: 0.5,
+                design_power: false,
+                disable_balancers: true,
+                graphviz_source: 'digraph G { A -> B; }'
+            };
+            
+            controller.deserialize_state(JSON.stringify(testState));
+            
+            assert.strictEqual(controller.get_outputs_text(), 'Steel Beam:45');
+            assert.strictEqual(controller.get_inputs_text(), 'Iron Ore:90');
+            assert.strictEqual(controller.get_input_costs_weight(), 0.8);
+            assert.strictEqual(controller.get_machine_counts_weight(), 0.2);
+            assert.strictEqual(controller.get_power_consumption_weight(), 0.5);
+            assert.strictEqual(controller.get_design_power(), false);
+            assert.strictEqual(controller.get_disable_balancers(), true);
+            assert.strictEqual(controller.get_graphviz_source(), 'digraph G { A -> B; }');
+        });
+
+        it('should restore enabled recipes from state', () => {
+            const controller = new FactoryController({});
+            
+            const testState = {
+                version: 1,
+                outputs_text: 'Iron Plate:100',
+                inputs_text: '',
+                enabled_recipes: ['Iron Plate', 'Iron Rod'],
+                input_costs_weight: 1.0,
+                machine_counts_weight: 0.0,
+                power_consumption_weight: 1.0,
+                design_power: false,
+                disable_balancers: false,
+                graphviz_source: null
+            };
+            
+            controller.deserialize_state(JSON.stringify(testState));
+            
+            const enabledRecipes = controller.get_enabled_recipes();
+            assert.ok(enabledRecipes.has('Iron Plate'));
+            assert.ok(enabledRecipes.has('Iron Rod'));
+            assert.strictEqual(enabledRecipes.size, 2);
+        });
+
+        it('should throw error for invalid JSON', () => {
+            const controller = new FactoryController({});
+            
+            assert.throws(
+                () => controller.deserialize_state('not valid json'),
+                /Invalid JSON/
+            );
+        });
+
+        it('should throw error for unsupported version', () => {
+            const controller = new FactoryController({});
+            
+            const testState = {
+                version: 999,
+                outputs_text: 'Iron Plate:100',
+                inputs_text: ''
+            };
+            
+            assert.throws(
+                () => controller.deserialize_state(JSON.stringify(testState)),
+                /Unsupported state version/
+            );
+        });
+
+        it('should clear current factory on deserialization', () => {
+            const controller = new FactoryController({});
+            
+            // Set a fake current factory
+            controller._current_factory = { network: { source: 'test' } };
+            
+            const testState = {
+                version: 1,
+                outputs_text: 'Iron Plate:100',
+                inputs_text: '',
+                enabled_recipes: ['Iron Plate'],
+                input_costs_weight: 1.0,
+                machine_counts_weight: 0.0,
+                power_consumption_weight: 1.0,
+                design_power: false,
+                disable_balancers: false,
+                graphviz_source: null
+            };
+            
+            controller.deserialize_state(JSON.stringify(testState));
+            
+            assert.strictEqual(controller._current_factory, null);
+        });
+    });
+
+    describe('Round-trip Persistence', () => {
+        it('should preserve state through serialize/deserialize cycle', () => {
+            const controller1 = new FactoryController({});
+            
+            // Configure state
+            controller1.set_outputs_text('Modular Frame:2');
+            controller1.set_inputs_text('Iron Ingot:100\nCopper Ingot:50');
+            controller1.set_input_costs_weight(0.6);
+            controller1.set_machine_counts_weight(0.4);
+            controller1.set_design_power(true);
+            controller1.set_recipes_enabled(new Set(['Modular Frame', 'Reinforced Iron Plate']));
+            
+            // Serialize
+            const serialized = controller1.serialize_state();
+            
+            // Deserialize into new controller
+            const controller2 = new FactoryController({});
+            controller2.deserialize_state(serialized);
+            
+            // Verify all state matches
+            assert.strictEqual(controller2.get_outputs_text(), controller1.get_outputs_text());
+            assert.strictEqual(controller2.get_inputs_text(), controller1.get_inputs_text());
+            assert.strictEqual(controller2.get_input_costs_weight(), controller1.get_input_costs_weight());
+            assert.strictEqual(controller2.get_machine_counts_weight(), controller1.get_machine_counts_weight());
+            assert.strictEqual(controller2.get_design_power(), controller1.get_design_power());
+            
+            const recipes1 = controller1.get_enabled_recipes();
+            const recipes2 = controller2.get_enabled_recipes();
+            assert.strictEqual(recipes2.size, recipes1.size);
+            for (const recipe of recipes1) {
+                assert.ok(recipes2.has(recipe));
+            }
+        });
+
+        it('should handle empty enabled recipes set', () => {
+            const controller = new FactoryController({});
+            
+            controller.set_recipes_enabled(new Set());
+            
+            const serialized = controller.serialize_state();
+            const parsed = JSON.parse(serialized);
+            
+            assert.strictEqual(parsed.enabled_recipes.length, 0);
+            
+            // Deserialize back
+            const controller2 = new FactoryController({});
+            controller2.deserialize_state(serialized);
+            
+            assert.strictEqual(controller2.get_enabled_recipes().size, 0);
+        });
+
+        it('should handle null graphviz source', () => {
+            const controller = new FactoryController({});
+            
+            const serialized = controller.serialize_state();
+            const parsed = JSON.parse(serialized);
+            
+            assert.strictEqual(parsed.graphviz_source, null);
+        });
+
+        it('should handle default recipe search text', () => {
+            const controller = new FactoryController({});
+            
+            assert.strictEqual(controller.get_recipe_search_text(), '');
+            
+            const serialized = controller.serialize_state();
+            const controller2 = new FactoryController({});
+            controller2.deserialize_state(serialized);
+            
+            // Recipe search text is not persisted currently, but shouldn't cause errors
+            assert.strictEqual(controller2.get_recipe_search_text(), '');
+        });
+    });
+
+    describe('Integration Tests', () => {
+        it('should handle complete application state cycle', () => {
+            // Simulate full application state save/restore
+            const economyController1 = new EconomyController();
+            const factoryController1 = new FactoryController(economyController1.economy);
+            
+            // Configure both controllers
+            factoryController1.set_outputs_text('Computer:5');
+            factoryController1.set_input_costs_weight(0.75);
+            economyController1.set_item_value('Iron Ore', 20);
+            economyController1.set_item_pinned('Iron Ore', true);
+            
+            // Create application state
+            const appState = {
+                version: 1,
+                activeTab: 'economy',
+                factoryState: factoryController1.serialize_state(),
+                economyState: economyController1.save_to_csv()
+            };
+            
+            // Restore into new controllers
+            const economyController2 = new EconomyController();
+            const factoryController2 = new FactoryController(economyController2.economy);
+            
+            economyController2.load_from_csv(appState.economyState);
+            factoryController2.deserialize_state(appState.factoryState);
+            factoryController2.economy = economyController2.economy;
+            
+            // Verify factory state
+            assert.strictEqual(factoryController2.get_outputs_text(), 'Computer:5');
+            assert.strictEqual(factoryController2.get_input_costs_weight(), 0.75);
+            
+            // Verify economy state
+            assert.strictEqual(economyController2.economy['Iron Ore'], 20);
+            assert.ok(economyController2.pinned_items.has('Iron Ore'));
+            
+            // Verify active tab
+            assert.strictEqual(appState.activeTab, 'economy');
+        });
     });
 });
