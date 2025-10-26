@@ -146,16 +146,20 @@
                 // Initialize controllers before components mount (economy shares data with factory)
                 this.economyController = new EconomyController();
                 this.factoryController = new FactoryController(this.economyController.economy);
-            },
-            mounted() {
-                // Try to restore state from localStorage
+                
+                // Restore state BEFORE child components mount
                 const savedState = loadStateFromLocalStorage();
                 
                 if (savedState) {
-                    // Restore saved state
                     this.restoreState(savedState);
+                    this._hasRestoredState = true;
                 } else {
-                    // First run: generate initial factory
+                    this._hasRestoredState = false;
+                }
+            },
+            mounted() {
+                // If no restored state, generate initial factory
+                if (!this._hasRestoredState) {
                     this.generateInitialFactory();
                 }
             },
