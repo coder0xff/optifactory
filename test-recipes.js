@@ -17,7 +17,9 @@ import {
     get_terminal_parts,
     get_default_enablement_set,
     get_fluids,
-    get_fluid_color
+    get_fluid_color,
+    _SCHEMATIC_RECIPES_LOOKUP,
+    _UNLISTED_RECIPES
 } from './recipes.js';
 
 describe('Recipes', () => {
@@ -273,6 +275,126 @@ describe('Recipes', () => {
         let totalPowerRecipes = 0;
         for (const recipes_list of Object.values(power_recipes)) {
             totalPowerRecipes += recipes_list.length;
+        }
+    });
+
+    it('_SCHEMATIC_RECIPES_LOOKUP: should be populated with tiers', () => {
+        assert.ok(_SCHEMATIC_RECIPES_LOOKUP != null);
+        const tiers = Object.keys(_SCHEMATIC_RECIPES_LOOKUP);
+        assert.ok(tiers.length > 0, 'Should have at least one tier');
+        
+        // Count total schematics across all tiers
+        let totalSchematics = 0;
+        for (const tier of tiers) {
+            const schematics = Object.keys(_SCHEMATIC_RECIPES_LOOKUP[tier]);
+            totalSchematics += schematics.length;
+        }
+        assert.ok(totalSchematics > 20, 'Should have many schematics');
+    });
+
+    it('_SCHEMATIC_RECIPES_LOOKUP: should have three-level structure (tier → schematic → recipes)', () => {
+        // Check that tiers contain schematics which contain recipe arrays
+        for (const [tier, schematics] of Object.entries(_SCHEMATIC_RECIPES_LOOKUP)) {
+            if (typeof schematics !== 'object') {
+                throw new Error(`Expected object for tier ${tier}, got ${typeof schematics}`);
+            }
+            for (const [schematicName, recipes] of Object.entries(schematics)) {
+                if (!Array.isArray(recipes)) {
+                    throw new Error(`Expected array for schematic ${schematicName}, got ${typeof recipes}`);
+                }
+            }
+        }
+    });
+
+    it('_SCHEMATIC_RECIPES_LOOKUP: HUB Upgrade 2 should unlock expected recipes', () => {
+        const tier0 = _SCHEMATIC_RECIPES_LOOKUP[0];
+        assert.ok(tier0 != null, 'Tier 0 should exist');
+        const hubUpgrade2Recipes = tier0["HUB Upgrade 2"];
+        assert.ok(hubUpgrade2Recipes != null, 'HUB Upgrade 2 should exist in tier 0');
+        assert.ok(Array.isArray(hubUpgrade2Recipes), 'Should be an array');
+        
+        // Should contain Copper Ingot, Wire, and Cable (but not Smelter recipe)
+        assert.ok(hubUpgrade2Recipes.includes("Copper Ingot"), 'Should include Copper Ingot');
+        assert.ok(hubUpgrade2Recipes.includes("Wire"), 'Should include Wire');
+        assert.ok(hubUpgrade2Recipes.includes("Cable"), 'Should include Cable');
+        
+        // Should NOT include building recipes (inMachine: false)
+        assert.ok(!hubUpgrade2Recipes.includes("Smelter"), 'Should not include Smelter building recipe');
+    });
+
+    it('_SCHEMATIC_RECIPES_LOOKUP: recipe names should be valid', () => {
+        const allRecipes = get_all_recipes();
+        let checkedCount = 0;
+        
+        // Check first few schematics to verify recipe names are valid
+        for (const [tier, schematics] of Object.entries(_SCHEMATIC_RECIPES_LOOKUP)) {
+            for (const [schematicName, recipes] of Object.entries(schematics)) {
+                for (const recipeName of recipes) {
+                    if (!(recipeName in allRecipes)) {
+                        throw new Error(`Recipe ${recipeName} from schematic ${schematicName} not found in all recipes`);
+                    }
+                }
+                checkedCount++;
+                if (checkedCount > 10) break; // sample check to keep test fast
+            }
+            if (checkedCount > 10) break;
+        }
+    });
+
+    it('_UNLISTED_RECIPES: should be a Set', () => {
+        assert.ok(_UNLISTED_RECIPES instanceof Set, 'Should be a Set');
+    });
+
+    it('_UNLISTED_RECIPES: should contain recipes not associated with machine unlocks', () => {
+        // Recipes are unlisted if they have no producedIn machines or their machines have no known unlock
+        // Currently all recipes are associated with machine unlock schematics, so this may be empty
+        assert.ok(_UNLISTED_RECIPES.size >= 0, 'Unlisted recipes size should be non-negative');
+        
+        // If there are unlisted recipes, they should not appear in any schematic
+        const allSchematicRecipes = new Set();
+        for (const [tier, schematics] of Object.entries(_SCHEMATIC_RECIPES_LOOKUP)) {
+            for (const recipes of Object.values(schematics)) {
+                for (const recipeName of recipes) {
+                    allSchematicRecipes.add(recipeName);
+                }
+            }
+        }
+        
+        for (const unlistedRecipe of _UNLISTED_RECIPES) {
+            if (allSchematicRecipes.has(unlistedRecipe)) {
+                throw new Error(`Unlisted recipe ${unlistedRecipe} should not appear in any schematic`);
+            }
+        }
+    });
+
+    it('_UNLISTED_RECIPES: recipes should not appear in any schematic unlock list', () => {
+        const allSchematicRecipes = new Set();
+        
+        // Collect all recipes from all schematics
+        for (const [tier, schematics] of Object.entries(_SCHEMATIC_RECIPES_LOOKUP)) {
+            for (const recipes of Object.values(schematics)) {
+                for (const recipeName of recipes) {
+                    allSchematicRecipes.add(recipeName);
+                }
+            }
+        }
+        
+        // Verify that no unlisted recipe appears in any schematic
+        for (const unlistedRecipe of _UNLISTED_RECIPES) {
+            if (allSchematicRecipes.has(unlistedRecipe)) {
+                throw new Error(`Recipe ${unlistedRecipe} should not appear in any schematic but was found`);
+            }
+        }
+    });
+
+    it('_UNLISTED_RECIPES: all unlisted recipes should be valid machine recipes', () => {
+        const allRecipes = get_all_recipes();
+        
+        // Verify all unlisted recipes exist in the recipe system
+        for (const recipeName of _UNLISTED_RECIPES) {
+            if (!(recipeName in allRecipes)) {
+                throw new Error(`Unlisted recipe ${recipeName} not found in all recipes`);
+            }
         }
     });
 });

@@ -90,6 +90,12 @@ const _DEFAULT_ENABLEMENT_SET = new Set();
 // case-insensitive material name lookup: lowercase -> canonical name
 let _MATERIAL_NAME_LOOKUP = null;
 
+// schematic name to list of recipe names lookup
+const _SCHEMATIC_RECIPES_LOOKUP = {};
+
+// set of recipe names that don't appear in any schematic unlock list
+const _UNLISTED_RECIPES = new Set();
+
 // ============================================================================
 // Helper functions for initialization
 // ============================================================================
@@ -262,6 +268,104 @@ function _build_material_name_lookup() {
 }
 
 /**
+ * Build schematic name to recipe names lookup table and unlisted recipes set.
+ */
+function _build_schematic_recipes_lookup() {
+    const unlockedRecipes = new Set();
+    const machineToSchematic = {};
+    
+    // Build ID-to-name mappings for buildings
+    const buildingNames = {};
+    for (const [className, buildingData] of Object.entries(RECIPES_DATA.buildings)) {
+        buildingNames[className] = buildingData.name;
+    }
+    
+    // Collect all non-alternate schematics with their data
+    const schematicsToProcess = [];
+    for (const [className, schematicData] of Object.entries(RECIPES_DATA.schematics)) {
+        if (schematicData.alternate) {
+            continue;
+        }
+        schematicsToProcess.push({ className, data: schematicData });
+    }
+    
+    // Sort by tier, then by name for stable ordering within tier
+    schematicsToProcess.sort((a, b) => {
+        if (a.data.tier !== b.data.tier) {
+            return a.data.tier - b.data.tier;
+        }
+        return a.data.name.localeCompare(b.data.name);
+    });
+    
+    // First pass: collect explicitly unlocked recipes and track machine unlocks
+    for (const { className, data: schematicData } of schematicsToProcess) {
+        const schematicName = schematicData.name;
+        const tier = schematicData.tier;
+        const recipeNames = [];
+        
+        if (schematicData.unlock && schematicData.unlock.recipes) {
+            for (const recipeClassName of schematicData.unlock.recipes) {
+                const recipeData = RECIPES_DATA.recipes[recipeClassName];
+                
+                if (recipeData) {
+                    // Track machine/building unlocks
+                    if (recipeData.forBuilding && recipeData.products && recipeData.products.length > 0) {
+                        const buildingClassName = recipeData.products[0].item;
+                        const machineName = buildingNames[buildingClassName] || buildingClassName;
+                        machineToSchematic[machineName] = { schematic: schematicName, tier };
+                    }
+                    
+                    // Include recipes with inMachine: true
+                    if (recipeData.inMachine) {
+                        recipeNames.push(recipeData.name);
+                        unlockedRecipes.add(recipeData.name);
+                    }
+                }
+            }
+        }
+        if (recipeNames.length > 0) {
+            // Nest by tier
+            if (!_SCHEMATIC_RECIPES_LOOKUP[tier]) {
+                _SCHEMATIC_RECIPES_LOOKUP[tier] = {};
+            }
+            _SCHEMATIC_RECIPES_LOOKUP[tier][schematicName] = recipeNames;
+        }
+    }
+    
+    // Second pass: associate unlisted recipes with machine unlock schematics
+    for (const [recipeClassName, recipeData] of Object.entries(RECIPES_DATA.recipes)) {
+        if (recipeData.inMachine && !unlockedRecipes.has(recipeData.name)) {
+            let addedToSchematic = false;
+            
+            // Check if any of the machines this recipe is produced in have a known unlock schematic
+            if (recipeData.producedIn && recipeData.producedIn.length > 0) {
+                for (const machineClassName of recipeData.producedIn) {
+                    const machineName = buildingNames[machineClassName] || machineClassName;
+                    
+                    if (machineName in machineToSchematic) {
+                        const { schematic: schematicName, tier } = machineToSchematic[machineName];
+                        if (!_SCHEMATIC_RECIPES_LOOKUP[tier]) {
+                            _SCHEMATIC_RECIPES_LOOKUP[tier] = {};
+                        }
+                        if (!_SCHEMATIC_RECIPES_LOOKUP[tier][schematicName]) {
+                            _SCHEMATIC_RECIPES_LOOKUP[tier][schematicName] = [];
+                        }
+                        _SCHEMATIC_RECIPES_LOOKUP[tier][schematicName].push(recipeData.name);
+                        addedToSchematic = true;
+                        break;
+                    }
+                }
+            }
+            
+            // If not associated with any machine unlock, add to unlisted
+            if (!addedToSchematic) {
+                _UNLISTED_RECIPES.add(recipeData.name);
+            }
+        }
+    }
+}
+
+/**
  * Process a single recipe: collect parts, index outputs, create and register Recipe.
  * @param {string} machine - machine type name
  * @param {string} recipe_name - recipe name
@@ -371,6 +475,7 @@ function _populate_lookups() {
     _classify_parts();
     _build_default_enablement_set();
     _build_material_name_lookup();
+    _build_schematic_recipes_lookup();
 }
 
 // Initialize on module load
@@ -618,5 +723,7 @@ export {
     get_fluids,
     get_fluid_color,
     normalize_material_names,
-    normalize_input_array
+    normalize_input_array,
+    _SCHEMATIC_RECIPES_LOOKUP,
+    _UNLISTED_RECIPES
 };

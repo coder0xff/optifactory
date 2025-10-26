@@ -27,6 +27,29 @@ const FactoryViewComponent = {
                 <!-- Recipe Filter Section -->
                 <div class="section">
                     <div class="section-title">Recipe Filter:</div>
+                    
+                    <!-- View Mode Radio Buttons -->
+                    <div class="radio-group">
+                        <label>
+                            <input 
+                                type="radio" 
+                                value="machine" 
+                                v-model="treeViewMode"
+                                @change="onTreeViewModeChanged"
+                            >
+                            Machines
+                        </label>
+                        <label>
+                            <input 
+                                type="radio" 
+                                value="schematic" 
+                                v-model="treeViewMode"
+                                @change="onTreeViewModeChanged"
+                            >
+                            Unlocks
+                        </label>
+                    </div>
+                    
                     <input 
                         type="text" 
                         v-model="recipeSearchText" 
@@ -34,35 +57,75 @@ const FactoryViewComponent = {
                         placeholder="Search recipes..."
                     >
                     <div class="tree-container">
-                        <template v-for="machine in treeStructure" :key="machine.tree_id">
-                            <div v-if="machine.is_visible">
-                                <div class="tree-node tree-machine" @click="toggleMachine(machine.tree_id)">
-                                    <span class="tree-expand">{{ machine.expanded ? '▼' : '▶' }}</span>
+                        <template v-for="node in treeStructure" :key="node.tree_id">
+                            <div v-if="node.is_visible">
+                                <!-- Parent node (machine, tier, or schematic) -->
+                                <div class="tree-node tree-machine" @click="toggleMachine(node.tree_id)">
+                                    <span class="tree-expand">{{ node.expanded ? '▼' : '▶' }}</span>
                                     <input 
                                         type="checkbox" 
                                         class="tree-checkbox"
-                                        :checked="machine.check_state === 'checked'"
-                                        :indeterminate.prop="machine.check_state === 'tristate'"
+                                        :checked="node.check_state === 'checked'"
+                                        :indeterminate.prop="node.check_state === 'tristate'"
                                         @click.stop
-                                        @change="toggleMachineCheck(machine)"
+                                        @change="toggleMachineCheck(node)"
                                     >
-                                    <span>{{ machine.display_name }}</span>
+                                    <span>{{ node.display_name }}</span>
                                 </div>
-                                <template v-if="machine.expanded">
-                                    <template v-for="recipe in machine.recipes" :key="recipe ? recipe.tree_id : Math.random()">
-                                        <div 
-                                            v-if="recipe && recipe.is_visible"
-                                            class="tree-node tree-recipe"
-                                            :title="getRecipeTooltip(recipe.tree_id)"
-                                        >
-                                            <input 
-                                                type="checkbox" 
-                                                class="tree-checkbox"
-                                                :checked="recipe.is_enabled"
-                                                @change="toggleRecipe(recipe.tree_id)"
+                                <template v-if="node.expanded">
+                                    <!-- Nested children (for tier → schematic hierarchy) -->
+                                    <template v-if="node.children && node.children.length > 0">
+                                        <template v-for="child in node.children" :key="child.tree_id">
+                                            <div v-if="child.is_visible" class="tree-child-container">
+                                                <div class="tree-node tree-machine tree-level-2" @click.stop="toggleMachine(child.tree_id)">
+                                                    <span class="tree-expand">{{ child.expanded ? '▼' : '▶' }}</span>
+                                                    <input 
+                                                        type="checkbox" 
+                                                        class="tree-checkbox"
+                                                        :checked="child.check_state === 'checked'"
+                                                        :indeterminate.prop="child.check_state === 'tristate'"
+                                                        @click.stop
+                                                        @change="toggleMachineCheck(child)"
+                                                    >
+                                                    <span>{{ child.display_name }}</span>
+                                                </div>
+                                                <template v-if="child.expanded">
+                                                    <template v-for="recipe in child.recipes" :key="recipe ? recipe.tree_id : Math.random()">
+                                                        <div 
+                                                            v-if="recipe && recipe.is_visible"
+                                                            class="tree-node tree-recipe tree-level-3"
+                                                            :title="getRecipeTooltip(recipe.tree_id)"
+                                                        >
+                                                            <input 
+                                                                type="checkbox" 
+                                                                class="tree-checkbox"
+                                                                :checked="recipe.is_enabled"
+                                                                @change="toggleRecipe(recipe.tree_id)"
+                                                            >
+                                                            <span>{{ recipe.display_name }}</span>
+                                                        </div>
+                                                    </template>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </template>
+                                    <!-- Direct recipes (for machine → recipe hierarchy) -->
+                                    <template v-if="node.recipes && node.recipes.length > 0">
+                                        <template v-for="recipe in node.recipes" :key="recipe ? recipe.tree_id : Math.random()">
+                                            <div 
+                                                v-if="recipe && recipe.is_visible"
+                                                class="tree-node tree-recipe"
+                                                :title="getRecipeTooltip(recipe.tree_id)"
                                             >
-                                            <span>{{ recipe.display_name }}</span>
-                                        </div>
+                                                <input 
+                                                    type="checkbox" 
+                                                    class="tree-checkbox"
+                                                    :checked="recipe.is_enabled"
+                                                    @change="toggleRecipe(recipe.tree_id)"
+                                                >
+                                                <span>{{ recipe.display_name }}</span>
+                                            </div>
+                                        </template>
                                     </template>
                                 </template>
                             </div>
@@ -205,6 +268,7 @@ const FactoryViewComponent = {
             outputsText: '',
             inputsText: '',
             recipeSearchText: '',
+            treeViewMode: 'machine',
             treeStructure: [],
             inputCostsWeight: 1.0,
             machineCountsWeight: 0.0,
@@ -225,6 +289,7 @@ const FactoryViewComponent = {
         this.outputsText = this.controller.get_outputs_text();
         this.inputsText = this.controller.get_inputs_text();
         this.recipeSearchText = this.controller.get_recipe_search_text();
+        this.treeViewMode = this.controller.get_tree_view_mode();
         this.inputCostsWeight = this.controller.get_input_costs_weight();
         this.machineCountsWeight = this.controller.get_machine_counts_weight();
         this.powerConsumptionWeight = this.controller.get_power_consumption_weight();
@@ -244,14 +309,28 @@ const FactoryViewComponent = {
         refreshTreeView() {
             const structure = this.controller.get_recipe_tree_structure();
             const oldExpanded = new Map();
-            for (const machine of this.treeStructure) {
-                oldExpanded.set(machine.tree_id, machine.expanded);
-            }
             
-            // Structure has a .machines property
-            for (const machine of structure.machines) {
-                machine.expanded = oldExpanded.get(machine.tree_id) || false;
-            }
+            // Store expanded state for all levels (including nested children)
+            const storeExpanded = (nodes) => {
+                for (const node of nodes) {
+                    oldExpanded.set(node.tree_id, node.expanded);
+                    if (node.children && node.children.length > 0) {
+                        storeExpanded(node.children);
+                    }
+                }
+            };
+            storeExpanded(this.treeStructure);
+            
+            // Restore expanded state for all levels
+            const restoreExpanded = (nodes) => {
+                for (const node of nodes) {
+                    node.expanded = oldExpanded.get(node.tree_id) || false;
+                    if (node.children && node.children.length > 0) {
+                        restoreExpanded(node.children);
+                    }
+                }
+            };
+            restoreExpanded(structure.machines);
             
             this.treeStructure = structure.machines;
         },
@@ -265,6 +344,11 @@ const FactoryViewComponent = {
         },
         onSearchChanged() {
             this.controller.set_recipe_search_text(this.recipeSearchText);
+            this.refreshTreeView();
+            this.$emit('stateChange');
+        },
+        onTreeViewModeChanged() {
+            this.controller.set_tree_view_mode(this.treeViewMode);
             this.refreshTreeView();
             this.$emit('stateChange');
         },
@@ -283,11 +367,23 @@ const FactoryViewComponent = {
             this.controller.set_disable_balancers(this.disableBalancers);
             this.$emit('stateChange');
         },
-        toggleMachine(machineId) {
-            const machine = this.treeStructure.find(m => m.tree_id === machineId);
-            if (machine) {
-                machine.expanded = !machine.expanded;
-            }
+        toggleMachine(nodeId) {
+            // Recursively search for node in tree structure
+            const findAndToggle = (nodes) => {
+                for (const node of nodes) {
+                    if (node.tree_id === nodeId) {
+                        node.expanded = !node.expanded;
+                        return true;
+                    }
+                    if (node.children && node.children.length > 0) {
+                        if (findAndToggle(node.children)) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            };
+            findAndToggle(this.treeStructure);
         },
         toggleMachineCheck(machine) {
             const newState = machine.check_state !== 'checked';
@@ -395,6 +491,7 @@ const FactoryViewComponent = {
                 this.outputsText = this.controller.get_outputs_text();
                 this.inputsText = this.controller.get_inputs_text();
                 this.recipeSearchText = this.controller.get_recipe_search_text();
+                this.treeViewMode = this.controller.get_tree_view_mode();
                 this.inputCostsWeight = this.controller.get_input_costs_weight();
                 this.machineCountsWeight = this.controller.get_machine_counts_weight();
                 this.powerConsumptionWeight = this.controller.get_power_consumption_weight();

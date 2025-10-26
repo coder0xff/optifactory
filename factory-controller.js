@@ -5,7 +5,7 @@
 
 import { design_factory } from './factory.js';
 import { parse_material_rate } from './parsing-utils.js';
-import { get_all_recipes_by_machine, get_recipes_for, get_default_enablement_set } from './recipes.js';
+import { get_all_recipes_by_machine, get_recipes_for, get_default_enablement_set, _SCHEMATIC_RECIPES_LOOKUP } from './recipes.js';
 
 // ============================================================================
 // Data Classes
@@ -79,22 +79,24 @@ class RecipeTreeNode {
 }
 
 /**
- * Represents a machine group in the tree
+ * Represents a parent node in the tree (machine, tier, or schematic)
  */
 class MachineTreeNode {
     /**
-     * @param {string} tree_id - tree ID in format "machine:{machine}"
-     * @param {string} display_name - display name for the machine
-     * @param {Array.<RecipeTreeNode>} recipes - list of recipe nodes
+     * @param {string} tree_id - tree ID (e.g., "machine:{machine}", "tier:{tier}", "schematic:{tier}:{schematic}")
+     * @param {string} display_name - display name for the node
+     * @param {Array.<RecipeTreeNode>} recipes - list of recipe nodes (for leaf parent nodes)
      * @param {string} check_state - 'checked', 'unchecked', or 'tristate'
-     * @param {boolean} is_visible - whether machine is visible (based on search)
+     * @param {boolean} is_visible - whether node is visible (based on search)
+     * @param {Array.<MachineTreeNode>} children - list of child parent nodes (for nested hierarchy)
      */
-    constructor(tree_id, display_name, recipes = [], check_state = 'unchecked', is_visible = true) {
+    constructor(tree_id, display_name, recipes = [], check_state = 'unchecked', is_visible = true, children = []) {
         this.tree_id = tree_id;
         this.display_name = display_name;
         this.recipes = recipes;
         this.check_state = check_state;
         this.is_visible = is_visible;
+        this.children = children;
     }
 }
 
@@ -139,6 +141,7 @@ class FactoryController {
         // recipe state
         this.enabled_recipes = get_default_enablement_set();
         this._recipe_search_text = "";
+        this._tree_view_mode = "machine"; // 'machine' or 'schematic'
         
         // optimization weights
         this._input_costs_weight = 0.1;
@@ -186,6 +189,14 @@ class FactoryController {
      */
     get_recipe_search_text() {
         return this._recipe_search_text;
+    }
+    
+    /**
+     * Get tree view mode.
+     * @returns {string} tree view mode ('machine' or 'schematic')
+     */
+    get_tree_view_mode() {
+        return this._tree_view_mode;
     }
     
     /**
@@ -323,6 +334,17 @@ class FactoryController {
      */
     set_recipe_search_text(text) {
         this._recipe_search_text = text;
+    }
+    
+    /**
+     * Set tree view mode.
+     * @param {string} mode - tree view mode ('machine' or 'schematic')
+     */
+    set_tree_view_mode(mode) {
+        if (mode !== 'machine' && mode !== 'schematic') {
+            throw new Error(`Invalid tree view mode: ${mode}`);
+        }
+        this._tree_view_mode = mode;
     }
     
     /**
@@ -472,6 +494,82 @@ class FactoryController {
     }
     
     /**
+     * Generate tree ID for tier.
+     * @param {number|string} tier - tier number
+     * @returns {string} tree ID in format "tier:{tier}"
+     */
+    static _make_tier_id(tier) {
+        return `tier:${tier}`;
+    }
+    
+    /**
+     * Generate tree ID for schematic.
+     * @param {number|string} tier - tier number
+     * @param {string} schematic_name - schematic name
+     * @returns {string} tree ID in format "schematic:{tier}:{schematic}"
+     */
+    static _make_schematic_id(tier, schematic_name) {
+        return `schematic:${tier}:${schematic_name}`;
+    }
+    
+    /**
+     * Generate tree ID for recipe in schematic view.
+     * @param {number|string} tier - tier number
+     * @param {string} schematic_name - schematic name
+     * @param {string} recipe_name - recipe name
+     * @returns {string} tree ID in format "recipe:{tier}:{schematic}:{recipe}"
+     */
+    static _make_schematic_recipe_id(tier, schematic_name, recipe_name) {
+        return `recipe:${tier}:${schematic_name}:${recipe_name}`;
+    }
+    
+    /**
+     * Parse tier tree ID.
+     * @param {string} tree_id - tree ID in format "tier:{tier}"
+     * @returns {string|null} tier or null if not a tier ID
+     */
+    static _parse_tier_id(tree_id) {
+        if (tree_id.startsWith("tier:")) {
+            return tree_id.substring(5);
+        }
+        return null;
+    }
+    
+    /**
+     * Parse schematic tree ID.
+     * @param {string} tree_id - tree ID in format "schematic:{tier}:{schematic}"
+     * @returns {Array<string>|null} [tier, schematic_name] or null if not a schematic ID
+     */
+    static _parse_schematic_id(tree_id) {
+        if (tree_id.startsWith("schematic:")) {
+            const remainder = tree_id.substring(10);
+            const colon_index = remainder.indexOf(":");
+            if (colon_index !== -1) {
+                const tier = remainder.substring(0, colon_index);
+                const schematic_name = remainder.substring(colon_index + 1);
+                return [tier, schematic_name];
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Parse schematic recipe tree ID.
+     * @param {string} tree_id - tree ID in format "recipe:{tier}:{schematic}:{recipe}"
+     * @returns {Array<string>|null} [tier, schematic_name, recipe_name] or null if not a schematic recipe ID
+     */
+    static _parse_schematic_recipe_id(tree_id) {
+        if (tree_id.startsWith("recipe:")) {
+            const remainder = tree_id.substring(7);
+            const parts = remainder.split(":");
+            if (parts.length === 3) {
+                return parts; // [tier, schematic_name, recipe_name]
+            }
+        }
+        return null;
+    }
+    
+    /**
      * Check if recipe matches search text.
      * @param {string} recipe_name - name of the recipe
      * @param {Recipe} recipe - Recipe object
@@ -491,10 +589,127 @@ class FactoryController {
     }
     
     /**
+     * Get tree structure organized by tiers and schematics.
+     * @returns {RecipeTreeStructure} Three-level tree structure
+     */
+    _get_recipe_tree_by_schematic() {
+        const search_text = this._recipe_search_text.toLowerCase();
+        const all_recipes = get_all_recipes_by_machine();
+        const tier_nodes = [];
+        
+        // Get all recipes for lookup
+        const recipe_lookup = {};
+        for (const [machine_name, recipes_dict] of Object.entries(all_recipes)) {
+            for (const [recipe_name, recipe] of Object.entries(recipes_dict)) {
+                recipe_lookup[recipe_name] = recipe;
+            }
+        }
+        
+        // Iterate through tiers in order
+        for (const [tier, schematics_dict] of Object.entries(_SCHEMATIC_RECIPES_LOOKUP)) {
+            const schematic_nodes = [];
+            
+            for (const [schematic_name, recipe_names] of Object.entries(schematics_dict)) {
+                const recipe_nodes = [];
+                
+                for (const recipe_name of recipe_names) {
+                    const recipe = recipe_lookup[recipe_name];
+                    if (!recipe) continue;
+                    
+                    const is_visible = this._recipe_matches_search(recipe_name, recipe, search_text);
+                    
+                    // transform "Alternate: X" to "X (Alternate)"
+                    let display_name = recipe_name;
+                    if (recipe_name.startsWith("Alternate: ")) {
+                        const base_name = recipe_name.substring(11);
+                        display_name = `${base_name} (Alternate)`;
+                    }
+                    
+                    const recipe_node = new RecipeTreeNode(
+                        FactoryController._make_schematic_recipe_id(tier, schematic_name, recipe_name),
+                        display_name,
+                        this.enabled_recipes.has(recipe_name),
+                        is_visible
+                    );
+                    recipe_nodes.push(recipe_node);
+                }
+                
+                // sort recipes by display name
+                recipe_nodes.sort((a, b) => a.display_name.localeCompare(b.display_name));
+                
+                // calculate schematic state from visible recipes
+                const visible_recipes = recipe_nodes.filter(r => r.is_visible);
+                let check_state;
+                let is_visible;
+                if (visible_recipes.length === 0) {
+                    check_state = 'unchecked';
+                    is_visible = false;
+                } else {
+                    const enabled_count = visible_recipes.filter(r => r.is_enabled).length;
+                    if (enabled_count === 0) {
+                        check_state = 'unchecked';
+                    } else if (enabled_count === visible_recipes.length) {
+                        check_state = 'checked';
+                    } else {
+                        check_state = 'tristate';
+                    }
+                    is_visible = true;
+                }
+                
+                const schematic_node = new MachineTreeNode(
+                    FactoryController._make_schematic_id(tier, schematic_name),
+                    schematic_name,
+                    recipe_nodes,
+                    check_state,
+                    is_visible
+                );
+                schematic_nodes.push(schematic_node);
+            }
+            
+            // calculate tier state from visible schematics
+            const visible_schematics = schematic_nodes.filter(s => s.is_visible);
+            let tier_check_state;
+            let tier_is_visible;
+            if (visible_schematics.length === 0) {
+                tier_check_state = 'unchecked';
+                tier_is_visible = false;
+            } else {
+                const checked_count = visible_schematics.filter(s => s.check_state === 'checked').length;
+                const has_tristate = visible_schematics.some(s => s.check_state === 'tristate');
+                
+                if (checked_count === 0 && !has_tristate) {
+                    tier_check_state = 'unchecked';
+                } else if (checked_count === visible_schematics.length) {
+                    tier_check_state = 'checked';
+                } else {
+                    tier_check_state = 'tristate';
+                }
+                tier_is_visible = true;
+            }
+            
+            const tier_node = new MachineTreeNode(
+                FactoryController._make_tier_id(tier),
+                `Tier ${tier}`,
+                [], // no recipes at tier level
+                tier_check_state,
+                tier_is_visible,
+                schematic_nodes // children are schematics
+            );
+            tier_nodes.push(tier_node);
+        }
+        
+        return new RecipeTreeStructure(tier_nodes);
+    }
+    
+    /**
      * Get complete tree structure with IDs, states, and visibility.
      * @returns {RecipeTreeStructure} RecipeTreeStructure ready for rendering
      */
     get_recipe_tree_structure() {
+        if (this._tree_view_mode === 'schematic') {
+            return this._get_recipe_tree_by_schematic();
+        }
+        
         const search_text = this._recipe_search_text.toLowerCase();
         const machines = [];
         
@@ -560,41 +775,89 @@ class FactoryController {
     }
     
     /**
-     * Handle machine toggle event - toggles all visible child recipes.
-     * @param {string} machine_tree_id - tree ID in format "machine:{machine}"
+     * Handle parent node toggle event - toggles all visible child recipes.
+     * @param {string} node_tree_id - tree ID (machine, tier, or schematic format)
      * @param {boolean} is_checked - new checked state
      */
-    on_machine_toggled(machine_tree_id, is_checked) {
-        const machine_name = FactoryController._parse_machine_id(machine_tree_id);
-        if (!machine_name) {
-            return;
-        }
-        
-        const all_recipes = get_all_recipes_by_machine();
-        const recipes_dict = all_recipes[machine_name];
-        if (!recipes_dict) {
-            return;
-        }
-        
+    on_machine_toggled(node_tree_id, is_checked) {
         const search_text = this._recipe_search_text.toLowerCase();
+        const all_recipes = get_all_recipes_by_machine();
         
-        // toggle all visible recipes for this machine
-        for (const [recipe_name, recipe] of Object.entries(recipes_dict)) {
-            if (this._recipe_matches_search(recipe_name, recipe, search_text)) {
-                this.set_recipe_enabled(recipe_name, is_checked);
+        // Build recipe lookup for search filtering
+        const recipe_lookup = {};
+        for (const [machine_name, recipes_dict] of Object.entries(all_recipes)) {
+            for (const [recipe_name, recipe] of Object.entries(recipes_dict)) {
+                recipe_lookup[recipe_name] = recipe;
             }
+        }
+        
+        // Handle machine view
+        const machine_name = FactoryController._parse_machine_id(node_tree_id);
+        if (machine_name) {
+            const recipes_dict = all_recipes[machine_name];
+            if (recipes_dict) {
+                for (const [recipe_name, recipe] of Object.entries(recipes_dict)) {
+                    if (this._recipe_matches_search(recipe_name, recipe, search_text)) {
+                        this.set_recipe_enabled(recipe_name, is_checked);
+                    }
+                }
+            }
+            return;
+        }
+        
+        // Handle tier node in schematic view
+        const tier = FactoryController._parse_tier_id(node_tree_id);
+        if (tier !== null) {
+            const schematics_dict = _SCHEMATIC_RECIPES_LOOKUP[tier];
+            if (schematics_dict) {
+                for (const [schematic_name, recipe_names] of Object.entries(schematics_dict)) {
+                    for (const recipe_name of recipe_names) {
+                        const recipe = recipe_lookup[recipe_name];
+                        if (recipe && this._recipe_matches_search(recipe_name, recipe, search_text)) {
+                            this.set_recipe_enabled(recipe_name, is_checked);
+                        }
+                    }
+                }
+            }
+            return;
+        }
+        
+        // Handle schematic node in schematic view
+        const schematic_parts = FactoryController._parse_schematic_id(node_tree_id);
+        if (schematic_parts) {
+            const [schematic_tier, schematic_name] = schematic_parts;
+            const schematics_dict = _SCHEMATIC_RECIPES_LOOKUP[schematic_tier];
+            if (schematics_dict && schematics_dict[schematic_name]) {
+                const recipe_names = schematics_dict[schematic_name];
+                for (const recipe_name of recipe_names) {
+                    const recipe = recipe_lookup[recipe_name];
+                    if (recipe && this._recipe_matches_search(recipe_name, recipe, search_text)) {
+                        this.set_recipe_enabled(recipe_name, is_checked);
+                    }
+                }
+            }
+            return;
         }
     }
     
     /**
      * Handle recipe toggle event.
-     * @param {string} recipe_tree_id - tree ID in format "recipe:{machine}:{recipe}"
+     * @param {string} recipe_tree_id - tree ID (machine or schematic format)
      * @param {boolean} is_checked - new checked state
      */
     on_recipe_toggled(recipe_tree_id, is_checked) {
-        const parsed = FactoryController._parse_recipe_id(recipe_tree_id);
-        if (parsed) {
-            const recipe_name = parsed[1];
+        // Try schematic format first (3 parts)
+        const schematic_parsed = FactoryController._parse_schematic_recipe_id(recipe_tree_id);
+        if (schematic_parsed) {
+            const recipe_name = schematic_parsed[2]; // [tier, schematic, recipe]
+            this.set_recipe_enabled(recipe_name, is_checked);
+            return;
+        }
+        
+        // Fall back to machine format (2 parts)
+        const machine_parsed = FactoryController._parse_recipe_id(recipe_tree_id);
+        if (machine_parsed) {
+            const recipe_name = machine_parsed[1]; // [machine, recipe]
             this.set_recipe_enabled(recipe_name, is_checked);
         }
     }
@@ -605,9 +868,17 @@ class FactoryController {
      * @returns {string|null} tooltip text or null
      */
     get_tooltip_for_tree_id(tree_id) {
-        const parsed = FactoryController._parse_recipe_id(tree_id);
-        if (parsed) {
-            const recipe_name = parsed[1];
+        // Try schematic format first
+        const schematic_parsed = FactoryController._parse_schematic_recipe_id(tree_id);
+        if (schematic_parsed) {
+            const recipe_name = schematic_parsed[2];
+            return this.get_recipe_tooltip(recipe_name);
+        }
+        
+        // Fall back to machine format
+        const machine_parsed = FactoryController._parse_recipe_id(tree_id);
+        if (machine_parsed) {
+            const recipe_name = machine_parsed[1];
             return this.get_recipe_tooltip(recipe_name);
         }
         return null;
@@ -625,6 +896,7 @@ class FactoryController {
             outputs_text: this._outputs_text,
             inputs_text: this._inputs_text,
             enabled_recipes: Array.from(this.enabled_recipes),
+            tree_view_mode: this._tree_view_mode,
             input_costs_weight: this._input_costs_weight,
             machine_counts_weight: this._machine_counts_weight,
             power_consumption_weight: this._power_consumption_weight,
@@ -656,6 +928,7 @@ class FactoryController {
         this.set_outputs_text(state.outputs_text);
         this.set_inputs_text(state.inputs_text);
         this.set_recipes_enabled(new Set(state.enabled_recipes));
+        this.set_tree_view_mode(state.tree_view_mode || 'machine'); // default to 'machine' for backward compatibility
         this.set_input_costs_weight(state.input_costs_weight);
         this.set_machine_counts_weight(state.machine_counts_weight);
         this.set_power_consumption_weight(state.power_consumption_weight);

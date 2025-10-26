@@ -355,6 +355,40 @@ tbody tr:hover {
     color: #666;
 }
 
+/* Tree nesting levels */
+.tree-child-container {
+    margin-left: 0;
+}
+
+.tree-level-2 {
+    padding-left: 24px;
+    font-size: 12px;
+}
+
+.tree-level-3 {
+    padding-left: 48px;
+    font-size: 12px;
+}
+
+/* Radio group */
+.radio-group {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 8px;
+    font-size: 12px;
+}
+
+.radio-group label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+
+.radio-group input[type="radio"] {
+    cursor: pointer;
+}
+
 /* Sliders */
 .slider-container {
     display: flex;
