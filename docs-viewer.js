@@ -74,7 +74,6 @@ const DocsViewerComponent = {
                     <diagram-viewer 
                         :dot-source="example1Dot"
                         :is-loading="isGeneratingExample1"
-                        container-ref="example1-output"
                     />
 
                     <h3 id="adding-inputs">3.2 Inputs (Optional)</h3>
@@ -89,7 +88,6 @@ const DocsViewerComponent = {
                     <diagram-viewer 
                         :dot-source="example2Dot"
                         :is-loading="isGeneratingExample2"
-                        container-ref="example2-output"
                     />
                     <p>Notice how providing Polymer Resin as an input simplifies the factory - it no longer needs to produce it from Crude Oil.</p>
                     
@@ -107,7 +105,6 @@ const DocsViewerComponent = {
                     <diagram-viewer 
                         :dot-source="example3Dot"
                         :is-loading="isGeneratingExample3"
-                        container-ref="example3-output"
                     />
 
                     <h3 id="selecting-recipes">3.3 Recipe Selection</h3>

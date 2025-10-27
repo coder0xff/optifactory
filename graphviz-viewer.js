@@ -1,5 +1,5 @@
 /**
- * GraphvizViewer - Reusable Vue mixin for interactive SVG graph viewing
+ * GraphvizViewer - Reusable Vue component for interactive SVG graph viewing
  * Provides zoom and pan functionality for Graphviz-rendered graphs
  */
 import { Graphviz } from 'https://cdn.jsdelivr.net/npm/@hpcc-js/wasm-graphviz@1.13.0/+esm';
@@ -13,7 +13,46 @@ async function getGraphviz() {
     return graphvizInstance;
 }
 
-const GraphvizViewerMixin = {
+const GraphvizViewerComponent = {
+    template: `
+        <div class="graphviz-viewer">
+            <div 
+                v-if="dotSource"
+                class="viewer-container"
+                ref="viewerContainer"
+                @mousedown="startPan"
+                @mousemove="handlePan"
+                @mouseup="endPan"
+                @mouseleave="endPan"
+                @wheel="handleZoom"
+            >
+                <div class="viewer-content">
+                    <div 
+                        ref="svgContainer" 
+                        class="viewer-svg"
+                    ></div>
+                </div>
+            </div>
+            <div v-else class="viewer-placeholder">
+                {{ placeholder }}
+            </div>
+            <div v-if="dotSource" class="zoom-indicator">
+                <button @click="zoomToFit" class="zoom-fit-button">Fit</button>
+                <span>{{ (zoomFactor * 100).toFixed(0) }}%</span>
+            </div>
+        </div>
+    `,
+    props: {
+        dotSource: {
+            type: String,
+            default: null
+        },
+        placeholder: {
+            type: String,
+            default: 'Graph visualization will appear here'
+        }
+    },
+    emits: ['statusChange'],
     data() {
         return {
             zoomFactor: 1.0,
@@ -29,23 +68,30 @@ const GraphvizViewerMixin = {
     watch: {
         zoomFactor() {
             this.applySvgZoom();
+        },
+        dotSource: {
+            handler(newSource) {
+                if (newSource) {
+                    this.renderGraphviz(newSource);
+                }
+            },
+            immediate: true
         }
     },
     methods: {
         /**
          * Render DOT string to SVG using @hpcc-js/wasm
          * @param {string} dotSource - Graphviz DOT source string
-         * @param {string} containerRef - Name of the ref for the SVG container element
          */
-        async renderGraphviz(dotSource, containerRef = 'svgContainer') {
+        async renderGraphviz(dotSource) {
             if (!dotSource) return;
             
             // Wait for next tick to ensure DOM is updated
             await this.$nextTick();
             
-            const container = this.$refs[containerRef];
+            const container = this.$refs.svgContainer;
             if (!container) {
-                console.warn(`Container ref "${containerRef}" not found`);
+                console.warn('SVG container ref not found');
                 return;
             }
             
@@ -58,17 +104,22 @@ const GraphvizViewerMixin = {
                 // Update SVG dimensions for zoom calculations
                 this.updateSvgDimensions();
                 
-                // Notify status if available
-                if (this.setStatus) {
-                    this.setStatus(`Zoom: ${(this.zoomFactor * 100).toFixed(0)}%`, 'info');
-                }
+                // Reset zoom to 100% when new diagram is rendered
+                this.zoomFactor = 1.0;
+                
+                // Emit status
+                this.$emit('statusChange', { 
+                    text: `Zoom: ${(this.zoomFactor * 100).toFixed(0)}%`, 
+                    level: 'info' 
+                });
                 
                 return true;
             } catch (error) {
                 console.error('Graphviz rendering error:', error);
-                if (this.setStatus) {
-                    this.setStatus('Graph rendering failed: ' + error.message, 'error');
-                }
+                this.$emit('statusChange', { 
+                    text: 'Graph rendering failed: ' + error.message, 
+                    level: 'error' 
+                });
                 return false;
             }
         },
@@ -106,10 +157,11 @@ const GraphvizViewerMixin = {
                 container.scrollLeft = scrollX * zoomRatio + (mouseX * (zoomRatio - 1));
                 container.scrollTop = scrollY * zoomRatio + (mouseY * (zoomRatio - 1));
                 
-                // Update status if available
-                if (this.setStatus) {
-                    this.setStatus(`Zoom: ${(this.zoomFactor * 100).toFixed(0)}%`, 'info');
-                }
+                // Emit status
+                this.$emit('statusChange', { 
+                    text: `Zoom: ${(this.zoomFactor * 100).toFixed(0)}%`, 
+                    level: 'info' 
+                });
             });
         },
         
@@ -234,13 +286,14 @@ const GraphvizViewerMixin = {
                 container.scrollLeft = Math.max(0, (scaledWidth - viewportWidth) / 2);
                 container.scrollTop = Math.max(0, (scaledHeight - viewportHeight) / 2);
                 
-                // Update status if available
-                if (this.setStatus) {
-                    this.setStatus(`Zoom: ${(this.zoomFactor * 100).toFixed(0)}%`, 'info');
-                }
+                // Emit status
+                this.$emit('statusChange', { 
+                    text: `Zoom: ${(this.zoomFactor * 100).toFixed(0)}%`, 
+                    level: 'info' 
+                });
             });
         }
     }
 };
 
-export { GraphvizViewerMixin };
+export { GraphvizViewerComponent };

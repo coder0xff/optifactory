@@ -581,4 +581,192 @@ Copper Ingot:50
         
         if (!controller.should_show_converter_warning()) throw new Error('Should show warning');
     });
+
+    // ========== Serialization Tests ==========
+
+    it('test_serialize_state: serialize_state should return valid JSON string', () => {
+        const controller = new FactoryController({});
+        const serialized = controller.serialize_state();
+        
+        // Should be parseable JSON
+        const state = JSON.parse(serialized);
+        
+        // Should have version
+        assert.strictEqual(state.version, 1);
+        
+        // Should have all state fields
+        assert.ok('outputs_text' in state);
+        assert.ok('inputs_text' in state);
+        assert.ok('enabled_recipes' in state);
+        assert.ok('input_costs_weight' in state);
+        assert.ok('machine_counts_weight' in state);
+        assert.ok('power_consumption_weight' in state);
+        assert.ok('design_power' in state);
+        assert.ok('disable_balancers' in state);
+        assert.ok('graphviz_source' in state);
+    });
+
+    it('test_serialize_state_with_custom_values: serialize_state should capture all custom state', () => {
+        const controller = new FactoryController({});
+        
+        // Set custom values
+        controller.set_outputs_text("Iron Plate:200");
+        controller.set_inputs_text("Iron Ore:300");
+        controller.set_recipes_enabled(new Set(["Iron Plate", "Copper Ingot"]));
+        controller.set_input_costs_weight(0.5);
+        controller.set_machine_counts_weight(0.3);
+        controller.set_power_consumption_weight(0.7);
+        controller.set_design_power(true);
+        controller.set_disable_balancers(true);
+        
+        const serialized = controller.serialize_state();
+        const state = JSON.parse(serialized);
+        
+        assert.strictEqual(state.outputs_text, "Iron Plate:200");
+        assert.strictEqual(state.inputs_text, "Iron Ore:300");
+        assert.strictEqual(state.enabled_recipes.length, 2);
+        assert.ok(state.enabled_recipes.includes("Iron Plate"));
+        assert.ok(state.enabled_recipes.includes("Copper Ingot"));
+        assert.strictEqual(state.input_costs_weight, 0.5);
+        assert.strictEqual(state.machine_counts_weight, 0.3);
+        assert.strictEqual(state.power_consumption_weight, 0.7);
+        assert.strictEqual(state.design_power, true);
+        assert.strictEqual(state.disable_balancers, true);
+    });
+
+    it('test_serialize_state_graphviz_null: serialize_state should handle null graphviz source', () => {
+        const controller = new FactoryController({});
+        
+        const serialized = controller.serialize_state();
+        const state = JSON.parse(serialized);
+        
+        assert.strictEqual(state.graphviz_source, null);
+    });
+
+    it('test_deserialize_state: deserialize_state should restore state from JSON', () => {
+        const controller1 = new FactoryController({});
+        
+        // Set custom values
+        controller1.set_outputs_text("Iron Plate:200");
+        controller1.set_inputs_text("Iron Ore:300");
+        controller1.set_recipes_enabled(new Set(["Iron Plate", "Copper Ingot"]));
+        controller1.set_input_costs_weight(0.5);
+        controller1.set_machine_counts_weight(0.3);
+        controller1.set_power_consumption_weight(0.7);
+        controller1.set_design_power(true);
+        controller1.set_disable_balancers(true);
+        
+        const serialized = controller1.serialize_state();
+        
+        // Create new controller and deserialize
+        const controller2 = new FactoryController({});
+        controller2.deserialize_state(serialized);
+        
+        // Verify all state matches
+        assert.strictEqual(controller2.get_outputs_text(), "Iron Plate:200");
+        assert.strictEqual(controller2.get_inputs_text(), "Iron Ore:300");
+        assert.strictEqual(controller2.enabled_recipes.size, 2);
+        assert.ok(controller2.enabled_recipes.has("Iron Plate"));
+        assert.ok(controller2.enabled_recipes.has("Copper Ingot"));
+        assert.strictEqual(controller2.get_input_costs_weight(), 0.5);
+        assert.strictEqual(controller2.get_machine_counts_weight(), 0.3);
+        assert.strictEqual(controller2.get_power_consumption_weight(), 0.7);
+        assert.strictEqual(controller2.get_design_power(), true);
+        assert.strictEqual(controller2.get_disable_balancers(), true);
+    });
+
+    it('test_deserialize_state_clears_factory: deserialize_state should clear current factory', () => {
+        const controller = new FactoryController({});
+        
+        // Simulate having a current factory (we can't easily create one without running the optimizer)
+        controller._current_factory = { network: { source: "digraph G {}" } };
+        
+        const serialized = controller.serialize_state();
+        controller.deserialize_state(serialized);
+        
+        assert.strictEqual(controller.get_current_factory(), null);
+    });
+
+    it('test_deserialize_state_invalid_json: deserialize_state should throw on invalid JSON', () => {
+        const controller = new FactoryController({});
+        
+        try {
+            controller.deserialize_state("not valid json");
+            throw new Error('Should have thrown');
+        } catch (e) {
+            if (!e.message.includes('Invalid JSON')) throw e;
+        }
+    });
+
+    it('test_deserialize_state_invalid_version: deserialize_state should throw on unsupported version', () => {
+        const controller = new FactoryController({});
+        
+        const invalid_state = JSON.stringify({
+            version: 999,
+            outputs_text: "test",
+            inputs_text: "test",
+            enabled_recipes: [],
+            input_costs_weight: 0.1,
+            machine_counts_weight: 1.0,
+            power_consumption_weight: 1.0,
+            design_power: false,
+            disable_balancers: false,
+            graphviz_source: null
+        });
+        
+        try {
+            controller.deserialize_state(invalid_state);
+            throw new Error('Should have thrown');
+        } catch (e) {
+            if (!e.message.includes('Unsupported state version')) throw e;
+        }
+    });
+
+    it('test_serialize_deserialize_roundtrip: state should survive serialize/deserialize roundtrip', () => {
+        const controller1 = new FactoryController({});
+        
+        // Set various custom values
+        controller1.set_outputs_text("Multiple:100\nOutputs:200");
+        controller1.set_inputs_text("Multiple:50\nInputs:75");
+        controller1.set_recipes_enabled(new Set(["Recipe1", "Recipe2", "Recipe3"]));
+        controller1.set_input_costs_weight(0.25);
+        controller1.set_machine_counts_weight(0.5);
+        controller1.set_power_consumption_weight(0.75);
+        controller1.set_design_power(true);
+        controller1.set_disable_balancers(false);
+        
+        // Serialize and deserialize
+        const serialized = controller1.serialize_state();
+        const controller2 = new FactoryController({});
+        controller2.deserialize_state(serialized);
+        
+        // Serialize again
+        const serialized2 = controller2.serialize_state();
+        
+        // Both serialized strings should be identical
+        assert.strictEqual(serialized, serialized2);
+    });
+
+    it('test_deserialize_state_preserves_graphviz_source: deserialize_state should preserve graphviz source', () => {
+        const controller = new FactoryController({});
+        
+        // Simulate having a graphviz source by setting the cache directly
+        const test_graphviz = "digraph G { node1 -> node2; }";
+        controller._cached_graphviz_source = test_graphviz;
+        
+        // Serialize
+        const serialized = controller.serialize_state();
+        const state = JSON.parse(serialized);
+        assert.strictEqual(state.graphviz_source, test_graphviz);
+        
+        // Deserialize into new controller
+        const controller2 = new FactoryController({});
+        controller2.deserialize_state(serialized);
+        
+        // Verify graphviz source is available
+        assert.strictEqual(controller2.get_graphviz_source(), test_graphviz);
+        
+        // Verify factory is still null
+        assert.strictEqual(controller2.get_current_factory(), null);
+    });
 });

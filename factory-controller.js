@@ -149,6 +149,9 @@ class FactoryController {
         
         // generated factory (result)
         this._current_factory = null;
+        
+        // cached graphviz source (preserved during serialization/deserialization)
+        this._cached_graphviz_source = null;
     }
     
     // ========== State Getters ==========
@@ -242,14 +245,14 @@ class FactoryController {
     }
     
     /**
-     * Get graphviz source from current factory.
+     * Get graphviz source from current factory or cache.
      * @returns {string|null} Graphviz source string, or null if no factory generated
      */
     get_graphviz_source() {
-        if (this._current_factory === null || this._current_factory.network === null) {
-            return null;
+        if (this._current_factory !== null && this._current_factory.network !== null) {
+            return this._current_factory.network.source;
         }
-        return this._current_factory.network.source;
+        return this._cached_graphviz_source;
     }
     
     /**
@@ -610,6 +613,62 @@ class FactoryController {
         return null;
     }
     
+    // ========== Serialization ==========
+    
+    /**
+     * Serialize entire controller state to JSON string.
+     * @returns {string} JSON string containing all controller state
+     */
+    serialize_state() {
+        const state = {
+            version: 1,
+            outputs_text: this._outputs_text,
+            inputs_text: this._inputs_text,
+            enabled_recipes: Array.from(this.enabled_recipes),
+            input_costs_weight: this._input_costs_weight,
+            machine_counts_weight: this._machine_counts_weight,
+            power_consumption_weight: this._power_consumption_weight,
+            design_power: this._design_power,
+            disable_balancers: this._disable_balancers,
+            graphviz_source: this.get_graphviz_source()
+        };
+        return JSON.stringify(state, null, 2);
+    }
+    
+    /**
+     * Deserialize controller state from JSON string.
+     * @param {string} json_string - JSON string from serialize_state()
+     * @throws {Error} if JSON is invalid or version is unsupported
+     */
+    deserialize_state(json_string) {
+        let state;
+        try {
+            state = JSON.parse(json_string);
+        } catch (e) {
+            throw new Error(`Invalid JSON: ${e.message}`);
+        }
+        
+        if (state.version !== 1) {
+            throw new Error(`Unsupported state version: ${state.version}`);
+        }
+        
+        // restore state using setters
+        this.set_outputs_text(state.outputs_text);
+        this.set_inputs_text(state.inputs_text);
+        this.set_recipes_enabled(new Set(state.enabled_recipes));
+        this.set_input_costs_weight(state.input_costs_weight);
+        this.set_machine_counts_weight(state.machine_counts_weight);
+        this.set_power_consumption_weight(state.power_consumption_weight);
+        this.set_design_power(state.design_power);
+        this.set_disable_balancers(state.disable_balancers);
+        
+        // restore cached graphviz source
+        this._cached_graphviz_source = state.graphviz_source;
+        
+        // clear current factory (factory must be regenerated)
+        this._current_factory = null;
+    }
+    
     // ========== Actions ==========
     
     /**
@@ -641,6 +700,7 @@ class FactoryController {
         // generate and cache result (design_factory is async)
         const factory = await this.generate_factory(config, onProgress);
         this._current_factory = factory;
+        this._cached_graphviz_source = factory.network.source;
         
         console.log("Factory generated successfully");
         

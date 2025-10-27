@@ -1,8 +1,8 @@
 /**
  * FactoryView - Reusable Vue component for factory design
- * Requires: FactoryController, GraphvizViewerMixin
+ * Requires: FactoryController, GraphvizViewerComponent
  */
-import { GraphvizViewerMixin } from './graphviz-viewer.js';
+import { GraphvizViewerComponent } from './graphviz-viewer.js';
 
 const FactoryViewComponent = {
     template: `
@@ -158,37 +158,37 @@ const FactoryViewComponent = {
                 <button class="button-secondary" @click="copyGraphviz">
                     Copy Graphviz to Clipboard
                 </button>
+                
+                <!-- Save/Load Buttons -->
+                <div class="button-group">
+                    <button class="button-secondary" @click="saveState">
+                        Save Design
+                    </button>
+                    <button class="button-secondary" @click="triggerLoadState">
+                        Load Design
+                    </button>
+                    <input 
+                        type="file" 
+                        ref="fileInput" 
+                        @change="loadState" 
+                        accept=".json"
+                        style="display: none;"
+                    >
+                </div>
             </div>
 
             <div class="viewer-panel">
-                <div 
-                    v-if="graphvizSource"
-                    class="viewer-container"
-                    ref="viewerContainer"
-                    @mousedown="startPan"
-                    @mousemove="handlePan"
-                    @mouseup="endPan"
-                    @mouseleave="endPan"
-                    @wheel="handleZoom"
-                >
-                    <div class="viewer-content">
-                        <div 
-                            ref="svgContainer" 
-                            class="viewer-svg"
-                        ></div>
-                    </div>
-                </div>
-                <div v-else class="viewer-placeholder">
-                    {{ placeholder || 'Graph visualization will appear here' }}
-                </div>
-                <div v-if="graphvizSource" class="zoom-indicator">
-                    <button @click="zoomToFit" class="zoom-fit-button">Fit</button>
-                    <span>{{ (zoomFactor * 100).toFixed(0) }}%</span>
-                </div>
+                <graphviz-viewer
+                    :dot-source="dotSource"
+                    :placeholder="placeholder || 'Graph visualization will appear here'"
+                    @status-change="handleStatusChange"
+                ></graphviz-viewer>
             </div>
         </div>
     `,
-    mixins: [GraphvizViewerMixin],
+    components: {
+        'graphviz-viewer': GraphvizViewerComponent
+    },
     props: {
         controller: {
             type: Object,
@@ -213,9 +213,13 @@ const FactoryViewComponent = {
             disableBalancers: false,
             showPowerWarning: false,
             showConverterWarning: false,
-            isGenerating: false,
-            graphvizSource: null
+            isGenerating: false
         };
+    },
+    computed: {
+        dotSource() {
+            return this.controller.get_graphviz_source();
+        }
     },
     mounted() {
         this.outputsText = this.controller.get_outputs_text();
@@ -233,6 +237,9 @@ const FactoryViewComponent = {
     methods: {
         setStatus(text, level = 'info') {
             this.$emit('statusChange', { text, level });
+        },
+        handleStatusChange(event) {
+            this.$emit('statusChange', event);
         },
         refreshTreeView() {
             const structure = this.controller.get_recipe_tree_structure();
@@ -314,11 +321,9 @@ const FactoryViewComponent = {
                     this.setStatus(message, 'info');
                 };
                 
-                // generate_factory_from_state is async and returns a Promise
-                this.graphvizSource = await this.controller.generate_factory_from_state(onProgress);
-                
-                this.resetZoom();
-                await this.renderGraphviz(this.graphvizSource);
+                // generate_factory_from_state is async, updates controller state,
+                // and Vue reactivity will automatically update the viewer
+                await this.controller.generate_factory_from_state(onProgress);
                 
                 this.setStatus('Factory generated successfully', 'info');
             } catch (error) {
@@ -338,6 +343,67 @@ const FactoryViewComponent = {
                 });
             } else {
                 this.setStatus('No graph to export', 'warning');
+            }
+        },
+        saveState() {
+            try {
+                const stateJson = this.controller.serialize_state();
+                
+                // Create a blob and download it
+                const blob = new Blob([stateJson], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                
+                // Generate filename with timestamp
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+                a.download = `optifactory-design-${timestamp}.json`;
+                
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                this.setStatus('Design saved successfully', 'info');
+            } catch (error) {
+                this.setStatus('Failed to save design: ' + error.message, 'error');
+                console.error('Save state error:', error);
+            }
+        },
+        triggerLoadState() {
+            // Trigger the hidden file input
+            this.$refs.fileInput.click();
+        },
+        async loadState(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            try {
+                const text = await file.text();
+                this.controller.deserialize_state(text);
+                
+                // Update UI from controller state
+                this.outputsText = this.controller.get_outputs_text();
+                this.inputsText = this.controller.get_inputs_text();
+                this.recipeSearchText = this.controller.get_recipe_search_text();
+                this.inputCostsWeight = this.controller.get_input_costs_weight();
+                this.machineCountsWeight = this.controller.get_machine_counts_weight();
+                this.powerConsumptionWeight = this.controller.get_power_consumption_weight();
+                this.designPower = this.controller.get_design_power();
+                this.disableBalancers = this.controller.get_disable_balancers();
+                
+                // Refresh tree view and warnings
+                this.refreshTreeView();
+                this.updatePowerWarning();
+                this.updateConverterWarning();
+                
+                this.setStatus('Design loaded successfully', 'info');
+            } catch (error) {
+                this.setStatus('Failed to load design: ' + error.message, 'error');
+                console.error('Load state error:', error);
+            } finally {
+                // Reset file input so the same file can be loaded again
+                event.target.value = '';
             }
         }
     }

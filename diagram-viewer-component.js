@@ -1,10 +1,13 @@
 /**
  * Reusable diagram viewer component for documentation
+ * Wraps GraphvizViewerComponent with loading state and auto-fit behavior
  */
-import { GraphvizViewerMixin } from './graphviz-viewer.js';
+import { GraphvizViewerComponent } from './graphviz-viewer.js';
 
 const DiagramViewerComponent = {
-    mixins: [GraphvizViewerMixin],
+    components: {
+        'graphviz-viewer': GraphvizViewerComponent
+    },
     props: {
         dotSource: {
             type: String,
@@ -13,10 +16,6 @@ const DiagramViewerComponent = {
         isLoading: {
             type: Boolean,
             default: false
-        },
-        containerRef: {
-            type: String,
-            required: true
         }
     },
     template: `
@@ -24,46 +23,33 @@ const DiagramViewerComponent = {
             <div v-if="isLoading" class="example-loading">
                 <p>⏳ Generating diagram...</p>
             </div>
-            <div v-else class="viewer-container" 
-                 ref="viewerContainer"
-                 @wheel="handleZoom"
-                 @mousedown="startPan"
-                 @mousemove="handlePan"
-                 @mouseup="endPan"
-                 @mouseleave="endPan">
-                <div class="viewer-content">
-                    <div class="viewer-svg" ref="svgContainer"></div>
-                </div>
-            </div>
-            <div v-if="!isLoading && dotSource" class="zoom-indicator">
-                Zoom: {{ (zoomFactor * 100).toFixed(0) }}%
-                <button class="zoom-fit-button" @click="zoomToFit">Fit</button>
-            </div>
+            <graphviz-viewer
+                v-else
+                ref="viewer"
+                :dot-source="dotSource"
+                placeholder="Diagram will appear here"
+            />
         </div>
     `,
     watch: {
         async dotSource(newVal) {
             if (newVal) {
+                // Wait for viewer to render, then zoom to fit
                 await this.$nextTick();
-                await this.renderDiagram();
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                if (this.$refs.viewer) {
+                    this.$refs.viewer.zoomToFit();
+                }
             }
         }
     },
-    mounted() {
+    async mounted() {
         if (this.dotSource) {
-            this.renderDiagram();
-        }
-    },
-    methods: {
-        async renderDiagram() {
+            // Wait for viewer to render, then zoom to fit
             await this.$nextTick();
-            const rendered = await this.renderGraphviz(this.dotSource, 'svgContainer');
-            
-            if (rendered) {
-                // Wait for container to be properly sized before fitting
-                // Use setTimeout to allow browser to complete layout
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                this.zoomToFit();
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            if (this.$refs.viewer) {
+                this.$refs.viewer.zoomToFit();
             }
         }
     }
