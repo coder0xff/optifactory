@@ -42,6 +42,7 @@
                 ref="factoryView"
                 :controller="factoryController"
                 @status-change="handleStatusChange"
+                @state-change="handleStateChange"
             />
         </div>
 
@@ -51,6 +52,7 @@
                 ref="economyView"
                 :controller="economyController"
                 @status-change="handleStatusChange"
+                @state-change="handleStateChange"
             />
         </div>
 
@@ -70,6 +72,60 @@
         import { DocsViewerComponent } from './docs-viewer.js';
 
         const { createApp } = Vue;
+
+        // ============================================================================
+        // LocalStorage State Persistence
+        // ============================================================================
+
+        const STORAGE_KEY = 'optifactory_state';
+        const STORAGE_VERSION = 1;
+
+        /**
+         * Save complete application state to localStorage.
+         * @param {string} activeTab - current active tab
+         * @param {FactoryController} factoryController - factory controller instance
+         * @param {EconomyController} economyController - economy controller instance
+         */
+        function saveStateToLocalStorage(activeTab, factoryController, economyController) {
+            try {
+                const state = {
+                    version: STORAGE_VERSION,
+                    activeTab: activeTab,
+                    factoryState: factoryController.serialize_state(),
+                    economyState: economyController.save_to_csv()
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+                console.log('State saved to localStorage');
+            } catch (error) {
+                console.error('Failed to save state to localStorage:', error);
+            }
+        }
+
+        /**
+         * Load application state from localStorage.
+         * @returns {Object|null} state object or null if no saved state exists
+         */
+        function loadStateFromLocalStorage() {
+            try {
+                const stateJson = localStorage.getItem(STORAGE_KEY);
+                if (!stateJson) {
+                    console.log('No saved state found in localStorage');
+                    return null;
+                }
+                
+                const state = JSON.parse(stateJson);
+                if (state.version !== STORAGE_VERSION) {
+                    console.warn(`Unsupported state version ${state.version}, ignoring saved state`);
+                    return null;
+                }
+                
+                console.log('State loaded from localStorage');
+                return state;
+            } catch (error) {
+                console.error('Failed to load state from localStorage:', error);
+                return null;
+            }
+        }
 
         createApp({
             components: {
@@ -92,22 +148,68 @@
                 this.factoryController = new FactoryController(this.economyController.economy);
             },
             mounted() {
-                // Generate initial factory after components mount
-                this.$nextTick(() => {
-                    const factoryView = this.$refs.factoryView;
-                    if (factoryView) {
-                        factoryView.generateFactory().then(() => {
-                            this.setStatus('Welcome to Optifactory!');
-                        });
-                    } else {
-                        console.error('Factory view ref not found');
-                        this.setStatus('Welcome to Optifactory!');
-                    }
-                });
+                // Try to restore state from localStorage
+                const savedState = loadStateFromLocalStorage();
+                
+                if (savedState) {
+                    // Restore saved state
+                    this.restoreState(savedState);
+                } else {
+                    // First run: generate initial factory
+                    this.generateInitialFactory();
+                }
             },
             methods: {
+                restoreState(savedState) {
+                    try {
+                        // Restore active tab
+                        this.activeTab = savedState.activeTab;
+                        
+                        // Restore economy controller state
+                        this.economyController.load_from_csv(savedState.economyState);
+                        
+                        // Restore factory controller state (includes graphviz cache)
+                        this.factoryController.deserialize_state(savedState.factoryState);
+                        
+                        // Update economy reference in factory controller
+                        this.factoryController.economy = this.economyController.economy;
+                        
+                        this.setStatus('Previous session restored', 'info');
+                        console.log('State restored successfully');
+                    } catch (error) {
+                        console.error('Failed to restore state:', error);
+                        this.setStatus('Failed to restore previous session', 'warning');
+                        // Fall back to generating initial factory
+                        this.generateInitialFactory();
+                    }
+                },
+                generateInitialFactory() {
+                    this.$nextTick(() => {
+                        const factoryView = this.$refs.factoryView;
+                        if (factoryView) {
+                            factoryView.generateFactory().then(() => {
+                                this.setStatus('Welcome to Optifactory!');
+                            });
+                        } else {
+                            console.error('Factory view ref not found');
+                            this.setStatus('Welcome to Optifactory!');
+                        }
+                    });
+                },
+                saveState() {
+                    if (this.factoryController && this.economyController) {
+                        saveStateToLocalStorage(
+                            this.activeTab,
+                            this.factoryController,
+                            this.economyController
+                        );
+                    }
+                },
                 handleStatusChange(event) {
                     this.setStatus(event.text, event.level);
+                },
+                handleStateChange() {
+                    this.saveState();
                 },
                 setStatus(text, level = 'info') {
                     this.statusText = text;
@@ -118,6 +220,11 @@
                     } else {
                         this.statusClass = '';
                     }
+                }
+            },
+            watch: {
+                activeTab() {
+                    this.saveState();
                 }
             }
         }).mount('#app');

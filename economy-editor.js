@@ -77,7 +77,7 @@ const EconomyViewComponent = {
             required: true
         }
     },
-    emits: ['statusChange'],
+    emits: ['statusChange', 'stateChange'],
     data() {
         return {
             filterText: '',
@@ -100,29 +100,35 @@ const EconomyViewComponent = {
         onFilterChanged() {
             this.controller.set_filter_text(this.filterText);
             this.refreshView();
+            this.$emit('stateChange');
         },
         onHeaderClick(column) {
             this.controller.set_sort(column);
             this.refreshView();
+            this.$emit('stateChange');
         },
         onValueChanged(itemName, event) {
             const value = parseFloat(event.target.value);
             if (!isNaN(value) && value >= 0) {
                 this.controller.set_item_value(itemName, value);
+                this.$emit('stateChange');
             }
         },
         onPinnedToggle(itemName, event) {
             this.controller.set_item_pinned(itemName, event.target.checked);
+            this.$emit('stateChange');
         },
         resetEconomy() {
             this.controller.reset_to_default();
             this.refreshView();
             this.setStatus('Economy reset to default', 'info');
+            this.$emit('stateChange');
         },
         rebalanceValues() {
             this.controller.recompute_values();
             this.refreshView();
             this.setStatus('Economy values recomputed', 'info');
+            this.$emit('stateChange');
         },
         loadCSV() {
             // Trigger file input click (view responsibility)
@@ -140,6 +146,7 @@ const EconomyViewComponent = {
                     this.controller.load_from_csv(csvContent);
                     this.refreshView();
                     this.setStatus(`Loaded economy from ${file.name}`, 'info');
+                    this.$emit('stateChange');
                 } catch (error) {
                     this.setStatus(`Failed to load CSV: ${error.message}`, 'error');
                 }
