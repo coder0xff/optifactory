@@ -90,6 +90,28 @@ describe('GraphvizBuilder', () => {
         assert.ok(source.includes('C [label="Node C"]'));
     });
 
+    it('Node called once appears exactly once in output', () => {
+        const g = new Digraph();
+        g.node('A', 'Node A');
+        const source = g.source;
+        
+        // Count occurrences of the node definition
+        const nodeDefPattern = /A \[label="Node A"\]/g;
+        const matches = source.match(nodeDefPattern);
+        assert.strictEqual(matches?.length, 1, 'Node should appear exactly once');
+    });
+
+    it('Node with attributes called once appears exactly once', () => {
+        const g = new Digraph();
+        g.node('Test_Node', '', { shape: 'diamond', style: 'filled', fillcolor: 'lightyellow' });
+        const source = g.source;
+        
+        // Count how many times this exact node ID appears as a definition (without quotes since no spaces)
+        const nodeDefPattern = /Test_Node \[/g;
+        const matches = source.match(nodeDefPattern);
+        assert.strictEqual(matches?.length, 1, `Node definition should appear exactly once, found: ${matches?.length || 0}`);
+    });
+
     it('Node with newline in label', () => {
         const g = new Digraph();
         g.node('A', 'Line 1\nLine 2');

@@ -360,4 +360,43 @@ describe('Factory', () => {
         assert.ok(!source.includes('_Hub'),
             'Should not have hub nodes when balancers are enabled');
     });
+
+    it('Generated graphviz should not have duplicate node definitions', async () => {
+        const factory = await design_factory(
+            { 'Iron Plate': 30 },  // outputs
+            [['Iron Ore', 30]],     // inputs
+            [],                     // mines
+            null,                   // enablementSet
+            {},                     // economy
+            0.1,                    // inputCostsWeight
+            1.0,                    // machineCountsWeight
+            1.0,                    // powerConsumptionWeight
+            0.0,                    // wasteProductsWeight
+            false,                  // designPower
+            false                   // disableBalancers (use balancers)
+        );
+
+        const source = factory.network.source;
+        
+        // Find all node definitions (lines starting with node ID followed by [label=)
+        const nodeDefRegex = /^\s*"([^"]+)"\s+\[label=|^\s*(\S+)\s+\[label=/gm;
+        const nodeIds = {};
+        let match;
+        
+        while ((match = nodeDefRegex.exec(source)) !== null) {
+            const nodeId = match[1] || match[2];
+            nodeIds[nodeId] = (nodeIds[nodeId] || 0) + 1;
+        }
+        
+        // Check for duplicates
+        const duplicates = [];
+        for (const [nodeId, count] of Object.entries(nodeIds)) {
+            if (count > 1) {
+                duplicates.push(`${nodeId} (${count} times)`);
+            }
+        }
+        
+        assert.strictEqual(duplicates.length, 0, 
+            `Found duplicate node definitions: ${duplicates.join(', ')}`);
+    });
 });

@@ -631,7 +631,11 @@ function _buildNodeMapping(sources, sinks) {
  * @param {Object<string, string>} nodeMapping - dict to update with ID mappings
  */
 function _copyBalancerNodes(dot, balancerSrc, material, balancerCounter, nodeMapping) {
-    const nodeRegex = /(S\d+|M\d+)\s+\[label="[^"]*"[^\]]*\]/g;
+    // Match node definitions but not edges (which contain ->)
+    // Node lines look like: S0 [label="", ...]
+    // Edge lines look like: I0 -> S0 [label="60"]
+    // We need to match only lines that start with the node ID (after optional whitespace)
+    const nodeRegex = /^\s*(S\d+|M\d+)\s+\[label="[^"]*"[^\]]*\]/gm;
     let match;
     while ((match = nodeRegex.exec(balancerSrc)) !== null) {
         const oldId = match[1];
