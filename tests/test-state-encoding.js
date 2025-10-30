@@ -1,8 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { encodeStateToBase64, decodeStateFromBase64, loadStateFromUrlHash } from './state-encoding.js';
-import { FactoryController } from './factory-controller.js';
-import { EconomyController } from './economy-controller.js';
+import { encodeStateToBase64, decodeStateFromBase64, loadStateFromUrlHash } from '../state-encoding.js';
+import { FactoryController } from '../factory-controller.js';
+import { EconomyController } from '../economy-controller.js';
 
 describe('State Encoding for URL Sharing', () => {
     describe('encodeStateToBase64', () => {

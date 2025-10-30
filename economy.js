@@ -542,7 +542,6 @@ function _compute_economy_values(recipes, pinnedValues = null) {
     
     // Setup phase
     const allParts = _collect_all_parts(recipes);
-    _LOGGER.info(`Computing economies for ${Object.keys(recipes).length} recipes. This will take a moment...`);
     
     const sortedParts = Array.from(allParts).sort();
     const [partsToIndex, pinnedIndexValues] = _create_index_mappings(sortedParts, pinnedValues);

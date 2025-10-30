@@ -7,9 +7,9 @@ import {
     MachineTreeNode,
     RecipeTreeStructure,
     FactoryController
-} from './factory-controller.js';
-import { Recipe, Purity } from './recipes.js';
-import { EconomyController } from './economy-controller.js';
+} from '../factory-controller.js';
+import { Recipe, Purity } from '../recipes.js';
+import { EconomyController } from '../economy-controller.js';
 
 describe('FactoryController', () => {
     // ====================================================================

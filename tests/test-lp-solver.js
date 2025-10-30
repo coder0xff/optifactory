@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { assertAlmostEqual } from './test-helpers.js';
-import { solve_lp, SolverResult } from './lp-solver.js';
+import { solve_lp, SolverResult } from '../lp-solver.js';
 
 describe('LP Solver', () => {
     it('simple optimization', async () => {

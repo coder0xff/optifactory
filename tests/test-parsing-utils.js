@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { parse_material_rate } from './parsing-utils.js';
+import { parse_material_rate } from '../parsing-utils.js';
 
 describe('Parsing Utils', () => {
     it('parse_material_rate parses valid input', () => {

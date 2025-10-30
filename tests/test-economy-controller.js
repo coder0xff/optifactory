@@ -4,13 +4,13 @@ import {
     EconomyItem,
     EconomyTableStructure,
     EconomyController
-} from './economy-controller.js';
+} from '../economy-controller.js';
 import {
     get_default_economy,
     compute_item_values,
     economy_to_csv,
     economy_from_csv
-} from './economy.js';
+} from '../economy.js';
 
 describe('EconomyController', () => {
     it('init should create controller with default economy', () => {

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { Recipe } from './recipes.js';
+import { Recipe } from '../recipes.js';
 import { 
     tarjan, 
     separate_economies, 
@@ -10,8 +10,8 @@ import {
     cost_of_recipes, 
     economy_to_csv, 
     economy_from_csv 
-} from './economy.js';
-import { get_all_recipes } from './recipes.js';
+} from '../economy.js';
+import { get_all_recipes } from '../recipes.js';
 
 describe('Economy', () => {
     // Test Tarjan's strongly connected components algorithm

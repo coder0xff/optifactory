@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { Factory, design_factory } from './factory.js';
-import { Purity, get_recipes_for } from './recipes.js';
+import { Factory, design_factory } from '../factory.js';
+import { Purity, get_recipes_for } from '../recipes.js';
 
 describe('Factory', () => {
     it('Factory class can be instantiated', () => {

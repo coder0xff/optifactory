@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { design_balancer } from './balancer.js';
+import { design_balancer } from '../balancer.js';
 
 /**
  * Count splitters and mergers in a graph

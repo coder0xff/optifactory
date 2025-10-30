@@ -20,7 +20,7 @@ import {
     get_fluid_color,
     _SCHEMATIC_RECIPES_LOOKUP,
     _UNLISTED_RECIPES
-} from './recipes.js';
+} from '../recipes.js';
 
 describe('Recipes', () => {
     it('get_conveyor_rate(0) returns 60', () => {

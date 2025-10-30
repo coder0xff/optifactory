@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { optimize_recipes } from './optimize.js';
+import { optimize_recipes } from '../optimize.js';
 
 describe('Optimize', () => {
     it('optimize_recipes is a function', () => {
@@ -21,7 +21,7 @@ describe('Optimize', () => {
 
     it('test_two_recipe_concrete: concrete optimized to use standard recipe with default economy', async () => {
         // Import cost_of_recipes for the check
-        const { cost_of_recipes } = await import('./economy.js');
+        const { cost_of_recipes } = await import('../economy.js');
         
         if (cost_of_recipes({"Concrete": 32}) > cost_of_recipes({"Alternate: Wet Concrete": 6})) {
             throw new Error("This test expects the standard recipe to be cheaper in the default economy.");
