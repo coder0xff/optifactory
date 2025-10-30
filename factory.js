@@ -223,7 +223,7 @@ function _computeRequiredRawMaterials(recipeCounts, outputs, inputs, mines) {
  * @param {number} machineCountsWeight - optimization weight
  * @param {number} powerConsumptionWeight - optimization weight
  * @param {boolean} designPower - whether to design power generation
- * @returns {[Object<string, number>, Object<string, Recipe>, Object<string, number>, Object<string, number>]} tuple of [machineInstances, recipesUsed, requiredRawMaterials, totalProduction]
+ * @returns {[Object<string, number>, Object<string, Recipe>, Object<string, number>, Object<string, number>, Object<string, number>]} tuple of [machineInstances, recipesUsed, requiredRawMaterials, totalProduction, recipeCounts]
  */
 async function _calculateMachines(
     outputs,
@@ -270,6 +270,7 @@ async function _calculateMachines(
         recipesUsed,
         requiredRawMaterials,
         totalProduction,
+        recipeCounts,
     ];
 }
 
@@ -821,11 +822,12 @@ function _routeMaterialsWithNodes(dot, materialFlows) {
  * A complete factory network with machines and balancers.
  */
 class Factory {
-    constructor(network, inputs, outputs, mines) {
+    constructor(network, inputs, outputs, mines, recipeCounts = null) {
         this.network = network;
         this.inputs = inputs;
         this.outputs = outputs;
         this.mines = mines;
+        this.recipeCounts = recipeCounts;
     }
 }
 
@@ -912,7 +914,7 @@ async function design_factory(
 
     // Phase 1: Calculate required machines
     report_progress("Optimizing recipe selection...");
-    const [machineInstances, recipesUsed, requiredRawMaterials, totalProduction] = 
+    const [machineInstances, recipesUsed, requiredRawMaterials, totalProduction, recipeCounts] = 
         await _calculateMachines(
             outputs,
             inputs,
@@ -960,13 +962,120 @@ async function design_factory(
         _routeMaterialsWithBalancers(dot, materialFlows);
     }
 
-    return new Factory(dot, inputs, actualOutputs, mines);
+    return new Factory(dot, inputs, actualOutputs, mines, recipeCounts);
+}
+
+/**
+ * Rebuild factory network graphviz from saved recipe counts.
+ * This is much faster than design_factory since it skips the optimizer.
+ * 
+ * @param {Object<string, number>} recipeCounts - recipe names to machine counts
+ * @param {Object<string, number>} outputs - requested output materials
+ * @param {Array<[string, number]>} inputs - available input materials
+ * @param {Array<[string, string]>} mines - resource mines
+ * @param {boolean} disableBalancers - whether to use simple hubs instead of balancers
+ * @param {boolean} compact - whether to use compact node names (N0, N1, etc.)
+ * @returns {string} graphviz DOT source
+ */
+function rebuild_graphviz_from_recipe_counts(
+    recipeCounts,
+    outputs,
+    inputs,
+    mines,
+    disableBalancers = false,
+    compact = false
+) {
+    // Normalize material names to canonical case
+    outputs = normalize_material_names(outputs);
+    inputs = normalize_input_array(inputs);
+    
+    // Transform recipeCounts to machineInstances and recipesUsed
+    const [machineInstances, recipesUsed, totalProduction] = _transformOptimizerOutput(recipeCounts);
+    
+    // Compute required raw materials
+    const requiredRawMaterials = _computeRequiredRawMaterials(
+        recipeCounts, outputs, inputs, mines
+    );
+    
+    // Recompute balance for output calculation
+    const balance = _recomputeBalanceForOutputs(
+        inputs, mines, outputs, machineInstances, recipesUsed
+    );
+    
+    // Build network graph
+    const dot = new Digraph("Factory Network");
+    dot.attr({ rankdir: "LR", dpi: 50 });
+    
+    // Track material flows
+    const materialFlows = {};
+    
+    // Add nodes
+    _addInputNodes(dot, inputs, mines, requiredRawMaterials, materialFlows);
+    _addMachineNodes(dot, machineInstances, recipesUsed, materialFlows);
+    _addOutputNodes(dot, outputs, totalProduction, balance, materialFlows);
+    
+    // Route materials
+    if (disableBalancers) {
+        _routeMaterialsWithNodes(dot, materialFlows);
+    } else {
+        _routeMaterialsWithBalancers(dot, materialFlows);
+    }
+    
+    // Return DOT source
+    if (compact) {
+        return _compactify_graphviz(dot.source);
+    } else {
+        return dot.source;
+    }
+}
+
+/**
+ * Convert verbose graphviz node names to compact format (N0, N1, etc.)
+ * This significantly reduces the size of the DOT source for URL encoding.
+ * 
+ * @param {string} source - verbose graphviz DOT source
+ * @returns {string} compact graphviz DOT source
+ */
+function _compactify_graphviz(source) {
+    // Extract all node IDs (both quoted and unquoted)
+    const nodeIdPattern = /(?:"([^"]+)"|([A-Za-z_]\w*))\s*\[/g;
+    const nodeIds = new Set();
+    let match;
+    while ((match = nodeIdPattern.exec(source)) !== null) {
+        const nodeId = match[1] || match[2];
+        if (nodeId) {
+            nodeIds.add(nodeId);
+        }
+    }
+    
+    // Create mapping from verbose names to compact names
+    const nodeMapping = new Map();
+    let nodeIndex = 0;
+    for (const nodeId of Array.from(nodeIds).sort()) {
+        nodeMapping.set(nodeId, `N${nodeIndex++}`);
+    }
+    
+    // Replace all node references with compact names
+    let compactSource = source;
+    for (const [verbose, compact] of nodeMapping.entries()) {
+        // Handle quoted node IDs
+        const quotedPattern = new RegExp(`"${verbose.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`, 'g');
+        compactSource = compactSource.replace(quotedPattern, compact);
+        
+        // Handle unquoted node IDs (only if they're valid DOT identifiers)
+        if (/^[A-Za-z_]\w*$/.test(verbose)) {
+            const unquotedPattern = new RegExp(`\\b${verbose.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
+            compactSource = compactSource.replace(unquotedPattern, compact);
+        }
+    }
+    
+    return compactSource;
 }
 
 // ============================================================================
 // Exports
 // ============================================================================
 
-export { Factory, design_factory };
+export { Factory, design_factory, rebuild_graphviz_from_recipe_counts };
 
 

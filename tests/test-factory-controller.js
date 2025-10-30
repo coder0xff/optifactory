@@ -608,7 +608,8 @@ Copper Ingot:50
         assert.ok('power_consumption_weight' in state);
         assert.ok('design_power' in state);
         assert.ok('disable_balancers' in state);
-        assert.ok('graphviz_source' in state);
+        assert.ok('recipe_counts' in state);
+        assert.ok('balancer_version' in state);
     });
 
     it('test_serialize_state_with_custom_values: serialize_state should capture all custom state', () => {
@@ -639,13 +640,14 @@ Copper Ingot:50
         assert.strictEqual(state.disable_balancers, true);
     });
 
-    it('test_serialize_state_graphviz_null: serialize_state should handle null graphviz source', () => {
+    it('test_serialize_state_recipe_counts_null: serialize_state should handle null recipe counts', () => {
         const controller = new FactoryController({});
         
         const serialized = controller.serialize_state();
         const state = JSON.parse(serialized);
         
-        assert.strictEqual(state.graphviz_source, null);
+        assert.strictEqual(state.recipe_counts, null);
+        assert.strictEqual(state.balancer_version, 1);
     });
 
     it('test_deserialize_state: deserialize_state should restore state from JSON', () => {
@@ -716,7 +718,8 @@ Copper Ingot:50
             power_consumption_weight: 1.0,
             design_power: false,
             disable_balancers: false,
-            graphviz_source: null
+            recipe_counts: null,
+            balancer_version: 1
         });
         
         try {
@@ -752,24 +755,25 @@ Copper Ingot:50
         assert.strictEqual(serialized, serialized2);
     });
 
-    it('test_deserialize_state_preserves_graphviz_source: deserialize_state should preserve graphviz source', () => {
+    it('test_deserialize_state_preserves_recipe_counts: deserialize_state should preserve recipe counts', () => {
         const controller = new FactoryController({});
         
-        // Simulate having a graphviz source by setting the cache directly
-        const test_graphviz = "digraph G { node1 -> node2; }";
-        controller._cached_graphviz_source = test_graphviz;
+        // Simulate having recipe counts by setting them directly (use real recipe names)
+        const test_recipe_counts = {"Iron Ingot": 2, "Iron Plate": 1.5};
+        controller._recipe_counts = test_recipe_counts;
         
         // Serialize
         const serialized = controller.serialize_state();
         const state = JSON.parse(serialized);
-        assert.strictEqual(state.graphviz_source, test_graphviz);
+        // Should be encoded as flat array
+        assert.ok(Array.isArray(state.recipe_counts));
         
         // Deserialize into new controller
         const controller2 = new FactoryController({});
         controller2.deserialize_state(serialized);
         
-        // Verify graphviz source is available
-        assert.strictEqual(controller2.get_graphviz_source(), test_graphviz);
+        // Verify recipe counts are available (decoded back to object)
+        assert.deepStrictEqual(controller2._recipe_counts, test_recipe_counts);
         
         // Verify factory is still null
         assert.strictEqual(controller2.get_current_factory(), null);
@@ -822,16 +826,17 @@ Copper Ingot:50
             assert.strictEqual(parsed.enabled_recipes.length, 2);
         });
 
-        it('should include graphviz source when available', () => {
+        it('should include recipe counts when available', () => {
             const controller = new FactoryController({});
             
-            // Set cached graphviz source
-            controller._cached_graphviz_source = 'digraph G { A -> B; }';
+            // Set cached recipe counts (use real recipe name)
+            controller._recipe_counts = {"Iron Ingot": 2};
             
             const serialized = controller.serialize_state();
             const parsed = JSON.parse(serialized);
             
-            assert.strictEqual(parsed.graphviz_source, 'digraph G { A -> B; }');
+            assert.ok(Array.isArray(parsed.recipe_counts));
+            assert.strictEqual(parsed.balancer_version, 1);
         });
     });
 
@@ -849,7 +854,8 @@ Copper Ingot:50
                 power_consumption_weight: 0.5,
                 design_power: false,
                 disable_balancers: true,
-                graphviz_source: 'digraph G { A -> B; }'
+                recipe_counts: null,
+                balancer_version: 1
             };
             
             controller.deserialize_state(JSON.stringify(testState));
@@ -861,7 +867,8 @@ Copper Ingot:50
             assert.strictEqual(controller.get_power_consumption_weight(), 0.5);
             assert.strictEqual(controller.get_design_power(), false);
             assert.strictEqual(controller.get_disable_balancers(), true);
-            assert.strictEqual(controller.get_graphviz_source(), 'digraph G { A -> B; }');
+            // graphviz_source is no longer cached - check factory is null instead
+            assert.strictEqual(controller.get_current_factory(), null);
         });
 
         it('should restore enabled recipes from state', () => {
@@ -877,7 +884,8 @@ Copper Ingot:50
                 power_consumption_weight: 1.0,
                 design_power: false,
                 disable_balancers: false,
-                graphviz_source: null
+                recipe_counts: null,
+                balancer_version: 1
             };
             
             controller.deserialize_state(JSON.stringify(testState));
@@ -928,7 +936,8 @@ Copper Ingot:50
                 power_consumption_weight: 1.0,
                 design_power: false,
                 disable_balancers: false,
-                graphviz_source: null
+                recipe_counts: null,
+                balancer_version: 1
             };
             
             controller.deserialize_state(JSON.stringify(testState));
@@ -988,13 +997,14 @@ Copper Ingot:50
             assert.strictEqual(controller2.get_enabled_recipes().size, 0);
         });
 
-        it('should handle null graphviz source', () => {
+        it('should handle null recipe counts', () => {
             const controller = new FactoryController({});
             
             const serialized = controller.serialize_state();
             const parsed = JSON.parse(serialized);
             
-            assert.strictEqual(parsed.graphviz_source, null);
+            assert.strictEqual(parsed.recipe_counts, null);
+            assert.strictEqual(parsed.balancer_version, 1);
         });
 
         it('should handle default recipe search text', () => {

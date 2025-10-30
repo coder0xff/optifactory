@@ -6,13 +6,14 @@
     <title>Optifactory - Factory Planner</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
+    <script src="https://unpkg.com/lz-string@1.5.0/libs/lz-string.min.js"></script>
     <script src="highs.cjs"></script>
 </head>
 <body>
     <div id="app">
         <div class="header">
             <div class="app-title">Optifactory - Factory Planner</div>
-            <button @click="shareDesign" class="share-button" title="Share current design as link">
+            <button @click="shareDesign" class="share-button" title="Share current design as link (Shift+Click to include economy)">
                 Share Design
             </button>
         </div>
@@ -183,8 +184,10 @@
                         // Restore active tab
                         this.activeTab = savedState.activeTab;
                         
-                        // Restore economy controller state
-                        this.economyController.load_from_csv(savedState.economyState);
+                        // Restore economy controller state (if present in URL)
+                        if (savedState.economyState) {
+                            this.economyController.load_from_csv(savedState.economyState);
+                        }
                         
                         // Restore factory controller state (includes graphviz cache)
                         this.factoryController.deserialize_state(savedState.factoryState);
@@ -235,11 +238,14 @@
                         );
                     }
                 },
-                shareDesign() {
+                shareDesign(event) {
                     if (!this.factoryController || !this.economyController) {
                         this.setStatus('No design to share', 'warning');
                         return;
                     }
+                    
+                    // Check if Shift key is pressed to include economy
+                    const includeEconomy = event && event.shiftKey;
                     
                     try {
                         // Build state object (same as localStorage format)
@@ -250,8 +256,8 @@
                             economyState: this.economyController.save_to_csv()
                         };
                         
-                        // Encode to base64
-                        const base64State = encodeStateToBase64(state);
+                        // Encode to base64 (with bitmap compression and optional economy)
+                        const base64State = encodeStateToBase64(state, { includeEconomy });
                         
                         // Update URL hash
                         const shareUrl = `${window.location.origin}${window.location.pathname}#share=${base64State}`;
@@ -260,11 +266,16 @@
                         // Set flag so hash will be cleared on next state change
                         this.loadedFromHash = true;
                         
+                        // Build status message
+                        const sizeKB = (base64State.length / 1024).toFixed(1);
+                        const economyMsg = includeEconomy ? ' (with economy)' : '';
+                        const statusMsg = `Share link copied! (${sizeKB}KB${economyMsg})`;
+                        
                         // Try to copy to clipboard
                         if (navigator.clipboard && navigator.clipboard.writeText) {
                             navigator.clipboard.writeText(shareUrl)
                                 .then(() => {
-                                    this.setStatus('Share link copied to clipboard!', 'info');
+                                    this.setStatus(statusMsg, 'info');
                                 })
                                 .catch(err => {
                                     console.error('Failed to copy to clipboard:', err);

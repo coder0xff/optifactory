@@ -3,9 +3,66 @@
  * Ported from Python factory_controller.py
  */
 
-import { design_factory } from './factory.js';
+import { design_factory, rebuild_graphviz_from_recipe_counts } from './factory.js';
 import { parse_material_rate } from './parsing-utils.js';
 import { get_all_recipes_by_machine, get_recipes_for, get_default_enablement_set, _SCHEMATIC_RECIPES_LOOKUP } from './recipes.js';
+import { RECIPE_INDEX_V1, RECIPE_TO_INDEX_V1 } from './recipe-index-v1.js';
+
+// ============================================================================
+// Recipe Counts Encoding/Decoding Helpers
+// ============================================================================
+
+/**
+ * Encode recipe counts using recipe indices for compact storage.
+ * Converts {"Recipe Name": count} to flat array [index, count, index, count, ...]
+ * @param {Object<string, number>|null} recipeCounts - recipe name to count mapping
+ * @returns {Array<number>|null} flat array of [index, count, ...] or null
+ */
+function encodeRecipeCounts(recipeCounts) {
+    if (!recipeCounts) return null;
+    
+    const encoded = [];
+    for (const [recipeName, count] of Object.entries(recipeCounts)) {
+        const index = RECIPE_TO_INDEX_V1.get(recipeName);
+        if (index === undefined) {
+            console.warn(`Unknown recipe in recipeCounts: ${recipeName}`);
+            continue;
+        }
+        encoded.push(index, count);
+    }
+    return encoded.length > 0 ? encoded : null;
+}
+
+/**
+ * Decode recipe counts from indexed format.
+ * Converts flat array [index, count, index, count, ...] to {"Recipe Name": count}
+ * @param {Array<number>|null} encoded - flat array of [index, count, ...]
+ * @returns {Object<string, number>|null} recipe name to count mapping or null
+ */
+function decodeRecipeCounts(encoded) {
+    if (!encoded || !Array.isArray(encoded) || encoded.length === 0) return null;
+    
+    const recipeCounts = {};
+    for (let i = 0; i < encoded.length; i += 2) {
+        const index = encoded[i];
+        const count = encoded[i + 1];
+        
+        if (index === undefined || count === undefined) {
+            console.warn(`Invalid recipe count encoding at position ${i}`);
+            continue;
+        }
+        
+        const recipeName = RECIPE_INDEX_V1[index];
+        if (!recipeName) {
+            console.warn(`Unknown recipe index: ${index}`);
+            continue;
+        }
+        
+        recipeCounts[recipeName] = count;
+    }
+    
+    return Object.keys(recipeCounts).length > 0 ? recipeCounts : null;
+}
 
 // ============================================================================
 // Data Classes
@@ -141,6 +198,11 @@ class FactoryController {
         );
         this._mines_text = "";
         
+        // parsed configuration (for graphviz rebuilding)
+        this._outputs_parsed = null;
+        this._inputs_parsed = null;
+        this._mines_parsed = null;
+        
         // recipe state
         this.enabled_recipes = get_default_enablement_set();
         this._recipe_search_text = "";
@@ -157,8 +219,9 @@ class FactoryController {
         // generated factory (result)
         this._current_factory = null;
         
-        // cached graphviz source (preserved during serialization/deserialization)
-        this._cached_graphviz_source = null;
+        // cached recipe counts (preserved during serialization/deserialization)
+        this._recipe_counts = null;
+        this._balancer_version = 1;
     }
     
     // ========== State Getters ==========
@@ -268,14 +331,59 @@ class FactoryController {
     }
     
     /**
-     * Get graphviz source from current factory or cache.
-     * @returns {string|null} Graphviz source string, or null if no factory generated
+     * Get graphviz source for display (verbose node names).
+     * Rebuilds from cached recipe_counts if available, otherwise from current factory.
+     * @returns {string|null} graphviz DOT source or null if no factory
      */
     get_graphviz_source() {
+        // If we have cached recipe counts, rebuild the graphviz
+        if (this._recipe_counts !== null) {
+            try {
+                return rebuild_graphviz_from_recipe_counts(
+                    this._recipe_counts,
+                    this._outputs_parsed,
+                    this._inputs_parsed,
+                    this._mines_parsed,
+                    this._disable_balancers,
+                    false  // verbose mode for display
+                );
+            } catch (error) {
+                console.error("Failed to rebuild graphviz from recipe_counts:", error);
+                // Fall through to try getting from current factory
+            }
+        }
+        
+        // Fallback: get from current factory if available
         if (this._current_factory !== null && this._current_factory.network !== null) {
             return this._current_factory.network.source;
         }
-        return this._cached_graphviz_source;
+        
+        return null;
+    }
+    
+    /**
+     * Get compact graphviz source for URL encoding.
+     * Uses short node names (N0, N1, etc.) to minimize size.
+     * @returns {string|null} compact graphviz DOT source or null if no factory
+     */
+    get_compact_graphviz_source() {
+        if (this._recipe_counts === null) {
+            return null;
+        }
+        
+        try {
+            return rebuild_graphviz_from_recipe_counts(
+                this._recipe_counts,
+                this._outputs_parsed,
+                this._inputs_parsed,
+                this._mines_parsed,
+                this._disable_balancers,
+                true  // compact mode for URLs
+            );
+        } catch (error) {
+            console.error("Failed to rebuild compact graphviz:", error);
+            return null;
+        }
     }
     
     /**
@@ -934,7 +1042,8 @@ class FactoryController {
             waste_products_weight: this._waste_products_weight,
             design_power: this._design_power,
             disable_balancers: this._disable_balancers,
-            graphviz_source: this.get_graphviz_source()
+            recipe_counts: encodeRecipeCounts(this._recipe_counts),
+            balancer_version: this._balancer_version
         };
         return JSON.stringify(state, null, 2);
     }
@@ -968,8 +1077,31 @@ class FactoryController {
         this.set_design_power(state.design_power);
         this.set_disable_balancers(state.disable_balancers);
         
-        // restore cached graphviz source
-        this._cached_graphviz_source = state.graphviz_source;
+        // Parse and store configuration for graphviz rebuilding
+        try {
+            const outputs_list = FactoryController.parse_config_text(this._outputs_text);
+            const inputs_list = FactoryController.parse_config_text(this._inputs_text);
+            this._outputs_parsed = Object.fromEntries(outputs_list);
+            this._inputs_parsed = inputs_list;
+            this._mines_parsed = [];  // TODO: Parse mines if needed
+        } catch (error) {
+            console.warn("Failed to parse configuration during deserialization:", error);
+            this._outputs_parsed = null;
+            this._inputs_parsed = null;
+            this._mines_parsed = null;
+        }
+        
+        // restore cached recipe counts and balancer version
+        // recipe_counts may be encoded (flat array) or legacy format (object)
+        if (Array.isArray(state.recipe_counts)) {
+            this._recipe_counts = decodeRecipeCounts(state.recipe_counts);
+        } else {
+            this._recipe_counts = state.recipe_counts || null;
+        }
+        this._balancer_version = state.balancer_version || 1;
+        
+        // backward compatibility: ignore old graphviz_source field if present
+        // (it will be regenerated from recipe_counts if needed)
         
         // clear current factory (factory must be regenerated)
         this._current_factory = null;
@@ -990,11 +1122,16 @@ class FactoryController {
         const outputs_list = FactoryController.parse_config_text(this._outputs_text);
         const inputs_list = FactoryController.parse_config_text(this._inputs_text);
         
+        // Store parsed values for graphviz rebuilding
+        this._outputs_parsed = Object.fromEntries(outputs_list);
+        this._inputs_parsed = inputs_list;
+        this._mines_parsed = [];  // TODO: Parse mines if needed
+        
         // build config from current state
         const config = new FactoryConfig(
-            Object.fromEntries(outputs_list),
-            inputs_list,
-            [],  // TODO: Parse mines if needed
+            this._outputs_parsed,
+            this._inputs_parsed,
+            this._mines_parsed,
             this.enabled_recipes,
             this._input_costs_weight,
             this._machine_counts_weight,
@@ -1007,7 +1144,7 @@ class FactoryController {
         // generate and cache result (design_factory is async)
         const factory = await this.generate_factory(config, onProgress);
         this._current_factory = factory;
-        this._cached_graphviz_source = factory.network.source;
+        this._recipe_counts = factory.recipeCounts;
         
         console.log("Factory generated successfully");
         

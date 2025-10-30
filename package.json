@@ -5,7 +5,10 @@
   "description": "Factory optimization tools",
   "scripts": {
     "test": "node --test test-*.js",
-    "test:watch": "node --test --watch test-*.js"
+    "test:watch": "node --test --watch test-*.js",
+    "generate-recipe-index": "node scripts/generate-recipe-index.js"
+  },
+  "devDependencies": {
+    "lz-string": "^1.5.0"
   }
 }
-
