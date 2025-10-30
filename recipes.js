@@ -3,10 +3,10 @@
  * All quantities are "per minute".
  */
 
-import { RECIPES_DATA } from './recipes-data.js';
-import { POWER_RECIPES_DATA } from './power-recipes-data.js';
-import { LOADS_DATA } from './loads-data.js';
-import { FLUIDS_DATA } from './fluids-data.js';
+import { RECIPES_DATA } from './data/recipes-data.js';
+import { POWER_RECIPES_DATA } from './data/power-recipes-data.js';
+import { LOADS_DATA } from './data/loads-data.js';
+import { FLUIDS_DATA } from './data/fluids-data.js';
 
 // ============================================================================
 // Constants
