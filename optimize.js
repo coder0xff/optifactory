@@ -654,6 +654,7 @@ function _apply_economy_weight(weighted_cost, part, economy) {
  *     part is a material name not in outputs
  *     part_count is a LinExpr for part availability
  *     base_parts is the set of base materials
+ *     inputs maps material names to available input amounts
  *     design_power indicates whether power design is enabled
  *     weights are non-negative numbers
  *     economy is either null or an object of material values
@@ -664,11 +665,13 @@ function _apply_economy_weight(weighted_cost, part, economy) {
  *     returns [weighted_part_cost, updated_power_sum]
  *     weighted_part_cost may be null if weight is zero
  *     adds balance constraint to builder for non-base, non-power parts
+ *     parts with input quantity of 0 are allowed negative balances (can be external inputs)
  *     updates power_sum if part is "MWm" and design_power is true
  *
  * @param {string} part - material name
  * @param {LinExpr} part_count - LinExpr for part availability
  * @param {Set<string>} base_parts - set of base material names
+ * @param {Object<string, number>} inputs - material -> available amount
  * @param {boolean} design_power - whether power design is enabled
  * @param {number} input_costs_weight - weight for input costs
  * @param {number} power_consumption_weight - weight for power consumption
@@ -681,6 +684,7 @@ function _compute_weighted_part_cost(
     part,
     part_count,
     base_parts,
+    inputs,
     design_power,
     input_costs_weight,
     power_consumption_weight,
@@ -700,15 +704,15 @@ function _compute_weighted_part_cost(
         } else {
             weighted_part_cost = null;
         }
-    } else if (base_parts.has(part)) {
-        // allow base parts to have negative balances
+    } else if (base_parts.has(part) || (part in inputs && inputs[part] === 0)) {
+        // allow base parts and parts with input quantity 0 to have negative balances
         if (input_costs_weight > 0) {
             weighted_part_cost = weighted_part_cost.mul(input_costs_weight);
         } else {
             weighted_part_cost = null;
         }
     } else {
-        // force non-base parts to have non-negative balances
+        // force non-base parts and parts with input quantity > 0 to have non-negative balances
         const constraint = part_count.greater_or_equal(0);
         builder.add_constraint(constraint, _safe_var_name(`${part}_balance`));
     }
@@ -788,6 +792,7 @@ function _add_material_balance_constraints(
                 part,
                 part_count,
                 base_parts,
+                inputs,
                 design_power,
                 input_costs_weight,
                 power_consumption_weight,

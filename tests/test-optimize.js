@@ -188,4 +188,25 @@ describe('Optimize', () => {
             }
         }
     });
+
+    it('test_zero_quantity_input_allows_negative_balance: derived part with input quantity 0 can be used as external input', async () => {
+        // When a derived part (like Iron Ingot) is specified with input quantity 0,
+        // it should be allowed to have a negative balance (appear in required inputs)
+        // This allows users to designate certain manufactured parts as candidate inputs
+        const actual = await optimize_recipes(
+            {"Iron Ingot": 0},  // Iron Ingot specified with quantity 0 - can be requested from external source
+            {"Iron Rod": 1},
+            {
+                enablement_set: new Set(["Iron Rod"]),  // Only enable Iron Rod recipe, not Iron Ingot production
+                economy: {}
+            }
+        );
+        
+        // The optimizer should produce Iron Rod using the Constructor recipe
+        // but source Iron Ingot externally (negative balance) rather than producing it
+        assert.strictEqual(actual["Iron Rod"], 1.0);
+        
+        // Verify Iron Ingot is NOT produced (should be external input)
+        assert.ok(!("Iron Ingot" in actual), "Iron Ingot should not be produced, should be external input");
+    });
 });

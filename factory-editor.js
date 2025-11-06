@@ -20,7 +20,7 @@ const FactoryViewComponent = {
                 <div class="section">
                     <div class="section-title">Available Inputs (optional):</div>
                     <div class="section-hint">One per line for separate conveyors</div>
-                    <div class="section-hint">Example: Limestone:480</div>
+                    <div class="section-hint">Example: Limestone:480 or just Limestone</div>
                     <textarea v-model="inputsText" @input="onInputsChanged"></textarea>
                 </div>
 

@@ -79,13 +79,11 @@ Copper Ingot:50
         assert.strictEqual(result.length, 0);
     });
 
-    it('test_parse_config_text_invalid: parse_config_text should throw on invalid format', () => {
-        try {
-            FactoryController.parse_config_text("Invalid Line Without Colon");
-            throw new Error('Should have thrown');
-        } catch (e) {
-            if (!e.message.includes('Invalid format')) throw e;
-        }
+    it('test_parse_config_text_without_rate: parse_config_text should default to 0 rate when no colon', () => {
+        const result = FactoryController.parse_config_text("Iron Ore");
+        assert.strictEqual(result.length, 1);
+        assert.strictEqual(result[0][0], "Iron Ore");
+        assert.strictEqual(result[0][1], 0);
     });
 
     it('test_parse_config_text_case_insensitive_concrete: parse_config_text should recognize both concrete and Concrete', () => {

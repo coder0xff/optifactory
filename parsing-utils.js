@@ -65,20 +65,24 @@ function _parse_rate_value(rate_str, material) {
 }
 
 /**
- * Parse a 'Material:Rate' string into a [material, rate] tuple.
+ * Parse a 'Material:Rate' or 'Material' string into a [material, rate] tuple.
  * 
  * Precondition:
- *     text is a non-null string in format "Material:Rate"
+ *     text is a non-null string in format "Material:Rate" or "Material"
  * 
  * Postcondition:
  *     returns [material_name, rate] where material_name is trimmed and rate is a float
+ *     if no colon is present, rate defaults to 0, which means an unlimited amount of the material is available
  *
- * @param {string} text - string in format "Material:Rate" (e.g., "Iron Ore:120")
+ * @param {string} text - string in format "Material:Rate" (e.g., "Iron Ore:120") or "Material" (e.g., "Iron Plate")
  * @returns {[string, number]} [material_name, rate]
  * @throws {Error} if format is invalid or rate is not a number
  */
 export function parse_material_rate(text) {
-    _validate_has_colon(text);
+    if (!text.includes(':')) {
+        // no colon means rate defaults to 0
+        return [text.trim(), 0];
+    }
     const [material, rate_str] = _split_material_rate_string(text);
     const rate = _parse_rate_value(rate_str, material);
     return [material, rate];

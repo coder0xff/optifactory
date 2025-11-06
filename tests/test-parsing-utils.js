@@ -27,11 +27,16 @@ describe('Parsing Utils', () => {
         assert.strictEqual(rate, -30);
     });
 
-    it('parse_material_rate throws on missing colon', () => {
-        assert.throws(
-            () => parse_material_rate('Iron Ore 120'),
-            /Invalid format/
-        );
+    it('parse_material_rate handles material without rate (defaults to 0)', () => {
+        const [material, rate] = parse_material_rate('Iron Ore');
+        assert.strictEqual(material, 'Iron Ore');
+        assert.strictEqual(rate, 0);
+    });
+
+    it('parse_material_rate handles material without rate with whitespace', () => {
+        const [material, rate] = parse_material_rate('  Iron Plate  ');
+        assert.strictEqual(material, 'Iron Plate');
+        assert.strictEqual(rate, 0);
     });
 
     it('parse_material_rate throws on invalid rate', () => {
@@ -68,11 +73,10 @@ describe('Parsing Utils', () => {
         assert.strictEqual(rate, 37.5);
     });
 
-    it('test_parse_material_rate_no_colon: should raise error without colon', () => {
-        assert.throws(
-            () => parse_material_rate("Iron Ore 120"),
-            /Invalid format/
-        );
+    it('test_parse_material_rate_no_colon: should default to 0 rate without colon', () => {
+        const [material, rate] = parse_material_rate("Iron Ore");
+        assert.strictEqual(material, "Iron Ore");
+        assert.strictEqual(rate, 0);
     });
 
     it('test_parse_material_rate_invalid_rate: should raise error for non-numeric rate', () => {
