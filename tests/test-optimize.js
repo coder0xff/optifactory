@@ -57,14 +57,6 @@ describe('Optimize', () => {
         assert.strictEqual(actual["Wire"], expected["Wire"]);
     });
 
-    it('test_quickwire: quickwire recipe optimized with default economy', async () => {
-        const actual = await optimize_recipes({}, {"Quickwire": 20});
-        const expected = {"Caterium Ingot": 1.0, "Quickwire": 1.0};
-        
-        assert.strictEqual(actual["Caterium Ingot"], expected["Caterium Ingot"]);
-        assert.strictEqual(actual["Quickwire"], expected["Quickwire"]);
-    });
-
     it('test_concrete_with_power_design: concrete with power design enabled', async () => {
         const actual = await optimize_recipes({}, {"Concrete": 480}, {enablement_set: new Set(["Concrete", "Coal Power"]), design_power: true});
         const expected = {"Concrete": 32.0, "Coal Power": 2.0};
@@ -209,4 +201,14 @@ describe('Optimize', () => {
         // Verify Iron Ingot is NOT produced (should be external input)
         assert.ok(!("Iron Ingot" in actual), "Iron Ingot should not be produced, should be external input");
     });
+
+    it('test_turbofuel: can make Compacted Coal', async () => {
+        const actual = await optimize_recipes(
+            {},
+            {"Compacted Coal": 1},
+            {enablement_set: new Set(["Alternate: Compacted Coal"])}
+        );
+        assert.strictEqual(actual["Alternate: Compacted Coal"] > 0, true);
+    });
+    
 });

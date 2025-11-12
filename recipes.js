@@ -171,6 +171,16 @@ function _register_recipe(recipe, recipe_name, machine) {
     _RECIPE_NAMES.set(recipe, recipe_name);
 }
 
+function _is_miner_output(part) {
+    for (const miner of Object.values(RECIPES_DATA.miners)) {
+        for (const resource of miner.allowedResources) {
+            if (RECIPES_DATA.items[resource].name === part) {
+                return true;
+            }
+        }
+    }
+}
+
 /**
  * Check if a part is a base part (has no recipe to create it).
  * @param {string} part - material name to check
@@ -178,6 +188,9 @@ function _register_recipe(recipe, recipe_name, machine) {
  */
 function _is_base_part(part) {
     if (!(part in _BY_OUTPUT)) {
+        return true;
+    }
+    if (_is_miner_output(part)) {
         return true;
     }
     // check if all recipes that output this part have no inputs
@@ -206,19 +219,6 @@ function _is_terminal_part(part) {
 }
 
 /**
- * Add hardcoded base materials to _BASE_PARTS.
- */
-function _add_hardcoded_base_parts() {
-    _BASE_PARTS.add("Iron Ore");
-    _BASE_PARTS.add("Copper Ore");
-    _BASE_PARTS.add("Limestone");
-    _BASE_PARTS.add("Caterium Ore");
-    _BASE_PARTS.add("Coal");
-    _BASE_PARTS.add("Water");
-    _BASE_PARTS.add("Crude Oil");
-}
-
-/**
  * Classify all parts as base parts and/or terminal parts.
  */
 function _classify_parts() {
@@ -230,7 +230,6 @@ function _classify_parts() {
             _TERMINAL_PARTS.add(part);
         }
     }
-    _add_hardcoded_base_parts();
 }
 
 /**

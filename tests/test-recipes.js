@@ -66,8 +66,16 @@ describe('Recipes', () => {
     
     it('get_base_parts() includes raw materials', () => {
         const base_parts = get_base_parts();
-        if (!base_parts.has('Iron Ore')) throw new Error('Missing Iron Ore');
+        if (!base_parts.has('Bauxite')) throw new Error('Missing Bauxite');
+        if (!base_parts.has('Caterium Ore')) throw new Error('Missing Caterium Ore');
+        if (!base_parts.has('Coal')) throw new Error('Missing Coal');
         if (!base_parts.has('Copper Ore')) throw new Error('Missing Copper Ore');
+        if (!base_parts.has('Crude Oil')) throw new Error('Missing Crude Oil');
+        if (!base_parts.has('Iron Ore')) throw new Error('Missing Iron Ore');
+        if (!base_parts.has('Limestone')) throw new Error('Missing Limestone');
+        if (!base_parts.has('Nitrogen Gas')) throw new Error('Missing Nitrogen Gas');
+        if (!base_parts.has('Raw Quartz')) throw new Error('Missing Raw Quartz');
+        if (!base_parts.has('Sulfur')) throw new Error('Missing Sulfur');
         if (!base_parts.has('Water')) throw new Error('Missing Water');
     });
     
