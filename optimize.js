@@ -481,21 +481,6 @@ function _validate_optimization_succeeded(result, design_power, lp_text = null) 
 }
 
 /**
- * Create LP builder for generating LP format text.
- *
- * Precondition:
- *     none
- *
- * Postcondition:
- *     returns an LPBuilder instance
- *
- * @returns {LPBuilder} LPBuilder instance
- */
-function _create_lp_builder() {
-    return new LPBuilder();
-}
-
-/**
  * Create LP variables for each enabled recipe.
  *
  * Precondition:
@@ -939,7 +924,7 @@ async function optimize_recipes(
     _validate_outputs_are_producible(outputs, part_recipe_matrix);
 
     report_progress("Creating LP model...");
-    const builder = _create_lp_builder();
+    const builder = new LPBuilder();
     const recipe_vars = _create_recipe_variables(builder, enablement_set);
 
     report_progress("Adding constraints...");
