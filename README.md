@@ -1,5 +1,7 @@
 # Optifactory
 
+Try it: https://coder0xff.github.io/optifactory/
+
 A web-based factory planning tool for Satisfactory. Design mathematically optimal production chains in seconds, and visualize factory networks with interactive diagrams.
 
 ## Overview
@@ -225,4 +227,5 @@ Or just open `index.html` directly in your browser (file:// protocol).
 - LP optimization: sub-second for typical factories
 - Graphviz rendering: instant with SVG (no rasterization)
 - All computation runs client-side with no server required
+
 
